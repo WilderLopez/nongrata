@@ -269,13 +269,25 @@ Worker), de modo que el bloqueo deje de depender del cliente.
 | `POST /v1/admin/ban` | `{ app, kind, value }` o `{ app, kind, hash }`, más `note` opcional. Con `value` en bruto, el Worker calcula el hash con el prefijo de la app y solo guarda el hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra el hash. `{ app, ref }` programa el desbaneo del bit para la próxima comprobación de ese dispositivo. |
 | `GET /v1/admin/lookup` | Por `hash` o `ref`. |
+| `GET /v1/admin/bans` | Los hashes baneados, de más reciente a más antiguo; filtros `kind` y `reason`. |
+| `GET /v1/admin/checks` | El `check_log` (últimos 30 días), de más reciente a más antiguo; filtros `ref`, `blocked` y `since`. |
+| `GET /v1/admin/log` | Cada `ban` y `unban` con éxito, de más reciente a más antiguo. |
 
-Todas con `Authorization: Bearer <ADMIN_TOKEN>`. Las tres exigen que la app esté configurada en ese Worker
+Todas con `Authorization: Bearer <ADMIN_TOKEN>`. Todas exigen que la app esté configurada en ese Worker
 (`HASH_PREFIX_<APP>`); si no, 400 `app not configured`, también con `hash` o `ref`, para que una
 errata en `app` no dé un 200 sin efecto. Desbanear por `ref` basta para un desbaneo
 completo: en la siguiente comprobación de ese dispositivo, el Worker pone `bit0` a false y borra
 los hashes que trae la petición. Desbanear un hash suelto sirve para retirar un identificador
 concreto (por ejemplo, el `icloud` de una pareja que comparte cuenta).
+
+> Implementación (2026-11-10): la API de administración pasa a ser una API de verdad para
+> cualquier cliente (un panel web, un bot, el backend de una app), no solo para la CLI. Tres
+> listados (`bans`, `checks`, `log`) con paginación por keyset (`limit` de 1 a 100, 50 por
+> defecto; un `next_cursor` opaco, `null` en la última página), y un registro de administración
+> (`admin_log`, migración `0002`) que apunta cada `ban` y `unban` con éxito en la misma
+> transacción. El registro no se purga: los baneos no caducan, así que su constancia tampoco, y
+> solo crece con acciones humanas. La guía es [API de administración](API-ADMIN.md) y el
+> contrato, la especificación OpenAPI 3.1 de [admin-api.yaml](../admin-api.yaml).
 
 ## 7. Worker
 
@@ -309,10 +321,29 @@ CREATE TABLE check_log (
   intent      TEXT,
   created_at  INTEGER NOT NULL
 );
+
+-- 0002_admin_log.sql
+CREATE TABLE admin_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  app         TEXT NOT NULL,
+  action      TEXT NOT NULL CHECK (action IN ('ban', 'unban')),
+  kind        TEXT CHECK (kind IN ('idfv', 'install', 'icloud', 'user', 'android_id')),
+  hash        TEXT,
+  ref         TEXT,
+  note        TEXT,
+  created_at  INTEGER NOT NULL
+);
 ```
 
 `check_log` solo guarda resultados (sin IPs ni identificadores en bruto) y sirve para el modo
 observación. Conviene purgarlo periódicamente con un Cron Trigger.
+
+> Implementación: el cron diario borra las filas de `check_log` de más de 30 días. `admin_log`
+> (2026-11-10) apunta las acciones de administración solo con lo que guardan los endpoints
+> (hash, `ref`, nota; nunca un `value` en bruto) y no se purga. La migración `0002` también
+> indexa `banned_ids` y `admin_log` por `(app, created_at)` para los listados; `check_log` no
+> recibe índice nuevo, porque se escribe en cada comprobación y su índice de `created_at` ya
+> los sirve.
 
 ### 7.2 JWT ES256 con Web Crypto
 
@@ -464,6 +495,9 @@ Un comando pequeño (Node o Swift) que envuelve los endpoints de admin:
 nongrata ban    app=myapp kind=idfv value=<valor> note=spam
 nongrata unban  app=myapp ref=A1B2C3D4
 nongrata lookup app=myapp ref=A1B2C3D4
+nongrata bans   app=myapp reason=manual
+nongrata checks app=myapp ref=A1B2C3D4 blocked=1
+nongrata log    app=myapp
 ```
 
 Lee el endpoint y el `ADMIN_TOKEN` de variables de entorno. El hash lo calcula el Worker.
@@ -474,6 +508,10 @@ Lee el endpoint y el `ADMIN_TOKEN` de variables de entorno. El hash lo calcula e
 > localhost. Añade `nongrata hash prefix=… kind=… value=…`, que calcula el hash sin red con la
 > misma fórmula del Worker (pasa `spec/hash-vectors.json`). Acepta el `ref` en minúsculas.
 > Códigos de salida: 0 bien, 1 error del Worker o de red, 2 uso incorrecto.
+>
+> 2026-11-10: `bans`, `checks` y `log` imprimen una página de cada listado (`limit=`,
+> `cursor=`; ver [API de administración](API-ADMIN.md)). La CLI comprueba `kind` y `ref` y pasa
+> el resto de filtros al Worker tal cual.
 
 ## 10. Estructura del repo
 

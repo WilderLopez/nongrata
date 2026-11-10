@@ -271,13 +271,25 @@ longer depends on the client.
 | `POST /v1/admin/ban` | `{ app, kind, value }` or `{ app, kind, hash }`, plus optional `note`. With a raw `value`, the Worker computes the hash with the app's prefix and stores only the hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes the hash. `{ app, ref }` schedules the bit unban for that device's next check. |
 | `GET /v1/admin/lookup` | By `hash` or `ref`. |
+| `GET /v1/admin/bans` | The banned hashes, newest first; filters `kind` and `reason`. |
+| `GET /v1/admin/checks` | The `check_log` (last 30 days), newest first; filters `ref`, `blocked` and `since`. |
+| `GET /v1/admin/log` | Every successful `ban` and `unban`, newest first. |
 
-All of them with `Authorization: Bearer <ADMIN_TOKEN>`. All three require the app to be
+All of them with `Authorization: Bearer <ADMIN_TOKEN>`. All of them require the app to be
 configured in that Worker (`HASH_PREFIX_<APP>`); otherwise, 400 `app not configured`, also with
 `hash` or `ref`, so that a typo in `app` does not give a 200 with no effect. Unbanning by `ref`
 is enough for a complete unban: on that device's next check, the Worker sets `bit0` to false and
 deletes the hashes the request carries. Unbanning a single hash is for removing a specific
 identifier (for example, the `icloud` of a couple who share an account).
+
+> Implementation (2026-11-10): the admin API became a proper API for any client (a web panel, a
+> bot, an app backend), not only the CLI. Three listings (`bans`, `checks`, `log`) with keyset
+> pagination (`limit` 1 to 100, 50 by default; an opaque `next_cursor`, `null` on the last
+> page), and an admin log (`admin_log`, migration `0002`) that records every successful `ban`
+> and `unban` in the same transaction. The log is not purged: bans do not expire, so neither
+> does their record, and it only grows with human actions. The guide is
+> [Admin API](ADMIN-API.md) and the contract, the OpenAPI 3.1 spec in
+> [admin-api.yaml](admin-api.yaml).
 
 ## 7. Worker
 
@@ -311,10 +323,28 @@ CREATE TABLE check_log (
   intent      TEXT,
   created_at  INTEGER NOT NULL
 );
+
+-- 0002_admin_log.sql
+CREATE TABLE admin_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  app         TEXT NOT NULL,
+  action      TEXT NOT NULL CHECK (action IN ('ban', 'unban')),
+  kind        TEXT CHECK (kind IN ('idfv', 'install', 'icloud', 'user', 'android_id')),
+  hash        TEXT,
+  ref         TEXT,
+  note        TEXT,
+  created_at  INTEGER NOT NULL
+);
 ```
 
 `check_log` stores only results (no IPs or raw identifiers) and serves observation mode. It
 should be purged periodically with a Cron Trigger.
+
+> Implementation: the daily cron deletes `check_log` rows older than 30 days. `admin_log`
+> (2026-11-10) records the admin actions with only what the endpoints store (hash, `ref`, note;
+> never a raw `value`) and is not purged. Migration `0002` also indexes `banned_ids` and
+> `admin_log` on `(app, created_at)` for the listings; `check_log` gets no new index, since it is
+> written on every check and its `created_at` index already serves them.
 
 ### 7.2 ES256 JWT with Web Crypto
 
@@ -468,6 +498,9 @@ A small command (Node or Swift) that wraps the admin endpoints:
 nongrata ban    app=myapp kind=idfv value=<value> note=spam
 nongrata unban  app=myapp ref=A1B2C3D4
 nongrata lookup app=myapp ref=A1B2C3D4
+nongrata bans   app=myapp reason=manual
+nongrata checks app=myapp ref=A1B2C3D4 blocked=1
+nongrata log    app=myapp
 ```
 
 It reads the endpoint and the `ADMIN_TOKEN` from environment variables. The Worker computes the
@@ -479,6 +512,10 @@ hash.
 > localhost. It adds `nongrata hash prefix=… kind=… value=…`, which computes the hash offline
 > with the same formula as the Worker (it passes `spec/hash-vectors.json`). It accepts the `ref`
 > in lowercase. Exit codes: 0 success, 1 Worker or network error, 2 incorrect usage.
+>
+> 2026-11-10: `bans`, `checks` and `log` print one page of each listing (`limit=`, `cursor=`;
+> see [Admin API](ADMIN-API.md)). The CLI checks `kind` and `ref` and passes the other filters
+> to the Worker as they are.
 
 ## 10. Repo structure
 

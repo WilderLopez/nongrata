@@ -1,0 +1,530 @@
+openapi: 3.1.0
+info:
+  title: NonGrata admin API
+  version: v1
+  summary: Ban, unban and inspect devices and Apple accounts of one app's NonGrata Worker.
+  description: |
+    The admin endpoints of a NonGrata Worker (`/v1/admin/*`). The guide is
+    [docs/ADMIN-API.md](ADMIN-API.md); the design, in section 6.4 of docs/DESIGN.md.
+
+    - Every request carries `Authorization: Bearer <ADMIN_TOKEN>`. Without it, or with the wrong
+      token, any `/v1/admin/*` path answers `401` before anything else, even an unknown one.
+    - Every endpoint requires `app`, and the app must be configured in that Worker
+      (`HASH_PREFIX_<APP>`); otherwise `400 invalid app` or `400 app not configured`.
+    - The Worker only stores and returns hashes (SHA-256 of `prefix:kind:value`) and support
+      codes (`ref`): never raw identifiers or IPs. A raw `value` sent to `ban`, `unban` or
+      `lookup` is hashed with the app's prefix and not kept.
+    - Timestamps are Unix milliseconds. Responses are JSON with `cache-control: no-store`.
+    - Listings (`bans`, `checks`, `log`) go newest first, `limit` items per page (1 to 100,
+      50 by default), with keyset pagination: pass the `next_cursor` of a page as `cursor` to
+      get the next one; it is `null` on the last page. Cursors are opaque.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://nongrata-{app}.{subdomain}.workers.dev
+    description: One Worker deployment per app.
+    variables:
+      app:
+        default: myapp
+      subdomain:
+        default: your-subdomain
+  - url: http://localhost:8787
+    description: wrangler dev
+security:
+  - adminToken: []
+tags:
+  - name: actions
+    description: Change the ban list. Every successful call is recorded in the admin log.
+  - name: inspection
+    description: Read-only.
+
+paths:
+  /v1/admin/ban:
+    post:
+      tags: [actions]
+      operationId: ban
+      summary: Ban an identifier
+      description: |
+        Adds the hash as a `manual` ban, or turns an existing `propagated` one into `manual`
+        (with the new note and time). With `value`, the Worker hashes it with the app's prefix.
+        The ban and its admin log entry are written in one transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/BanByValue"
+                - $ref: "#/components/schemas/BanByHash"
+            examples:
+              byValue:
+                value: { app: myapp, kind: idfv, value: E621E1F8-C36C-495A-93FC-0C247A3E6E5F, note: spam }
+              byHash:
+                value: { app: myapp, kind: icloud, hash: 3f0c2a6d8e1b4c7f9a2d5e8b1c4f7a0d3e6b9c2f5a8d1e4b7c0f3a6d9e2b5c8f }
+      responses:
+        "200":
+          description: Banned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [app, kind, hash]
+                properties:
+                  app: { $ref: "#/components/schemas/App" }
+                  kind: { $ref: "#/components/schemas/Kind" }
+                  hash: { $ref: "#/components/schemas/Hash" }
+              example: { app: myapp, kind: idfv, hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: |
+            `invalid app`, `app not configured`, `missing value or hash`, `invalid kind`,
+            `invalid hash`, `invalid value`.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/unban:
+    post:
+      tags: [actions]
+      operationId: unban
+      summary: Unban a hash, a device (by ref), or both
+      description: |
+        - `{ app, kind, value | hash }` deletes that hash from the list (`removed` says whether it
+          was there).
+        - `{ app, ref }` schedules a full unban of that device: on its next check the Worker sets
+          `bit0` to false and deletes the hashes the check carries.
+
+        Both can go in one request. Every successful call is recorded in the admin log, also
+        when `removed` is false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnbanRequest"
+            examples:
+              byRef:
+                value: { app: myapp, ref: 7F3A9C21 }
+              byValue:
+                value: { app: myapp, kind: user, value: u-1234 }
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [app]
+                properties:
+                  app: { $ref: "#/components/schemas/App" }
+                  hash:
+                    $ref: "#/components/schemas/Hash"
+                    description: Present when a hash was given.
+                  removed:
+                    type: boolean
+                    description: Present when a hash was given. Whether it was in the list.
+                  ref:
+                    $ref: "#/components/schemas/Ref"
+                    description: Present when a ref was given.
+                  unban_scheduled:
+                    const: true
+                    description: Present when a ref was given.
+              examples:
+                byRef:
+                  value: { app: myapp, ref: 7F3A9C21, unban_scheduled: true }
+                byHash:
+                  value: { app: myapp, hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c, removed: true }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: |
+            `invalid app`, `app not configured`, `missing value, hash or ref`, `invalid kind`,
+            `invalid hash`, `invalid value`, `invalid ref`.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/lookup:
+    get:
+      tags: [inspection]
+      operationId: lookup
+      summary: What is known about a ref or a hash
+      description: |
+        With `ref`: the pending or consumed unban of that device and its last 20 checks. With
+        `kind` and `value` or `hash`: the ban row, or `null`. `ref` wins if both are given.
+      parameters:
+        - $ref: "#/components/parameters/app"
+        - name: ref
+          in: query
+          schema: { $ref: "#/components/schemas/Ref" }
+        - name: kind
+          in: query
+          schema: { $ref: "#/components/schemas/Kind" }
+        - name: value
+          in: query
+          description: Raw identifier; hashed with the app's prefix and not kept.
+          schema: { type: string, minLength: 1 }
+        - name: hash
+          in: query
+          schema: { $ref: "#/components/schemas/Hash" }
+      responses:
+        "200":
+          description: Found or not (`unban` or `banned` is `null` when there is nothing).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    title: By ref
+                    required: [app, ref, unban, checks]
+                    properties:
+                      app: { $ref: "#/components/schemas/App" }
+                      ref: { $ref: "#/components/schemas/Ref" }
+                      unban:
+                        oneOf:
+                          - type: "null"
+                          - type: object
+                            required: [created_at, consumed_at]
+                            properties:
+                              created_at: { $ref: "#/components/schemas/Millis" }
+                              consumed_at:
+                                oneOf:
+                                  - $ref: "#/components/schemas/Millis"
+                                  - type: "null"
+                      checks:
+                        type: array
+                        maxItems: 20
+                        items:
+                          type: object
+                          required: [blocked, matched, bit0, intent, created_at]
+                          properties:
+                            blocked: { $ref: "#/components/schemas/Flag" }
+                            matched: { $ref: "#/components/schemas/Flag" }
+                            bit0: { $ref: "#/components/schemas/NullableFlag" }
+                            intent: { type: [string, "null"] }
+                            created_at: { $ref: "#/components/schemas/Millis" }
+                  - type: object
+                    title: By hash
+                    required: [app, hash, banned]
+                    properties:
+                      app: { $ref: "#/components/schemas/App" }
+                      hash: { $ref: "#/components/schemas/Hash" }
+                      banned:
+                        oneOf:
+                          - type: "null"
+                          - allOf:
+                              - $ref: "#/components/schemas/Ban"
+                              - type: object
+                                required: [app]
+                                properties:
+                                  app: { $ref: "#/components/schemas/App" }
+              examples:
+                byRef:
+                  value:
+                    app: myapp
+                    ref: 7F3A9C21
+                    unban: { created_at: 1762790400000, consumed_at: null }
+                    checks:
+                      - { blocked: 1, matched: 1, bit0: 1, intent: launch, created_at: 1762786800000 }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: |
+            `invalid app`, `app not configured`, `invalid ref`, `missing ref, value or hash`,
+            `invalid kind`, `invalid hash`, `invalid value`.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/bans:
+    get:
+      tags: [inspection]
+      operationId: listBans
+      summary: List the banned hashes
+      description: |
+        Newest first (by `created_at`, then by `hash`). A ban that becomes `manual` again takes
+        the time of that new ban. Unbanned hashes are deleted, so they are not listed; the admin
+        log keeps the record.
+      parameters:
+        - $ref: "#/components/parameters/app"
+        - name: kind
+          in: query
+          schema: { $ref: "#/components/schemas/Kind" }
+        - name: reason
+          in: query
+          schema: { $ref: "#/components/schemas/Reason" }
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Ban" }
+              example:
+                app: myapp
+                items:
+                  - hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c
+                    kind: idfv
+                    reason: manual
+                    note: spam
+                    created_at: 1762790400000
+                next_cursor: MTc2Mjc5MDQwMDAwMC45ZDJjNWY4YTFiNGU3ZDBjM2Y2YTliMmU1ZDhjMWY0YTdiMGUzZDZjOWYyYTViOGUxZDRjN2YwYTNiNmU5ZDJj
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: |
+            `invalid app`, `app not configured`, `invalid kind`, `invalid reason`,
+            `invalid limit`, `invalid cursor`.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/checks:
+    get:
+      tags: [inspection]
+      operationId: listChecks
+      summary: List recent checks
+      description: |
+        The `check_log`: one row per `POST /v1/device/check`, with the result only. Newest first.
+        The daily cron deletes rows older than 30 days, so this covers the last 30 days at most.
+        In observation mode (`ENFORCE_<APP>` off), `blocked` is what would have been blocked.
+      parameters:
+        - $ref: "#/components/parameters/app"
+        - name: ref
+          in: query
+          description: Only the checks of this device.
+          schema: { $ref: "#/components/schemas/Ref" }
+        - name: blocked
+          in: query
+          schema: { type: string, enum: ["0", "1"] }
+        - name: since
+          in: query
+          description: Only checks at or after this time (Unix ms, inclusive).
+          schema: { type: string, pattern: "^[0-9]+$" }
+          example: "1762704000000"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Check" }
+              example:
+                app: myapp
+                items:
+                  - { ref: 7F3A9C21, blocked: 1, matched: 0, bit0: 1, intent: launch, created_at: 1762786800000 }
+                  - { ref: 0B4E6D12, blocked: 0, matched: 0, bit0: null, intent: signup, created_at: 1762786200000 }
+                next_cursor: null
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: |
+            `invalid app`, `app not configured`, `invalid ref`, `invalid blocked`,
+            `invalid since`, `invalid limit`, `invalid cursor`.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/log:
+    get:
+      tags: [inspection]
+      operationId: listAdminLog
+      summary: List the admin actions
+      description: |
+        One entry per successful `ban` or `unban`, newest first. It stores what those endpoints
+        store (hash, ref, note), never a raw `value`. It is not purged: bans do not expire, and
+        neither does the record of who was banned or unbanned and why. Unbans by `ref` record
+        when they were scheduled; when a device consumes one shows in `lookup` by `ref`.
+      parameters:
+        - $ref: "#/components/parameters/app"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/LogEntry" }
+              example:
+                app: myapp
+                items:
+                  - { action: unban, kind: null, hash: null, ref: 7F3A9C21, note: null, created_at: 1762790400000 }
+                  - action: ban
+                    kind: idfv
+                    hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c
+                    ref: null
+                    note: spam
+                    created_at: 1762700000000
+                next_cursor: null
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: "`invalid app`, `app not configured`, `invalid limit`, `invalid cursor`."
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    adminToken:
+      type: http
+      scheme: bearer
+      description: The Worker's `ADMIN_TOKEN` secret. One token per Worker, so per app.
+
+  parameters:
+    app:
+      name: app
+      in: query
+      required: true
+      schema: { $ref: "#/components/schemas/App" }
+    limit:
+      name: limit
+      in: query
+      description: Items per page.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    cursor:
+      name: cursor
+      in: query
+      description: The `next_cursor` of the previous page. Opaque; only valid for the same listing.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid request; `error` says why.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: app not configured }
+    Unauthorized:
+      description: Missing or wrong bearer token, or a Worker without `ADMIN_TOKEN`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: unauthorized }
+
+  schemas:
+    App:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9_-]{0,31}$"
+      example: myapp
+    Kind:
+      type: string
+      enum: [idfv, install, icloud, user, android_id]
+    Reason:
+      type: string
+      enum: [manual, propagated]
+      description: "`manual`: banned through this API. `propagated`: added by the Worker when a blocked device carried it."
+    Hash:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
+      description: SHA-256 of `prefix:kind:value`, lowercase hex.
+    Ref:
+      type: string
+      pattern: "^[0-9A-F]{8}$"
+      description: Support code; the first 8 characters, uppercased, of the device's `install` hash.
+      example: 7F3A9C21
+    Millis:
+      type: integer
+      description: Unix time in milliseconds.
+      example: 1762790400000
+    Flag:
+      type: integer
+      enum: [0, 1]
+    NullableFlag:
+      type: [integer, "null"]
+      enum: [0, 1, null]
+      description: "`null` when Apple was not asked or did not answer."
+    Note:
+      type: [string, "null"]
+      maxLength: 500
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    BanByValue:
+      type: object
+      required: [app, kind, value]
+      properties:
+        app: { $ref: "#/components/schemas/App" }
+        kind: { $ref: "#/components/schemas/Kind" }
+        value: { type: string, minLength: 1, description: Raw identifier; hashed and not kept. }
+        note: { type: string, description: Truncated to 500 characters. }
+    BanByHash:
+      type: object
+      required: [app, kind, hash]
+      properties:
+        app: { $ref: "#/components/schemas/App" }
+        kind: { $ref: "#/components/schemas/Kind" }
+        hash: { $ref: "#/components/schemas/Hash" }
+        note: { type: string, description: Truncated to 500 characters. }
+    UnbanRequest:
+      type: object
+      required: [app]
+      description: A `ref`, an identifier (`kind` with `value` or `hash`), or both.
+      properties:
+        app: { $ref: "#/components/schemas/App" }
+        ref: { $ref: "#/components/schemas/Ref" }
+        kind: { $ref: "#/components/schemas/Kind" }
+        value: { type: string, minLength: 1 }
+        hash: { $ref: "#/components/schemas/Hash" }
+    Page:
+      type: object
+      required: [app, items, next_cursor]
+      properties:
+        app: { $ref: "#/components/schemas/App" }
+        items: { type: array }
+        next_cursor:
+          type: [string, "null"]
+          description: Pass it as `cursor` for the next page; `null` on the last one.
+    Ban:
+      type: object
+      required: [hash, kind, reason, note, created_at]
+      properties:
+        hash: { $ref: "#/components/schemas/Hash" }
+        kind: { $ref: "#/components/schemas/Kind" }
+        reason: { $ref: "#/components/schemas/Reason" }
+        note: { $ref: "#/components/schemas/Note" }
+        created_at: { $ref: "#/components/schemas/Millis" }
+    Check:
+      type: object
+      required: [ref, blocked, matched, bit0, intent, created_at]
+      properties:
+        ref: { $ref: "#/components/schemas/Ref" }
+        blocked:
+          $ref: "#/components/schemas/Flag"
+          description: The verdict (in observation mode, what it would have been).
+        matched:
+          $ref: "#/components/schemas/Flag"
+          description: One of the check's hashes was in the list.
+        bit0: { $ref: "#/components/schemas/NullableFlag" }
+        intent:
+          type: [string, "null"]
+          description: launch, foreground, login or signup, as the SDK sent it.
+        created_at: { $ref: "#/components/schemas/Millis" }
+    LogEntry:
+      type: object
+      required: [action, kind, hash, ref, note, created_at]
+      properties:
+        action: { type: string, enum: [ban, unban] }
+        kind:
+          oneOf:
+            - $ref: "#/components/schemas/Kind"
+            - type: "null"
+        hash:
+          oneOf:
+            - $ref: "#/components/schemas/Hash"
+            - type: "null"
+        ref:
+          oneOf:
+            - $ref: "#/components/schemas/Ref"
+            - type: "null"
+        note: { $ref: "#/components/schemas/Note" }
+        created_at: { $ref: "#/components/schemas/Millis" }

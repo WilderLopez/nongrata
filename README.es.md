@@ -192,7 +192,12 @@ pnpm ng ban    app=myapp kind=idfv value=<IDFV> note="spam"
 pnpm ng lookup app=myapp ref=7F3A9C21     # qué se sabe de ese código de soporte
 pnpm ng unban  app=myapp ref=7F3A9C21     # desbaneo completo en su próxima comprobación
 pnpm ng hash   prefix=myapp-ban-v1 kind=idfv value=<IDFV>   # el hash, sin red
+pnpm ng bans   app=myapp                  # la lista de baneos; también checks y log
 ```
+
+La CLI es un cliente de la API HTTP de administración del Worker; para hacer otro (un panel
+web, un bot, tu backend), ver la [guía de la API de administración](docs/es/API-ADMIN.md) y su
+[especificación OpenAPI](docs/admin-api.yaml).
 
 ## Lo que no hace
 
@@ -208,6 +213,7 @@ pnpm ng hash   prefix=myapp-ban-v1 kind=idfv value=<IDFV>   # el hash, sin red
 - [Diseño completo](docs/es/DISENO.md): el problema, la arquitectura, el contrato, el algoritmo,
   los riesgos y lo que queda por verificar.
 - [Integrar en una app iOS](docs/es/INTEGRACION-IOS.md).
+- [API de administración](docs/es/API-ADMIN.md), con su [especificación OpenAPI](docs/admin-api.yaml).
 - Conceptos: [identificadores](docs/es/conceptos/identificadores.md),
   [DeviceCheck](docs/es/conceptos/devicecheck.md), [hash y ref](docs/es/conceptos/hash-y-ref.md),
   [flujo de una comprobación](docs/es/conceptos/flujo-de-check.md),
