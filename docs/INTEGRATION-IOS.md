@@ -7,7 +7,7 @@
 Swift Package Manager, pinned to a version tag:
 
 - In Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
-  rule "Up to Next Minor Version" from `0.1.0` (before 1.0, a minor bump may break things).
+  rule "Up to Next Minor Version" from `0.2.0` (before 1.0, a minor bump may break things).
 - Products: `NonGrata` (required) and `NonGrataUI` (optional, the suspended screen).
 - If you use a private fork, Xcode needs your GitHub account in Settings → Accounts and, if the
   app builds on Xcode Cloud, you have to grant it access to that repo from App Store Connect.

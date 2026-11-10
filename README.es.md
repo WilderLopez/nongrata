@@ -125,10 +125,10 @@ Arranca en modo observación (`ENFORCE_<APP> = "false"`). Más detalle en
 ### 2. Añade el paquete
 
 En Xcode: **File → Add Package Dependencies…** con `https://github.com/WilderLopez/nongrata.git`,
-desde `0.1.0`. O en tu `Package.swift`:
+desde `0.2.0`. O en tu `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/WilderLopez/nongrata.git", from: "0.1.0")
+.package(url: "https://github.com/WilderLopez/nongrata.git", from: "0.2.0")
 ```
 
 Productos: `NonGrata` (obligatorio) y `NonGrataUI` (la pantalla, opcional).
