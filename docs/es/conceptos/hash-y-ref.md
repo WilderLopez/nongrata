@@ -5,6 +5,8 @@ aliases: [Hash, ref, Código de soporte, Normalización, Prefijo]
 
 # Hash y ref
 
+*English: [hash-and-ref.md](../../concepts/hash-and-ref.md)*
+
 ## El hash
 
 Ningún identificador se guarda en bruto. Se guarda su hash:
@@ -53,4 +55,4 @@ En código: `normalizeValue` en `worker/src/hash.ts` (lo usa también la CLI) e
 `IdentifierHasher.normalize` en Swift. Los vectores con `note` en `spec/hash-vectors.json`
 cubren cada regla.
 
-Diseño: secciones 8.2 y 16 (pendiente 9) del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 8.2 y 16 (pendiente 9) de [DISENO.md](../DISENO.md).

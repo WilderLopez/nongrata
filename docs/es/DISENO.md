@@ -1,5 +1,7 @@
 # NonGrata: diseño
 
+*English: [DESIGN.md](../DESIGN.md)*
+
 Fecha: 2026-10-15
 Nombre: NonGrata, de *persona non grata* (alguien que ya no es bienvenido).
 Estado (2026-11-10): implementado salvo App Attest y las pruebas de extremo a extremo en un iPhone.
@@ -13,7 +15,7 @@ app iOS: cada app tiene su propio despliegue del Worker y su propia lista.
 
 Es el diseño completo: qué problema resuelve (sección 1), cómo está montado (secciones 5 a 9),
 cómo se prueba (13) y qué queda por confirmar (16). Para integrarlo en una app basta con
-[Integrar en una app iOS](INTEGRATION-IOS.md); los conceptos sueltos están en `conceptos/` y en
+[Integrar en una app iOS](INTEGRACION-IOS.md); los conceptos sueltos están en `conceptos/` y en
 el [Glosario](glosario.md).
 
 Las afirmaciones marcadas como "verificado" se comprobaron en la documentación oficial el
@@ -269,7 +271,7 @@ Worker), de modo que el bloqueo deje de depender del cliente.
 | `GET /v1/admin/lookup` | Por `hash` o `ref`. |
 
 Todas con `Authorization: Bearer <ADMIN_TOKEN>`. Las tres exigen que la app esté configurada en ese Worker
-(`HASH_PREFIX_<APP>`); si no, 400 `app sin configurar`, también con `hash` o `ref`, para que una
+(`HASH_PREFIX_<APP>`); si no, 400 `app not configured`, también con `hash` o `ref`, para que una
 errata en `app` no dé un 200 sin efecto. Desbanear por `ref` basta para un desbaneo
 completo: en la siguiente comprobación de ese dispositivo, el Worker pone `bit0` a false y borra
 los hashes que trae la petición. Desbanear un hash suelto sirve para retirar un identificador
@@ -411,7 +413,7 @@ presentación. Opcionalmente, una vista SwiftUI por defecto en un target aparte.
 > Implementación (2026-10-29): producto `NonGrataUI` con `NonGrataSuspendedView(ref:)` (hueco
 > `supportAction` para el contacto con soporte) y `.nonGrataBlockingOverlay(_:)`, que solo cubre
 > con `.blocked`. El código de soporte se puede seleccionar y VoiceOver lo deletrea. Ver
-> `docs/INTEGRATION-IOS.md`.
+> [INTEGRACION-IOS.md](INTEGRACION-IOS.md).
 
 ### 8.2 Identificadores
 
@@ -486,7 +488,7 @@ nongrata/
 │   ├── example/           plantilla de wrangler.jsonc para una app
 │   └── <tu-app>/          tu despliegue real (git lo ignora: lleva IDs de tu cuenta)
 ├── cli/
-├── docs/                  Este documento y las guías de integración
+├── docs/                  Documentación en inglés; este documento, en español en docs/es/
 └── .gitignore             incluye .dev.vars*
 ```
 

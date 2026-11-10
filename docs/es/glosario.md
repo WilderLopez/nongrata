@@ -5,6 +5,8 @@ aliases: [Glosario, Términos]
 
 # Glosario
 
+*English: [glossary.md](../glossary.md)*
+
 Los términos del proyecto, en orden alfabético, explicados para quien programa en iOS pero no
 conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 
@@ -12,7 +14,7 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 
 - **App Attest**: servicio de Apple que prueba que una petición viene de tu app sin modificar.
   Aquí es opcional y está pendiente: cerraría el hueco de una app modificada que no llama al
-  Worker (sección 6.3 del [HANDOFF](HANDOFF.md)).
+  Worker (sección 6.3 del [diseño](DISENO.md)).
 - **ATT** (App Tracking Transparency): el permiso "¿Permitir que la app rastree…?". El uso
   solo antifraude **no es tracking**, así que no hace falta pedirlo. Sí hay que declarar
   "Device ID" (y "User ID") en la etiqueta de privacidad, con propósito "App Functionality".
@@ -122,8 +124,8 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 - **Secreto** (`wrangler secret`): valor cifrado del Worker que no va en `wrangler.jsonc` ni en
   git. Se carga con `wrangler secret put` y se lee como `env.<NOMBRE>`. Aquí:
   `APPLE_DC_KEY_P8_<APP>` y `ADMIN_TOKEN`. Ver [Cloudflare Worker y D1](conceptos/cloudflare-worker-y-d1.md).
-- **SPM** (Swift Package Manager): las apps añaden `NonGrata` por SPM con la URL del repo
-  privado, fijado a una etiqueta de versión.
+- **SPM** (Swift Package Manager): las apps añaden `NonGrata` por SPM con la URL del repo,
+  fijado a una etiqueta de versión.
 - **Stryker**: la herramienta de mutation testing de `worker/` y `cli/`. Ver
   [Mutation testing](conceptos/mutation-testing.md).
 

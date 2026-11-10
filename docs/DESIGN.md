@@ -1,0 +1,618 @@
+# NonGrata: design
+
+*Español: [DISENO.md](es/DISENO.md)*
+
+Date: 2026-10-15
+Name: NonGrata, from *persona non grata* (someone who is no longer welcome).
+Status (2026-11-10): implemented except for App Attest and the end-to-end tests on an iPhone.
+
+This document gathers everything researched and decided to build a ban system per device and
+per Apple account, without depending on each app's backend, using Apple's DeviceCheck and a
+Cloudflare Worker. It is open source and meant to be reused in any iOS app: each app has its own
+Worker deployment and its own list.
+
+## 0. How to use this document
+
+This is the complete design: what problem it solves (section 1), how it is built (sections 5
+to 9), how it is tested (13) and what is still to be confirmed (16). To integrate it into an app,
+[Integrating into an iOS app](INTEGRATION-IOS.md) is enough; individual concepts live in
+`concepts/` and in the [Glossary](glossary.md).
+
+Statements marked "verified" were checked against the official documentation on 2026-10-15.
+Those marked "to verify" are prior knowledge or inferences and must be checked before relying
+on them.
+
+## 1. The problem and what the real case taught us
+
+A few actors create accounts in a row to spam a social app. The case analyzed: one person, at
+least 11 accounts, 3 iPhones, a new account every few days, throwaway Gmail addresses and, at
+times, a VPN.
+
+What the analysis of the analytics data taught us:
+
+- **The `idfv` works as long as they don't reinstall.** On one iPhone it repeated across 5
+  accounts and on another across 3 or more, because the actor only logged out and opened a new
+  account.
+- **The `idfv` changes on reinstall.** The same iPhone showed up with two different `idfv`s. On
+  its own it is a speed bump, not a wall.
+- **The IP is useless for banning.** The actor's main IP was shared by about 30 accounts, most of
+  them legitimate (carrier-shared IP). The other one was a VPN.
+- **Email is useless.** They are regular Gmail accounts; there is no domain to block.
+- **Profile patterns give them away** (same gender, age, language, city and username prefix,
+  unverified, no purchases), but banning on that basis is a manual decision.
+- **In Amplitude's iOS SDK, `device_id` equals the `idfv`.** It is useful to group accounts by
+  device in analytics.
+- **Some accounts did not show up in analytics** because they were never identified. The
+  project's own identifier should also reach the app's backend, even as free text.
+
+## 2. Goals
+
+Block the app on a flagged device, before login and sign-up, so that:
+
+1. Logging out and creating another account does not work.
+2. Reinstalling the app does not work.
+3. Erasing the iPhone, or using another one with the same Apple account, does not work.
+4. A mistake can be undone.
+5. An infrastructure failure never blocks normal users.
+
+### Non-goals
+
+- Protecting each app's API: the block is enforced by the client. For that, each app's backend
+  would have to require the verdict (see section 6.3 on App Attest, which gets quite close).
+- Automatic detection: banning is a manual decision.
+- Android in the first version (section 15).
+
+## 3. Verified facts
+
+### Apple
+
+| Topic | What the documentation says | Source |
+|---|---|---|
+| `UIDevice.identifierForVendor` | Same for apps from the same vendor on the same device. Changes when the user deletes all of the vendor's apps and reinstalls. May be `nil` after a restart and before unlocking. | developer.apple.com/documentation/uikit/uidevice/identifierforvendor |
+| `DCDevice` | Ephemeral token that identifies the device. Check `isSupported`. iOS 11+. The app must be associated with the developer account. `generateToken() async throws -> Data` exists. | developer.apple.com/documentation/devicecheck/dcdevice |
+| DeviceCheck token | Treat it as single-use. It can be used to retry a specific request, not to be reused. **Not usable as an identifier**: tokens cannot be compared. | developer.apple.com/documentation/devicecheck/dcdevice/generatetoken(completionhandler:) |
+| Two bits | Two bits per device on Apple's servers. Endpoints `POST /v1/query_two_bits`, `POST /v1/update_two_bits` and `POST /v1/validate_device_token`. Body with `device_token`, `transaction_id` and `timestamp` (ms), plus `bit0` and `bit1` when updating. The query returns `bit0`, `bit1` and `last_update_time` (`YYYY-MM`). `200 Bit State Not Found` if they were never written. | developer.apple.com/documentation/devicecheck/accessing-and-modifying-per-device-data |
+| Environments | `https://api.development.devicecheck.apple.com` for development only; production at `https://api.devicecheck.apple.com`. | Same page |
+| Bit persistence | The developer decides when to reset them, "for example, when the user sells the device". They survive reinstalls and a change of owner. | developer.apple.com/documentation/devicecheck/dcdevice |
+| Writing bits | Writing requires a token freshly generated by **that** device. A device that never connects again cannot be banned: the bit is set on its next check. | Inferred from the two previous pages |
+| JWT | Same procedure as the APNs provider token. Header `alg: ES256` and `kid` (10-character Key ID). Claims `iss` (Team ID) and `iat` (seconds). The `iat` cannot be more than one hour old. `Authorization: Bearer <JWT>`. When creating the key in the portal, enable the DeviceCheck service. | developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns |
+| App Attest, risk metric | The receipt returned by `attestationData` carries in field 17 the number of keys attested for the device in the last 30 days. It grows on reinstall, restore or device transfer. Production at `https://data.appattest.apple.com`, sandbox at `https://data-development.appattest.apple.com`. Refresh after "Not Before" (field 19) and before expiry (field 21). | developer.apple.com/documentation/devicecheck/assessing-fraud-risk |
+| `CKContainer.userRecordID()` | ID of the iCloud user within the container. `notAuthenticated` error if there is no account or iCloud is disabled or restricted. The first query may be slow. **To verify**: that the ID is stable across devices and reinstalls (that is expected, but the page doesn't say so). | developer.apple.com/documentation/cloudkit/ckcontainer/fetchuserrecordid(completionhandler:) |
+| `publicCloudDatabase` | Available even if the device has no iCloud account. Ruled out as the list store (section 4). | developer.apple.com/documentation/cloudkit/ckcontainer/publicclouddatabase |
+| `NSUbiquitousKeyValueStore` | Propagates to every device with the same Apple account. Without an account, it stays local until the user signs in. Maximum 1024 keys and 1 MB. Warns against storing sensitive data (unencrypted). Requires the `com.apple.developer.ubiquity-kvstore-identifier` entitlement and App Store distribution. | developer.apple.com/documentation/foundation/nsubiquitouskeyvaluestore |
+| `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` | Accessible after the first unlock following a restart. `ThisDeviceOnly`: does not migrate to another device through a backup. | developer.apple.com/documentation/security/ksecattraccessibleafterfirstunlockthisdeviceonly |
+| Keychain after uninstalling | **Observed behavior, not documented as a guarantee**: Keychain items survive reinstalls. Many apps confirm it in practice (hence the pattern of deleting tokens on first launch). | No official source |
+
+### Cloudflare (developers.cloudflare.com)
+
+| Topic | Fact | Source |
+|---|---|---|
+| Workers, free plan | 100,000 requests per day, reset at midnight UTC; beyond that, error 1027. 10 ms of CPU per HTTP request. 50 subrequests per request. | /workers/platform/limits/ |
+| D1, free plan | 5 million rows read and 100,000 written per day. 5 GB in total, 500 MB per database, 10 databases per account, 50 queries per invocation. Beyond that, queries fail until the reset. | /d1/platform/pricing/ and /d1/platform/limits/ |
+| KV, free plan | 100,000 reads and 1,000 writes to distinct keys per day. A change can take 60 s or more to be visible in other locations. | /kv/platform/limits/ and /kv/concepts/how-kv-works/ |
+| Secrets | `wrangler secret put <KEY>` (in this repo, with `pnpm exec`), read as `env.<KEY>`. Locally, `.dev.vars` (outside git). | /workers/configuration/secrets/ |
+| Web Crypto | ECDSA supported for `importKey` and `sign`. The page does not detail curves or formats. **To verify** in the proof of concept: P-256 with `pkcs8` (standard Web Crypto). | /workers/runtime-apis/web-crypto/ |
+| Rate limiting binding | `ratelimits` in wrangler with `name`, `namespace_id` and `simple: { limit, period }`; `period` only 10 or 60 s. Per location and eventually consistent. Requires wrangler 4.36.0 or later. **To verify**: availability on the free plan. | /workers/runtime-apis/bindings/rate-limit/ |
+
+## 4. Decisions and rejected options
+
+| Option | Decision | Reason |
+|---|---|---|
+| Ban by `idfv` | Used, but not enough | Changes on reinstall |
+| Own UUID in the Keychain | Used | Survives reinstalls; links accounts |
+| DeviceCheck | Used to enforce the block | Survives reinstalls and device erasure; the token cannot be forged |
+| iCloud (`userRecordID` and KVS) | Used, optional per app | Flags the Apple account and jumps to other devices |
+| Ban by IP | Rejected | Carrier-shared IPs; massive false positives |
+| List in Firebase Remote Config | Rejected | The config can be downloaded by anyone; exposes the list |
+| List in public CloudKit | Rejected | Leaves Android out; adds nothing over the Worker |
+| Firebase Cloud Functions | Rejected | Requires the Blaze plan; Cloudflare is already in use |
+| KV for the list | Rejected | Slow propagation and few free writes |
+| D1 for the list | Chosen | Read-after-write consistency; generous free tier |
+| App Attest | Optional (section 6.3) | Closes the modified-app gap; apps that already have it can take advantage of it |
+
+## 5. Architecture
+
+```
+ App (SDK)                                 NonGrata Worker                             Apple
+ ─────────                                 ───────────────                             ─────
+ 1. idfv, installId (Keychain),
+    userRecordID (iCloud), userId
+    → SHA-256 hashes with the app's prefix
+ 2. DCDevice.generateToken()
+ 3. POST /v1/device/check   ───────────►   4. rate limit by IP
+                                           5. (optional) validate App Attest assertion
+                                           6. D1: any banned hash? unbanned ref?
+                                           7. query_two_bits   ──────────────────────►   bits
+                                           8. if needed: update_two_bits   ──────────►   bit0
+                                           9. if it blocks, its new hashes are
+                                              added to the list (propagation)
+10. { status, ref }  ◄─────────────────────
+11. blocked → the app logs out, shows
+    its screen and stores the local flag
+    (Keychain + iCloud KVS)
+```
+
+### Layers
+
+| What the actor does | What catches them |
+|---|---|
+| Logs out and creates another account | `idfv`, `installId` |
+| Reinstalls the app | `installId`, `bit0` |
+| Erases the iPhone and signs in with the same Apple account | `bit0`, `userRecordID`, KVS flag |
+| Another iPhone with the same Apple account | `userRecordID`, KVS flag |
+| Erases the iPhone and uses another Apple account | `bit0` |
+| Blocks the Worker's domain | Local flag if already blocked; strict mode on sign-up (section 6.2) |
+| Modifies the app so it doesn't call the Worker | App Attest required by the app's backend (section 6.3) |
+
+The propagation in step 9 makes the system reinforce itself: a blocked device (by a hash or by
+`bit0`) that shows up with new identifiers turns them into banned ones, and with them its Apple
+account falls on the rest of the actor's devices.
+
+## 6. Contract and algorithm
+
+> Implementation changes (2026-10-15): propagation applies to any blocked device, not only one
+> flagged by `bit0` (otherwise the block did not jump to other devices with the same Apple
+> account), and an unban by `ref` deletes the device's hashes.
+>
+> Implementation changes (2026-10-29): with an Apple key, an unban by `ref` that arrives in a
+> check without `dc_token` lets the user in but is not consumed and does not delete hashes; it is
+> consumed on the next check with a token, after setting `bit0` to false. Before, it was consumed
+> without clearing `bit0` and the device ended up blocked again. Without an Apple key it is still
+> consumed with D1 alone.
+>
+> Implementation changes (2026-11-02): every `update_two_bits` in the algorithm uses
+> `dc_token_update`. If it is missing, nothing is written: the block is decided the same way with
+> D1 and `bit0`, and a pending unban stays unconsumed, as when `dc_token` is missing.
+
+### 6.1 `POST /v1/device/check`
+
+Request:
+
+```json
+{
+  "app": "myapp",
+  "dc_token": "base64 or null",
+  "dc_token_update": "base64 or null",
+  "env": "development | production",
+  "ref": "A1B2C3D4",
+  "ids": {
+    "idfv": "hex or null",
+    "install": "hex",
+    "icloud": "hex or null",
+    "user": "hex or null"
+  },
+  "intent": "launch | foreground | login | signup",
+  "platform": "ios",
+  "app_version": "1.0.0"
+}
+```
+
+`200` response:
+
+```json
+{ "status": "ok | blocked", "ref": "A1B2C3D4" }
+```
+
+The client treats any other response as an error.
+
+`dc_token_update` (added during implementation): Apple asks to treat each DeviceCheck token as
+single-use, so the SDK generates a second token for `update_two_bits`. If it is missing, the
+Worker queries but does not write; it writes on the next check that carries both (change of
+2026-11-02; before, it reused `dc_token`). The Worker derives `ref` from the `install` hash and
+ignores the one the client sends.
+
+`app` lets a single Worker serve several apps with separate lists (section 7.1). If full
+isolation is preferred, one deployment per app and the field is ignored.
+
+Algorithm:
+
+```
+if rate limit exceeded                 → 429
+config = configuration of `app`        (Team ID, Key ID, key, ENFORCE, App Attest)
+if config requires App Attest and the assertion does not validate → 401
+
+hashes  = non-null ids
+matched = exists in banned_ids (app, hash IN hashes)
+unban   = unban_refs (app, ref) not consumed
+
+bits = dc_token ? query_two_bits(env, dc_token) : null      // "Bit State Not Found" ⇒ bit0 = false
+
+if unban:
+    clean = dc_token ? update_two_bits(bit0 = false) : true
+    if clean: delete the request's hashes from banned_ids and consume unban
+    respond ok                         // if it was not left clean, retried on the next one
+
+blocked = matched or bits.bit0 == true
+
+if the app's ENFORCE is off:           // pure observation mode (decided on 2026-11-02)
+    log `blocked` and respond ok       // without writing to Apple or propagating
+
+if matched and bits and bits.bit0 != true:
+    update_two_bits(bit0 = true)
+if blocked:
+    insert the new hashes into banned_ids with reason = propagated (without overwriting existing ones)
+respond { status, ref }
+```
+
+If Apple fails (5xx, 429, timeout), the decision is made with D1 alone. `bit1` is reserved (for
+example, "under review").
+
+### 6.2 Fail-open and strict mode
+
+- **Fail-open by default.** If the check fails (network, timeout, 5xx, 429, 1027) and there is
+  no local flag, the app does not block. An infrastructure failure never kicks out normal users.
+- **Strict mode for sign-up** (configurable per app). With `intent = signup`, creating an
+  account requires the check to end with `ok`. If it fails, the app shows "sign-up could not be
+  completed, please try again" and does not create the account. This closes the trick of
+  blocking the Worker's domain to sign up, without affecting the daily use of people who already
+  have an account.
+
+### 6.3 App Attest (optional per app)
+
+For an app that already has App Attest with its own server or with this Worker:
+
+- The `check` request carries an assertion (`generateAssertion`) over the hash of the request
+  body. The Worker validates it before doing anything else.
+- That way a modified app can neither query nor pass off a fake verdict.
+- The risk metric (field 17 of the receipt) can feed `bit1` or a warning when a device piles up
+  many keys in 30 days, a sign of serial reinstalls.
+- **To verify**: the full attestation and assertion validation flow in
+  developer.apple.com/documentation/devicecheck/validating-apps-that-connect-to-your-server
+  (not read in detail).
+
+The final step, if an app needs it, is for its backend to require on sign-up and login a verdict
+signed by the Worker (for example, a short token signed with a Worker key), so that the block no
+longer depends on the client.
+
+### 6.4 Administration
+
+| Method and route | Use |
+|---|---|
+| `POST /v1/admin/ban` | `{ app, kind, value }` or `{ app, kind, hash }`, plus optional `note`. With a raw `value`, the Worker computes the hash with the app's prefix and stores only the hash. |
+| `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes the hash. `{ app, ref }` schedules the bit unban for that device's next check. |
+| `GET /v1/admin/lookup` | By `hash` or `ref`. |
+
+All of them with `Authorization: Bearer <ADMIN_TOKEN>`. All three require the app to be
+configured in that Worker (`HASH_PREFIX_<APP>`); otherwise, 400 `app not configured`, also with
+`hash` or `ref`, so that a typo in `app` does not give a 200 with no effect. Unbanning by `ref`
+is enough for a complete unban: on that device's next check, the Worker sets `bit0` to false and
+deletes the hashes the request carries. Unbanning a single hash is for removing a specific
+identifier (for example, the `icloud` of a couple who share an account).
+
+## 7. Worker
+
+### 7.1 D1 schema
+
+```sql
+CREATE TABLE banned_ids (
+  app         TEXT NOT NULL,
+  hash        TEXT NOT NULL,
+  kind        TEXT NOT NULL CHECK (kind IN ('idfv', 'install', 'icloud', 'user', 'android_id')),
+  reason      TEXT NOT NULL CHECK (reason IN ('manual', 'propagated')),
+  note        TEXT,
+  created_at  INTEGER NOT NULL,
+  PRIMARY KEY (app, hash)
+);
+
+CREATE TABLE unban_refs (
+  app         TEXT NOT NULL,
+  ref         TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  consumed_at INTEGER,
+  PRIMARY KEY (app, ref)
+);
+
+CREATE TABLE check_log (
+  app         TEXT NOT NULL,
+  ref         TEXT NOT NULL,
+  blocked     INTEGER NOT NULL,
+  matched     INTEGER NOT NULL,
+  bit0        INTEGER,
+  intent      TEXT,
+  created_at  INTEGER NOT NULL
+);
+```
+
+`check_log` stores only results (no IPs or raw identifiers) and serves observation mode. It
+should be purged periodically with a Cron Trigger.
+
+### 7.2 ES256 JWT with Web Crypto
+
+```ts
+const b64url = (input: ArrayBuffer | string): string => {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : new Uint8Array(input);
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
+async function appleJWT(p8: string, keyId: string, teamId: string): Promise<string> {
+  const pem = p8.replace(/-----[^-]+-----/g, "").replace(/\s/g, "");
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]
+  );
+  const header = b64url(JSON.stringify({ alg: "ES256", kid: keyId }));
+  const claims = b64url(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) }));
+  const sig = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(`${header}.${claims}`)
+  );
+  return `${header}.${claims}.${b64url(sig)}`;
+}
+```
+
+- Web Crypto returns the ECDSA signature as `r || s` (64 bytes), which is the format JWS
+  requires for ES256: no conversion from DER is needed.
+- Cache the JWT in the isolate's memory and regenerate it after 30 minutes.
+- Every call to Apple carries a `transaction_id` (new UUID) and a `timestamp` (ms UTC).
+- **To verify**: whether the TestFlight environment uses the DeviceCheck production endpoint
+  (that is expected).
+
+### 7.3 Configuration and secrets
+
+Per app (in secrets or in a configuration table):
+
+| Name | Content |
+|---|---|
+| `APPLE_DC_KEY_P8_<APP>` | Content of the `.p8` with DeviceCheck enabled |
+| `APPLE_KEY_ID_<APP>` | Key ID |
+| `APPLE_TEAM_ID_<APP>` | Team ID |
+| `HASH_PREFIX_<APP>` | Hash prefix, different per app, for example `myapp-ban-v1` |
+| `ENFORCE_<APP>` | `"true"` blocks; any other value is observation mode |
+
+Global: `ADMIN_TOKEN` (secret), D1 binding `DB`, `RATE_LIMITER` binding (for example
+`limit: 20`, `period: 60`, key `CF-Connecting-IP`). If the binding is not available on the free
+plan, use a WAF rate limiting rule on the route.
+
+One Apple key per development team; if two apps belong to the same team, they share the key.
+Better a key dedicated to DeviceCheck than reusing the push key, so it can be revoked without
+side effects.
+
+### 7.4 Capacity
+
+- One ECDSA signature and a bit of JSON fit in 10 ms of CPU; waiting on the network does not
+  count as CPU.
+- At most two subrequests to Apple (plus App Attest validation if it applies) and a few D1
+  queries per request.
+- If the daily quota runs out (1027), the client treats it as an error: fail-open, except for
+  sign-up in strict mode.
+
+## 8. Swift SDK
+
+### 8.1 Proposed public API
+
+```swift
+public struct NonGrataConfiguration: Sendable {
+    public var endpoint: URL
+    public var appId: String                 // "myapp"
+    public var hashPrefix: String            // same as the Worker's HASH_PREFIX_<APP>
+    public var useICloud: Bool               // requires CloudKit and KVS in the App ID
+    public var strictSignup: Bool
+    public var foregroundInterval: Duration  // for example, .seconds(6 * 3600)
+    public var timeout: Duration             // for example, .seconds(5)
+    public var keychainService: String
+}
+
+public enum NonGrataVerdict: Sendable, Equatable {
+    case allowed
+    case blocked(ref: String)
+    case unknown            // could not check and there is no local flag
+}
+
+@MainActor
+@Observable
+public final class NonGrata {
+    public init(configuration: NonGrataConfiguration)
+    public private(set) var verdict: NonGrataVerdict      // reads the local flag in init
+    public func check(intent: CheckIntent, userId: String?) async -> NonGrataVerdict
+    public var installId: String { get }                     // for analytics and support
+    public var iCloudIdHash: String? { get }
+}
+```
+
+The SDK does not impose a UI: each app draws its suspended screen with its own presentation
+system. Optionally, a default SwiftUI view in a separate target.
+
+> Implementation (2026-10-29): `NonGrataUI` product with `NonGrataSuspendedView(ref:)`
+> (`supportAction` slot for contacting support) and `.nonGrataBlockingOverlay(_:)`, which only
+> covers the content on `.blocked`. The support code is selectable and VoiceOver spells it out.
+> See [INTEGRATION-IOS.md](INTEGRATION-IOS.md).
+
+### 8.2 Identifiers
+
+- **`installId`:** UUID generated once, stored in the Keychain with
+  `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` and an SDK-specific `kSecAttrService`.
+  Document in the README that the app must **not** delete it in its first-launch cleanup.
+- **`idfv`:** `UIDevice.current.identifierForVendor`; if it is `nil`, it is omitted.
+- **`icloud`:** `try await CKContainer.default().userRecordID().recordName`, with a short
+  timeout; omitted if there is no account.
+- **`user`:** passed by the app if there is a session.
+- **Hash:** `SHA256(hashPrefix + ":" + kind + ":" + value)` in hex, with CryptoKit. The Worker
+  and the CLI use the same formula. Since 2026-11-02 the value is normalized first (open item 9).
+- **`ref`:** first 8 characters, uppercased, of the `installId` hash. It is the support code.
+
+### 8.3 Persistent verdict
+
+- Flag in the Keychain (survives reinstalls) and, if `useICloud`, in `NSUbiquitousKeyValueStore`
+  (jumps to other devices with the same Apple account). Observe
+  `didChangeExternallyNotification` to block live.
+- `blocked` from the Worker: sets the flags. `ok`: clears them (the only way out of the block).
+  Error: touches nothing.
+- Never close the app programmatically. The block screen stays put; deliberately closing the
+  app can be seen as a crash in review.
+
+### 8.4 When to check
+
+- On launch.
+- On returning to the foreground, at most once every `foregroundInterval`, unless blocked (in
+  that case always, to detect the unban).
+- After a successful login, with `userId`.
+- Before creating the account, with `intent = signup` (strict mode if enabled).
+
+Without `isSupported` (simulator), the request is sent without `dc_token` and the Worker decides
+with D1 alone.
+
+### 8.5 Capabilities of the app using it
+
+- iCloud in the App ID (CloudKit with a container and key-value storage) if `useICloud`.
+- DeviceCheck needs no entitlement.
+- App Store privacy label: "Device ID" and "User ID" for fraud prevention.
+- Privacy policy: mention device identifiers used for fraud prevention.
+- **To verify**: that fraud-prevention-only use is not considered tracking for ATT purposes.
+
+## 9. Admin CLI
+
+A small command (Node or Swift) that wraps the admin endpoints:
+
+```
+nongrata ban    app=myapp kind=idfv value=<value> note=spam
+nongrata unban  app=myapp ref=A1B2C3D4
+nongrata lookup app=myapp ref=A1B2C3D4
+```
+
+It reads the endpoint and the `ADMIN_TOKEN` from environment variables. The Worker computes the
+hash.
+
+> Implementation (2026-10-26), in `cli/`: TypeScript run by Node, with no dependencies. Since
+> each app has its own Worker, it reads `NONGRATA_URL_<APP>` and `NONGRATA_ADMIN_TOKEN_<APP>`,
+> with `NONGRATA_URL` and `NONGRATA_ADMIN_TOKEN` as fallback, and requires https except towards
+> localhost. It adds `nongrata hash prefix=… kind=… value=…`, which computes the hash offline
+> with the same formula as the Worker (it passes `spec/hash-vectors.json`). It accepts the `ref`
+> in lowercase. Exit codes: 0 success, 1 Worker or network error, 2 incorrect usage.
+
+## 10. Repo structure
+
+A monorepo:
+
+```
+nongrata/
+├── Package.swift          Swift package manifest (at the root so SPM can resolve it by URL)
+├── swift/                 Package code (NonGrata + optional NonGrataUI) and tests
+├── worker/                Worker core in TypeScript and tests with Vitest
+├── deployments/
+│   ├── example/           wrangler.jsonc template for an app
+│   └── <your-app>/        your real deployment (ignored by git: contains your account's IDs)
+├── cli/
+├── docs/                  This document and the integration guides (Spanish copy in docs/es/)
+└── .gitignore             includes .dev.vars*
+```
+
+Alternative: a single deployment with the `app` field and separate lists per app in the same
+database. Simpler to operate; isolation comes from the `(app, hash)` primary key.
+
+Consumption from the apps: the Swift package via SPM with the repo URL, pinned to a version tag.
+If you use a private fork and the app builds on Xcode Cloud, you have to grant it access to that
+repo from App Store Connect, or the build will fail when resolving dependencies.
+
+## 11. Privacy
+
+- The Worker only stores hashes with a per-app prefix; never raw identifiers or IPs.
+- There is no fingerprinting (device signals are not combined to make up an identifier): only
+  `idfv`, an own UUID, the iCloud ID and DeviceCheck, which Apple offers for this purpose.
+- Check that the Worker's logs (Workers Logs) do not record request bodies.
+
+## 12. Risks and mitigations
+
+| Risk | Mitigation |
+|---|---|
+| Second-hand buyer of a banned iPhone | Unban by `ref` from support |
+| Couple sharing an Apple account | Unban by `ref` and removal of the `icloud` hash |
+| Worker down | Fail-open; only those already blocked stay blocked |
+| Banning by mistake | Observation mode before turning on `ENFORCE`; unban by `ref` |
+| Blocking the Worker's domain to sign up | Strict mode on sign-up |
+| Modified app | App Attest and, if needed, a verdict required by the backend |
+| Apple changes Keychain persistence | `bit0` and iCloud cover the gap |
+| Abuse of the public endpoint | Rate limit; without a valid `dc_token` no bits are touched; unbanning requires `ADMIN_TOKEN` |
+
+## 13. Tests
+
+SDK (Swift Testing):
+
+- Stable hash; different kinds give different hashes.
+- `installId` stable across calls.
+- A set flag means `blocked` without network; `ok` clears it; an error doesn't touch it; with no
+  flag and an error, `unknown` and the app does not block.
+- Strict mode: `signup` with an error does not allow creating the account.
+
+Worker (Vitest with the Workers pool):
+
+- Banned hash with `bit0` false: writes the bit and responds `blocked`.
+- `bit0` true with no known hash: inserts the hashes as `propagated`.
+- Unbanned `ref`: `bit0` to false, `ref` consumed, `ok`.
+- Observation mode: always `ok`, logs `blocked` in `check_log` and neither writes `bit0` nor
+  propagates.
+- Apple down: decides with D1.
+- Admin without token: 401.
+- Isolation by `app`.
+
+Mutation testing (2026-10-26): Stryker on the Worker and the CLI, inside `make check` and weekly
+in CI, compared against a per-package baseline (`<package>/mutation-baseline.json`). Worker
+99.5% (3 equivalent survivors), CLI 100% (since 2026-11-02; 78% before). The Swift SDK has no
+automatic mutation testing: Muter does not work without patches (2026-11-05); a manual pass with
+its 17 mutants kills them all after one new test.
+
+End to end, with a physical iPhone and a development build:
+
+1. Ban the `idfv` ⇒ block screen.
+2. Remove the hash and reopen ⇒ still blocked by `bit0`.
+3. Reinstall ⇒ blocked on launch.
+4. Unban the `ref` ⇒ lifted on the next check.
+5. Another device with the same Apple account ⇒ blocked by the iCloud flag.
+6. No network with a flag ⇒ blocked. No network and no flag ⇒ gets in (except strict sign-up).
+
+## 14. Deploying each app
+
+1. Create the DeviceCheck key and load the app's secrets.
+2. Deploy with `ENFORCE` off.
+3. Release the app version with the SDK.
+4. Load the known identifiers and review `check_log`.
+5. Turn on `ENFORCE`.
+
+Steps 4 and 5 do not require a new app version.
+
+## 15. Android
+
+Out of the first version. Proposed equivalent, **to verify** against the Android documentation:
+`ANDROID_ID` as the installation identifier (kind `android_id`), the same Worker and the same
+list. Play Integrity offers no per-device bits; its verdicts could be validated in the Worker
+later on.
+
+## 16. Pending verification
+
+1. ~~`pkcs8` import of a P-256 key in Workers.~~ **Verified** on 2026-10-15 with a test in
+   `workerd` (`worker/test/jwt.test.ts`).
+2. DeviceCheck endpoint that corresponds to TestFlight. **The documentation doesn't say**
+   (checked on 2026-11-02): only that `api.development` is "only for testing during
+   development". For App Attest, Apple does say that TestFlight uses production
+   (`com.apple.developer.devicecheck.appattest-environment`). The SDK sends `development` only in
+   `DEBUG` builds (`Configuration.swift`), so TestFlight goes to production. To be confirmed in
+   the end-to-end tests with a TestFlight build.
+3. Availability of the rate limiting binding on the free plan. **The documentation doesn't say**
+   (checked on 2026-11-02): neither the binding page nor the pricing and limits pages talk about
+   plans. On 2026-11-02 Cloudflare accepted the binding when deploying a test Worker on a
+   free-plan account.
+4. Stability of `userRecordID` across devices and reinstalls. **The documentation doesn't say**
+   (checked on 2026-11-02). The closest, in `CKContainer`: "When a user accesses a container for
+   the first time, CloudKit assigns them a unique identifier". From that it follows that it is
+   per container (unofficial: it changes with another bundle ID or container). To be confirmed in
+   step 5 of the end-to-end tests.
+5. ~~ATT exemption for fraud-prevention use.~~ **Verified** on 2026-11-02: it is not tracking.
+   The definition requires linking with other companies' data for advertising or sharing with
+   data brokers (developer.apple.com/app-store/user-privacy-and-data-use/). Privacy label
+   (developer.apple.com/app-store/app-privacy-details/): "Device ID" and, with `icloud` or
+   `user`, "User ID"; purpose "App Functionality" (includes "prevent fraud"); almost certainly
+   "linked to the user". It must be declared even if it is only functional.
+6. App Attest validation flow (attestation and assertion) if used in `check`.
+7. `ANDROID_ID` and its behavior on reinstall, for the Android version.
+8. ~~Whether Apple accepts the same DeviceCheck token for `query_two_bits` and
+   `update_two_bits`.~~ **Verified** on 2026-11-02: it should not be done. `generateToken`: "you
+   should not use a token multiple times. Instead, use this method to generate a new token"; it
+   is only valid for retrying the same request. Confirms `dc_token_update`. If the SDK only gets
+   one token (`deviceTokens()`), the Worker queries with it but does not write; it used to reuse
+   it.
+9. ~~Normalization of raw values before hashing.~~ **Decided** on 2026-11-02: before hashing,
+   space, `\t`, `\n` and `\r` are stripped from both ends, and in `idfv` and `install` (UUID) the
+   letters a-z are uppercased. `icloud`, `user` and `android_id` are opaque and left untouched.
+   That way an `idfv` copied in lowercase gives the same hash as the one the SDK sends. The same
+   in the SDK, the Worker and the CLI; the new vectors in `spec/hash-vectors.json` pin it down.
+   It does not change any hash of a value that was already normalized.

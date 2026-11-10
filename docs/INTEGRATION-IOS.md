@@ -1,110 +1,111 @@
-# Integrar NonGrata en una app iOS
+# Integrating NonGrata into an iOS app
 
-## 1. Dependencia
+*Español: [INTEGRACION-IOS.md](es/INTEGRACION-IOS.md)*
 
-Swift Package Manager, fijado a una etiqueta de versión:
+## 1. Dependency
 
-- En Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
-  regla "Up to Next Minor Version" desde `0.1.0` (antes de 1.0, un cambio de minor puede romper).
-- Productos: `NonGrata` (obligatorio) y `NonGrataUI` (opcional, la pantalla de suspendido).
-- Si usas un fork privado, Xcode necesita tu cuenta de GitHub en Settings → Accounts y, si la
-  app compila en Xcode Cloud, hay que darle acceso a ese repo desde App Store Connect.
+Swift Package Manager, pinned to a version tag:
 
-`Package.swift` está en la raíz del repo (SPM no resuelve un paquete remoto en una subcarpeta);
-el código sigue en `swift/`.
+- In Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
+  rule "Up to Next Minor Version" from `0.1.0` (before 1.0, a minor bump may break things).
+- Products: `NonGrata` (required) and `NonGrataUI` (optional, the suspended screen).
+- If you use a private fork, Xcode needs your GitHub account in Settings → Accounts and, if the
+  app builds on Xcode Cloud, you have to grant it access to that repo from App Store Connect.
 
-## 2. Capacidades del App ID
+`Package.swift` is at the root of the repo (SPM does not resolve a remote package in a
+subfolder); the code still lives in `swift/`.
 
-- DeviceCheck no necesita entitlement, pero la app debe pertenecer a la cuenta de desarrollador
-  cuya clave usa el Worker.
-- Solo con `useICloud: true`: iCloud con CloudKit (contenedor por defecto) y key-value storage
-  (`com.apple.developer.ubiquity-kvstore-identifier`). Sin CloudKit, `useICloud` hace fallar la
-  app al leer el ID de iCloud.
+## 2. App ID capabilities
 
-## 3. Configuración
+- DeviceCheck needs no entitlement, but the app must belong to the developer account whose key
+  the Worker uses.
+- Only with `useICloud: true`: iCloud with CloudKit (default container) and key-value storage
+  (`com.apple.developer.ubiquity-kvstore-identifier`). Without CloudKit, `useICloud` makes the
+  app fail when reading the iCloud ID.
+
+## 3. Configuration
 
 ```swift
 let nonGrata = NonGrata(configuration: .init(
     endpoint: URL(string: "https://<worker>/v1/device/check")!,
     appId: "myapp",
-    hashPrefix: "myapp-ban-v1",   // igual que HASH_PREFIX_MYAPP del Worker
+    hashPrefix: "myapp-ban-v1",   // same as the Worker's HASH_PREFIX_MYAPP
     useICloud: true
 ))
 ```
 
-Crea una sola instancia para toda la app. Es `@MainActor` y `@Observable`, así que la interfaz
-puede observar `verdict` directamente.
+Create a single instance for the whole app. It is `@MainActor` and `@Observable`, so the UI can
+observe `verdict` directly.
 
-## 4. Cuándo comprobar
+## 4. When to check
 
-| Momento | Llamada |
+| Moment | Call |
 |---|---|
-| Al arrancar | `await nonGrata.check(intent: .launch)` |
-| Al volver a primer plano | `await nonGrata.check(intent: .foreground)` (se limita sola a una cada `foregroundInterval` mientras no haya bloqueo) |
-| Tras un login correcto | `await nonGrata.check(intent: .login, userId: user.id)` |
-| Antes de crear la cuenta | ver abajo |
+| On launch | `await nonGrata.check(intent: .launch)` |
+| On returning to the foreground | `await nonGrata.check(intent: .foreground)` (throttles itself to one every `foregroundInterval` while not blocked) |
+| After a successful login | `await nonGrata.check(intent: .login, userId: user.id)` |
+| Before creating the account | see below |
 
 ```swift
 let verdict = await nonGrata.check(intent: .signup)
 guard nonGrata.permits(verdict, for: .signup) else {
-    // .blocked: pantalla de suspendido.
-    // .unknown en modo estricto: "No se pudo completar el registro, inténtalo de nuevo".
+    // .blocked: suspended screen.
+    // .unknown in strict mode: "Couldn't complete sign-up. Please try again."
     return
 }
 createAccount()
 ```
 
-`permits(_:for:)` aplica el fail-open: `.unknown` deja seguir en todo salvo en `.signup` con
+`permits(_:for:)` applies fail-open: `.unknown` lets everything through except `.signup` with
 `strictSignup`.
 
-## 5. Bloqueo
+## 5. Blocking
 
-- Con `verdict == .blocked(ref:)`, cierra la sesión y muestra tu pantalla de suspendido con el
-  `ref` como código de soporte. El SDK no impone interfaz.
-- **No cierres la app por código.** La pantalla queda fija; cerrar la app a propósito puede verse
-  como un fallo en la revisión de App Store.
-- El bloqueo se levanta solo cuando el Worker responde `ok` (por ejemplo, tras un desbaneo por
-  `ref`), en la siguiente vuelta a primer plano.
+- With `verdict == .blocked(ref:)`, log the user out and show your suspended screen with the
+  `ref` as the support code. The SDK does not impose a UI.
+- **Do not close the app programmatically.** The screen stays put; deliberately closing the app
+  can be seen as a crash in App Store review.
+- The block is lifted only when the Worker responds `ok` (for example, after an unban by `ref`),
+  on the next return to the foreground.
 
-### Pantalla por defecto (opcional)
+### Default screen (optional)
 
-Si no quieres diseñar la tuya, añade también el producto `NonGrataUI`. Solo pinta: no cierra
-la sesión, no navega y no cierra la app.
+If you don't want to design your own, also add the `NonGrataUI` product. It only draws: it does
+not log out, does not navigate and does not close the app.
 
 ```swift
 import NonGrataUI
 
 RootView()
     .nonGrataBlockingOverlay(nonGrata) { ref in
-        Button("Contactar con soporte") { openSupportMail(ref: ref) }
+        Button("Contact support") { openSupportMail(ref: ref) }
     }
 ```
 
-- Cubre el contenido solo con `.blocked(ref:)` y lo retira cuando el Worker responde `ok`. Con
-  `.unknown` no hace nada (fail-open).
-- Debajo, el contenido queda desactivado y oculto para VoiceOver.
-- El código de soporte se puede seleccionar para copiarlo y VoiceOver lo deletrea.
-- Textos por defecto en español e inglés. Para cambiarlos, pasa `title:` y `message:` como
-  `LocalizedStringResource` de tu propio catálogo.
-- Si prefieres colocarla tú (por ejemplo en otra ventana o tras cerrar sesión), usa
-  `NonGrataSuspendedView(ref:)` directamente.
+- It covers the content only on `.blocked(ref:)` and removes itself when the Worker responds
+  `ok`. On `.unknown` it does nothing (fail-open).
+- Underneath, the content is disabled and hidden from VoiceOver.
+- The support code is selectable so it can be copied, and VoiceOver spells it out.
+- Default texts in English (base) and Spanish. To change them, pass `title:` and `message:` as
+  a `LocalizedStringResource` from your own catalog.
+- If you'd rather place it yourself (for example in another window or after logging out), use
+  `NonGrataSuspendedView(ref:)` directly.
 
 ## 6. Keychain
 
-El SDK guarda `installId` y la marca de bloqueo en el Keychain con el servicio
-`keychainService` (por defecto `nongrata`). **No los borres** en la limpieza de primera
-ejecución que algunas apps hacen tras reinstalar. Si la app borra todo su Keychain, excluye ese
-servicio.
+The SDK stores `installId` and the block flag in the Keychain under the `keychainService`
+service (`nongrata` by default). **Do not delete them** in the first-launch cleanup that some
+apps do after a reinstall. If the app wipes its whole Keychain, exclude that service.
 
-## 7. Analítica y soporte
+## 7. Analytics and support
 
-- `nonGrata.installId`: UUID propio, estable entre reinstalaciones. Mándalo también al backend
-  de la app, aunque sea como texto libre, para cruzar cuentas.
-- `nonGrata.supportCode`: el `ref` de 8 caracteres que hay que pedir al usuario en soporte.
+- `nonGrata.installId`: own UUID, stable across reinstalls. Send it to the app's backend too,
+  even as free text, to cross-reference accounts.
+- `nonGrata.supportCode`: the 8-character `ref` to ask the user for in support.
 
-## 8. Privacidad
+## 8. Privacy
 
-- Etiqueta de privacidad de App Store: "Device ID" y "User ID" con fin de prevención de fraude.
-- Política de privacidad: mencionar identificadores de dispositivo con fin antifraude.
-- Por verificar: que este uso no cuenta como tracking a efectos de ATT (docs/HANDOFF.md,
-  sección 16).
+- App Store privacy label: "Device ID" and "User ID" for fraud prevention.
+- Privacy policy: mention device identifiers used for fraud prevention.
+- To verify: that this use does not count as tracking for ATT purposes ([design](DESIGN.md),
+  section 16).

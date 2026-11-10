@@ -5,6 +5,8 @@ aliases: [bit0, bit1, two bits, DCDevice, token de DeviceCheck]
 
 # DeviceCheck
 
+*English: [devicecheck.md](../../concepts/devicecheck.md)*
+
 Servicio de Apple que guarda **dos bits por dispositivo** (`bit0` y `bit1`) en sus servidores,
 asociados a tu cuenta de desarrollador. Es la pieza que hace que el bloqueo sobreviva a
 reinstalar y a borrar el iPhone.
@@ -42,4 +44,4 @@ reinstalar y a borrar el iPhone.
 - Cliente HTTP: `worker/src/apple/devicecheck.ts`.
 - Tokens en el SDK: `deviceTokens()` en `swift/Sources/NonGrata/NonGrata.swift`.
 
-Diseño: secciones 3 y 7.2 del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 3 y 7.2 de [DISENO.md](../DISENO.md).

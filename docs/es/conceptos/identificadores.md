@@ -5,6 +5,8 @@ aliases: [idfv, installId, install, icloud, userRecordID]
 
 # Identificadores
 
+*English: [identifiers.md](../../concepts/identifiers.md)*
+
 Cuatro identificadores, cada uno tapa un truco distinto del actor. Ninguno basta solo; juntos
 forman capas.
 
@@ -40,4 +42,4 @@ Apple y sobrevive incluso a borrar el iPhone y cambiar de cuenta de Apple.
 - `install` no se debe borrar en la limpieza de primera ejecución de la app.
 - `icloud` solo si la app activa `useICloud` (necesita CloudKit en el App ID).
 
-Diseño: secciones 1, 5 y 8.2 del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 1, 5 y 8.2 de [DISENO.md](../DISENO.md).

@@ -5,6 +5,8 @@ aliases: [Fail-open, Modo observación, ENFORCE, Modo estricto, strictSignup, ch
 
 # Fail-open y modo observación
 
+*English: [fail-open-and-observation.md](../../concepts/fail-open-and-observation.md)*
+
 Dos mecanismos para que el sistema nunca eche a usuarios normales por un fallo o un error de
 configuración.
 
@@ -45,4 +47,4 @@ Sirve para el despliegue seguro:
 `check_log` solo guarda resultados (app, `ref`, bloqueado, bits, intent, fecha); nunca
 identificadores ni IPs. Se purga a diario a los 30 días.
 
-Diseño: secciones 6.2 y 14 del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 6.2 y 14 de [DISENO.md](../DISENO.md).

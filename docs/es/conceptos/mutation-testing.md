@@ -5,6 +5,8 @@ aliases: [Stryker, Mutantes, Mutation score]
 
 # Mutation testing
 
+*English: [mutation-testing.md](../../concepts/mutation-testing.md)*
+
 Una forma de medir si los tests **de verdad** vigilan el código, no solo si lo ejecutan.
 
 ## La idea

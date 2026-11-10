@@ -5,6 +5,8 @@ aliases: [propagated, Propagado]
 
 # Propagación
 
+*English: [propagation.md](../../concepts/propagation.md)*
+
 Cuando un dispositivo sale bloqueado, el Worker guarda en la lista **los hashes nuevos** que trae
 esa petición, con `reason = propagated`. El sistema se refuerza solo.
 
@@ -30,4 +32,4 @@ Sin propagación habría que encontrar y banear a mano cada identificador de cad
   `icloud` con `pnpm ng unban app=myapp kind=icloud hash=…`.
 
 Ver también [Flujo de una comprobación](flujo-de-check.md) e [Identificadores](identificadores.md).
-Diseño: secciones 5 y 6 del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 5 y 6 de [DISENO.md](../DISENO.md).

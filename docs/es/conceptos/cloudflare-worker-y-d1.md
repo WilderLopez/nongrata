@@ -5,6 +5,8 @@ aliases: [Worker, D1, wrangler, Cloudflare]
 
 # Cloudflare Worker y D1
 
+*English: [cloudflare-worker-and-d1.md](../../concepts/cloudflare-worker-and-d1.md)*
+
 El servidor de nongrata no es una máquina que haya que mantener: es un **Worker** de
 Cloudflare con una base de datos **D1**. Esta nota explica esas piezas para quien viene de iOS.
 
@@ -81,7 +83,7 @@ como sufijo:
 `app` en mayúsculas, con `-` cambiado por `_` (`myapp` ⇒ `_MYAPP`).
 
 - Sin `HASH_PREFIX_<APP>`, la app no existe: `check` responde 404 y admin, 400
-  `app sin configurar`.
+  `app not configured`.
 - Sin los tres datos de Apple (Team ID, Key ID y `.p8`), decide solo con D1.
 
 ## workers.dev
@@ -134,4 +136,4 @@ Cada app tiene **su propio Worker** (`nongrata-myapp`) y **su propia base**
 - Todo el SQL: `worker/src/store.ts`. Tablas: `worker/migrations/0001_init.sql`.
 - Despliegue: plantilla en `deployments/example/wrangler.jsonc`. Desarrollo y tests: `worker/wrangler.jsonc`.
 
-Diseño: secciones 3 (Cloudflare), 7 y 14 del [HANDOFF](../HANDOFF.md).
+Diseño: secciones 3 (Cloudflare), 7 y 14 de [DISENO.md](../DISENO.md).

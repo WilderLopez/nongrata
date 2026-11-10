@@ -5,6 +5,8 @@ aliases: [Flujo de una comprobación, check, /v1/device/check]
 
 # Flujo de una comprobación
 
+*English: [check-flow.md](../../concepts/check-flow.md)*
+
 Lo que pasa cada vez que la app llama a `nonGrata.check(intent:)`. Es el corazón del sistema;
 el resto de notas explica cada pieza.
 
@@ -52,4 +54,4 @@ sequenceDiagram
 - SDK: `swift/Sources/NonGrata/NonGrata.swift` (`check`, `performCheck`, `apply`).
 - Worker: `worker/src/check.ts` (`runCheck`); el SQL en `worker/src/store.ts`; Apple en
   `worker/src/apple/`.
-- Diseño: sección 6.1 del [HANDOFF](../HANDOFF.md).
+- Diseño: sección 6.1 de [DISENO.md](../DISENO.md).
