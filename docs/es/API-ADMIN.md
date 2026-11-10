@@ -137,7 +137,10 @@ lo consumió se ve en `lookup` por `ref`. Si algún día hace falta recortarlo, 
 `0002_admin_log.sql`. Aplica las migraciones (`wrangler d1 migrations apply DB --remote`, como en
 el README) antes de desplegar el Worker nuevo: hasta entonces, `ban` y `unban` fallan con un
 `500`, porque la fila del registro se escribe en la misma transacción, mientras que
-`/v1/device/check` sigue funcionando.
+`/v1/device/check` sigue funcionando. Comprueba que se aplicó de verdad con
+`wrangler d1 migrations list DB --remote` (nada pendiente): desde un script u otra terminal no
+interactiva, Wrangler puede saltarse su pregunta de confirmación sin aplicar nada; antepón `CI=1`
+para que responda que sí.
 
 ## 5. Desde la CLI
 
