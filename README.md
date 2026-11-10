@@ -1,137 +1,138 @@
 <p align="center">
-  <img src="assets/icon.svg" width="140" height="140" alt="Icono de NonGrata: un escudo con un iPhone y la señal de prohibido">
+  <img src="assets/icon.svg" width="140" height="140" alt="NonGrata icon: a shield with an iPhone and a no-entry sign">
 </p>
 
 <h1 align="center">NonGrata</h1>
 
+<p align="center"><strong>English</strong> · <a href="README.es.md">Español</a></p>
+
 <p align="center">
-  <strong>Baneo por dispositivo y por cuenta de Apple para apps iOS.</strong><br>
-  Quien ya no es bienvenido no vuelve a entrar, aunque reinstale, cree otra cuenta o borre el iPhone.
+  <strong>Device and Apple Account bans for iOS apps.</strong><br>
+  Once someone is no longer welcome, they stay out, even if they reinstall, create another account or erase the iPhone.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white" alt="Swift 6">
-  <img src="https://img.shields.io/badge/iOS-17%2B-000000?logo=apple&logoColor=white" alt="iOS 17 o superior">
+  <img src="https://img.shields.io/badge/iOS-17%2B-000000?logo=apple&logoColor=white" alt="iOS 17 or later">
   <img src="https://img.shields.io/badge/SPM-compatible-14203D" alt="Swift Package Manager">
-  <img src="https://img.shields.io/badge/Cloudflare-Workers%20%2B%20D1-F38020?logo=cloudflare&logoColor=white" alt="Cloudflare Workers y D1">
-  <a href="https://github.com/WilderLopez/nongrata/tags"><img src="https://img.shields.io/github/v/tag/WilderLopez/nongrata?label=versi%C3%B3n&color=E5483D" alt="Versión"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-3E63B8" alt="Licencia MIT"></a>
+  <img src="https://img.shields.io/badge/Cloudflare-Workers%20%2B%20D1-F38020?logo=cloudflare&logoColor=white" alt="Cloudflare Workers and D1">
+  <a href="https://github.com/WilderLopez/nongrata/tags"><img src="https://img.shields.io/github/v/tag/WilderLopez/nongrata?label=version&color=E5483D" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-3E63B8" alt="MIT license"></a>
 </p>
 
 <p align="center">
-  <a href="#cómo-funciona">Cómo funciona</a> ·
-  <a href="#inicio-rápido">Inicio rápido</a> ·
-  <a href="#uso-en-la-app">Uso en la app</a> ·
-  <a href="#administración">Administración</a> ·
-  <a href="#documentación">Documentación</a>
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#using-it-in-your-app">Using it in your app</a> ·
+  <a href="#administration">Administration</a> ·
+  <a href="#documentation">Documentation</a>
 </p>
 
 ---
 
-## El problema
+## The problem
 
-Alguien abusa de tu app, lo baneas y a los dos días vuelve con otra cuenta. Cierra sesión y abre
-otra, reinstala la app, borra el iPhone. Banear la cuenta no basta, y la IP o el correo tampoco
-sirven: las IPs las comparten cientos de usuarios de un mismo operador y los correos son
-desechables.
+Someone abuses your app, you ban them, and two days later they are back with a new account. They
+sign out and create another one, reinstall the app, erase the iPhone. Banning the account is not
+enough, and IP addresses or emails don't help either: hundreds of users share a carrier's IPs, and
+email addresses are disposable.
 
-NonGrata recuerda **el dispositivo y la cuenta de Apple**, con varias capas que sobreviven a cosas
-distintas. La más fuerte son los dos bits de
-[DeviceCheck](https://developer.apple.com/documentation/devicecheck) que Apple guarda en sus
-servidores para cada dispositivo, y que siguen ahí incluso después de borrar el iPhone.
+NonGrata remembers **the device and the Apple Account**, using several layers that each survive
+something different. The strongest one is the two bits of
+[DeviceCheck](https://developer.apple.com/documentation/devicecheck) that Apple stores on its
+servers for every device, which are still there after the iPhone is erased.
 
-## Cómo funciona
+## How it works
 
 <p align="center">
-  <img src="assets/como-funciona.svg" alt="La app manda hashes y tokens al Worker, que consulta su lista en D1 y el bit0 de DeviceCheck y responde ok o blocked. Cuatro capas: idfv sobrevive a cerrar sesión, installId a reinstalar, iCloud a borrar el iPhone y bit0 a borrar el iPhone y cambiar de cuenta de Apple.">
+  <img src="assets/how-it-works.svg" alt="The app sends hashes and tokens to the Worker, which checks its D1 list and the DeviceCheck bit0 and answers ok or blocked. Four layers: idfv survives signing out, installId survives reinstalling, iCloud survives erasing the iPhone, and bit0 survives erasing the iPhone and switching Apple Account.">
 </p>
 
-Son cuatro piezas en un mismo repo:
+Four pieces in one repo:
 
-| Pieza | Qué hace |
+| Piece | What it does |
 |---|---|
-| **SDK Swift** (`NonGrata`) | Reúne los identificadores, los convierte en hashes y pregunta al Worker. Recuerda el veredicto aunque no haya red. |
-| **Pantalla opcional** (`NonGrataUI`) | La pantalla de "Acceso suspendido" con el código de soporte, en español e inglés. |
-| **Worker** (`worker/`) | Un Cloudflare Worker con D1 por app. Decide con su lista y con DeviceCheck. |
-| **CLI** (`cli/`) | Banear, desbanear y consultar desde la terminal. |
+| **Swift SDK** (`NonGrata`) | Collects the identifiers, hashes them and asks the Worker. Remembers the verdict even without a network. |
+| **Optional screen** (`NonGrataUI`) | The "Access suspended" screen with the support code, in English and Spanish. |
+| **Worker** (`worker/`) | A Cloudflare Worker with D1, one per app. Decides using its list and DeviceCheck. |
+| **CLI** (`cli/`) | Ban, unban and look up from the terminal. |
 
-## Por qué así
+## Why it works this way
 
-- **Privado por diseño.** Solo viajan hashes (`SHA256(prefijo:tipo:valor)`). Ni el Worker ni la
-  base guardan identificadores en bruto ni IPs, y el uso antifraude no es tracking: no hace falta
-  pedir el permiso de ATT.
-- **Fail-open.** Si la red o Apple fallan, el usuario entra. Nadie se queda fuera por un error
-  del sistema. La excepción es crear una cuenta: con el modo estricto (`strictSignup`, activado
-  por defecto) el registro exige una respuesta del Worker.
-- **Modo observación.** Al desplegar, el Worker solo registra lo que bloquearía. Revisas los datos
-  y activas el bloqueo cuando te fíes, sin publicar otra versión de la app.
-- **Se propaga solo.** Cuando un dispositivo sale bloqueado, el Worker añade sus identificadores
-  nuevos a la lista. Con `useICloud`, si el actor usa la misma cuenta de Apple en otro iPhone,
-  también cae.
-- **Desbaneo con un código.** El usuario ve un código de soporte de 8 caracteres. Con él lo
-  desbaneas por completo desde la terminal.
-- **Sin servidores que mantener.** Cloudflare Workers y D1; el plan gratuito sobra para empezar.
-- **Independiente de tu backend.** No hay que tocar el servidor de la app.
-- **Probado a fondo.** Tests en los tres componentes y mutation testing con Stryker: Worker
-  99,5 % y CLI 100 % de mutantes muertos.
+- **Private by design.** Only hashes travel (`SHA256(prefix:kind:value)`). Neither the Worker nor
+  the database stores raw identifiers or IP addresses, and anti-fraud use is not tracking: no
+  App Tracking Transparency prompt is needed.
+- **Fail-open.** If the network or Apple fails, the user gets in. Nobody is locked out by a
+  system error. The exception is account creation: with strict mode (`strictSignup`, on by
+  default) sign-up requires an answer from the Worker.
+- **Observation mode.** After deploying, the Worker only records what it would block. You review
+  the data and turn blocking on when you trust it, without shipping a new app version.
+- **Self-propagating.** When a device is blocked, the Worker adds its new identifiers to the list.
+  With `useICloud`, if the same Apple Account shows up on another iPhone, that one is caught too.
+- **Unban with a code.** The user sees an 8-character support code. With it you lift the ban
+  completely from the terminal.
+- **No servers to run.** Cloudflare Workers and D1; the free plan is plenty to start.
+- **Independent of your backend.** Your app's server doesn't change.
+- **Thoroughly tested.** Tests in all three components, plus mutation testing with Stryker: 99.5%
+  of mutants killed in the Worker and 100% in the CLI.
 
-## La pantalla de suspendido
+## The suspended screen
 
 <p align="center">
-  <img src="assets/suspendido.png" width="560" alt="Pantalla de acceso suspendido de NonGrataUI en modo claro y oscuro, con el código de soporte 7F3A9C21 y un botón de contactar con soporte">
+  <img src="assets/suspended.png" width="560" alt="NonGrataUI access suspended screen in light and dark mode, with support code 7F3A9C21 and a contact support button">
 </p>
 
-Es opcional: si prefieres la tuya, lee `nonGrata.verdict`. La de `NonGrataUI` cubre la app solo
-cuando hay un bloqueo, se retira sola al desbanear, deja copiar el código y funciona con
-VoiceOver y Dynamic Type.
+It is optional: if you prefer your own, read `nonGrata.verdict`. The `NonGrataUI` one covers the
+app only while there is a ban, goes away by itself after an unban, lets the user copy the code,
+and works with VoiceOver and Dynamic Type.
 
-## Requisitos
+## Requirements
 
 | | |
 |---|---|
-| App | iOS 17 o superior, Swift 6 |
-| Servidor | Una cuenta de Cloudflare (Workers y D1) |
-| Apple | Una clave con DeviceCheck activado, del portal de Apple Developer (Certificates, IDs & Profiles → Keys) |
-| Opcional | iCloud con CloudKit y key-value storage en el App ID, para la capa de iCloud (`useICloud`) |
-| Desarrollo | Node 22.18 o superior, pnpm y Xcode |
+| App | iOS 17 or later, Swift 6 |
+| Server | A Cloudflare account (Workers and D1) |
+| Apple | A key with DeviceCheck enabled, from the Apple Developer portal (Certificates, IDs & Profiles → Keys) |
+| Optional | iCloud with CloudKit and key-value storage on the App ID, for the iCloud layer (`useICloud`) |
+| Development | Node 22.18 or later, pnpm and Xcode |
 
-## Inicio rápido
+## Quick start
 
-### 1. Despliega el Worker de tu app
+### 1. Deploy your app's Worker
 
 ```sh
 git clone https://github.com/WilderLopez/nongrata.git && cd nongrata
 make install
-cp -r deployments/example deployments/<tu-app>      # git ignora esta carpeta
+cp -r deployments/example deployments/<your-app>    # git ignores this folder
 cd worker
-pnpm exec wrangler d1 create nongrata-<tu-app>       # copia el database_id a tu wrangler.jsonc
+pnpm exec wrangler d1 create nongrata-<your-app>     # copy the database_id into your wrangler.jsonc
 ```
 
-Edita `deployments/<tu-app>/wrangler.jsonc` (nombre, `HASH_PREFIX_<APP>`, Team ID y Key ID) y,
-desde `worker/`:
+Edit `deployments/<your-app>/wrangler.jsonc` (name, `HASH_PREFIX_<APP>`, Team ID and Key ID) and,
+from `worker/`:
 
 ```sh
-pnpm exec wrangler d1 migrations apply DB --remote --config ../deployments/<tu-app>/wrangler.jsonc
-pnpm exec wrangler secret put ADMIN_TOKEN --config ../deployments/<tu-app>/wrangler.jsonc
-pnpm exec wrangler secret put APPLE_DC_KEY_P8_<APP> --config ../deployments/<tu-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
-pnpm exec wrangler deploy --config ../deployments/<tu-app>/wrangler.jsonc
+pnpm exec wrangler d1 migrations apply DB --remote --config ../deployments/<your-app>/wrangler.jsonc
+pnpm exec wrangler secret put ADMIN_TOKEN --config ../deployments/<your-app>/wrangler.jsonc
+pnpm exec wrangler secret put APPLE_DC_KEY_P8_<APP> --config ../deployments/<your-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
+pnpm exec wrangler deploy --config ../deployments/<your-app>/wrangler.jsonc
 ```
 
-Arranca en modo observación (`ENFORCE_<APP> = "false"`). Más detalle en
-[Cloudflare Worker y D1](docs/conceptos/cloudflare-worker-y-d1.md).
+It starts in observation mode (`ENFORCE_<APP> = "false"`). More in
+[Cloudflare Worker and D1](docs/concepts/cloudflare-worker-and-d1.md).
 
-### 2. Añade el paquete
+### 2. Add the package
 
-En Xcode: **File → Add Package Dependencies…** con `https://github.com/WilderLopez/nongrata.git`,
-desde `0.1.0`. O en tu `Package.swift`:
+In Xcode: **File → Add Package Dependencies…** with `https://github.com/WilderLopez/nongrata.git`,
+from `0.1.0`. Or in your `Package.swift`:
 
 ```swift
 .package(url: "https://github.com/WilderLopez/nongrata.git", from: "0.1.0")
 ```
 
-Productos: `NonGrata` (obligatorio) y `NonGrataUI` (la pantalla, opcional).
+Products: `NonGrata` (required) and `NonGrataUI` (the screen, optional).
 
-## Uso en la app
+## Using it in your app
 
 ```swift
 import SwiftUI
@@ -141,9 +142,9 @@ import NonGrataUI
 @main
 struct MyApp: App {
     @State private var nonGrata = NonGrata(configuration: .init(
-        endpoint: URL(string: "https://nongrata-myapp.<tu-subdominio>.workers.dev/v1/device/check")!,
+        endpoint: URL(string: "https://nongrata-myapp.<your-subdomain>.workers.dev/v1/device/check")!,
         appId: "myapp",
-        hashPrefix: "myapp-ban-v1"   // igual que HASH_PREFIX_MYAPP del Worker
+        hashPrefix: "myapp-ban-v1"   // same as the Worker's HASH_PREFIX_MYAPP
     ))
     @Environment(\.scenePhase) private var scenePhase
 
@@ -151,73 +152,72 @@ struct MyApp: App {
         WindowGroup {
             ContentView()
                 .nonGrataBlockingOverlay(nonGrata) { ref in
-                    Link("Contactar con soporte",
-                         destination: URL(string: "mailto:soporte@example.com?subject=\(ref)")!)
+                    Link("Contact support",
+                         destination: URL(string: "mailto:support@example.com?subject=\(ref)")!)
                 }
                 .task { await nonGrata.check(intent: .launch) }
         }
-        .onChange(of: scenePhase) { _, fase in
-            if fase == .active { Task { await nonGrata.check(intent: .foreground) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await nonGrata.check(intent: .foreground) } }
         }
     }
 }
 ```
 
-Tras el login, `check(intent: .login, userId: user.id)`. Antes de crear una cuenta:
+After login, `check(intent: .login, userId: user.id)`. Before creating an account:
 
 ```swift
 let verdict = await nonGrata.check(intent: .signup)
-guard nonGrata.permits(verdict, for: .signup) else { return }   // bloqueado o, en estricto, sin respuesta
+guard nonGrata.permits(verdict, for: .signup) else { return }   // blocked or, in strict mode, no answer
 createAccount()
 ```
 
-Todo lo demás (capacidades, Keychain, analítica, privacidad en App Store Connect) está en
-[Integrar en una app iOS](docs/INTEGRATION-IOS.md).
+Everything else (capabilities, Keychain, analytics, App Store Connect privacy) is in
+[Integrating into an iOS app](docs/INTEGRATION-IOS.md).
 
-## Administración
+## Administration
 
 ```sh
-export NONGRATA_URL_MYAPP=https://nongrata-myapp.<tu-subdominio>.workers.dev
-export NONGRATA_ADMIN_TOKEN_MYAPP=<tu ADMIN_TOKEN>
+export NONGRATA_URL_MYAPP=https://nongrata-myapp.<your-subdomain>.workers.dev
+export NONGRATA_ADMIN_TOKEN_MYAPP=<your ADMIN_TOKEN>
 
 pnpm ng ban    app=myapp kind=idfv value=<IDFV> note="spam"
-pnpm ng lookup app=myapp ref=7F3A9C21     # qué se sabe de ese código de soporte
-pnpm ng unban  app=myapp ref=7F3A9C21     # desbaneo completo en su próxima comprobación
-pnpm ng hash   prefix=myapp-ban-v1 kind=idfv value=<IDFV>   # el hash, sin red
+pnpm ng lookup app=myapp ref=7F3A9C21     # what is known about that support code
+pnpm ng unban  app=myapp ref=7F3A9C21     # full unban on the device's next check
+pnpm ng hash   prefix=myapp-ban-v1 kind=idfv value=<IDFV>   # the hash, offline
 ```
 
-## Lo que no hace
+## What it doesn't do
 
-- **No impide que alguien modifique la app** para saltarse la comprobación. App Attest cerraría
-  ese hueco y está previsto como opcional.
-- **No es un antifraude completo.** Es un muro para quien ya has decidido banear; detectar a
-  quién banear es cosa tuya.
-- **No funciona en el simulador** la parte de DeviceCheck: hay que probar en un iPhone.
-- **Android** está esbozado en el diseño, no implementado.
+- **It doesn't stop someone from modifying the app** to skip the check. App Attest would close
+  that gap and is planned as an option.
+- **It isn't a full anti-fraud system.** It is a wall for people you have already decided to ban;
+  finding who to ban is up to you.
+- **The DeviceCheck part doesn't work in the Simulator**: test on a real iPhone.
+- **Android** is sketched in the design, not implemented.
 
-## Documentación
+## Documentation
 
-- [Diseño completo](docs/HANDOFF.md): el problema, la arquitectura, el contrato, el algoritmo,
-  los riesgos y lo que queda por verificar.
-- [Integrar en una app iOS](docs/INTEGRATION-IOS.md).
-- Conceptos: [identificadores](docs/conceptos/identificadores.md),
-  [DeviceCheck](docs/conceptos/devicecheck.md), [hash y ref](docs/conceptos/hash-y-ref.md),
-  [flujo de una comprobación](docs/conceptos/flujo-de-check.md),
-  [propagación](docs/conceptos/propagacion.md),
-  [fail-open y modo observación](docs/conceptos/fail-open-y-observacion.md) y el
-  [glosario](docs/glosario.md).
+- [Full design](docs/DESIGN.md): the problem, architecture, contract, algorithm, risks and what
+  is still to be verified.
+- [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
+- Concepts: [identifiers](docs/concepts/identifiers.md),
+  [DeviceCheck](docs/concepts/devicecheck.md), [hash and ref](docs/concepts/hash-and-ref.md),
+  [check flow](docs/concepts/check-flow.md), [propagation](docs/concepts/propagation.md),
+  [fail-open and observation mode](docs/concepts/fail-open-and-observation.md) and the
+  [glossary](docs/glossary.md).
+- All docs are also available [in Spanish](docs/es/DISENO.md).
 
-## Desarrollo
+## Development
 
 ```sh
-make install   # dependencias (solo pnpm)
-make check     # documentación, tipos, tests de Worker, CLI y SDK, build de iOS y mutation testing
+make install   # dependencies (pnpm only)
+make check     # docs, types, Worker, CLI and SDK tests, iOS build and mutation testing
 ```
 
-Los tests del Worker corren dentro de `workerd` y no llaman a Apple; los de Swift, con
-`swift test` desde la raíz. Antes de dar algo por terminado, `make check` tiene que quedar en
-verde.
+The Worker tests run inside `workerd` and never call Apple; the Swift tests run with `swift test`
+from the repo root. `make check` must be green before anything is considered done.
 
-## Licencia
+## License
 
-[MIT](LICENSE). El nombre viene de *persona non grata*: alguien que ya no es bienvenido.
+[MIT](LICENSE). The name comes from *persona non grata*: someone who is no longer welcome.
