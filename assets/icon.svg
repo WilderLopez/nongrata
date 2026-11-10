@@ -1,17 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
   <title id="title">NonGrata</title>
   <defs>
-    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1024">
-      <stop offset="0" stop-color="#22304D"/>
-      <stop offset="1" stop-color="#0D1424"/>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#253764"/><stop offset=".55" stop-color="#121B33"/><stop offset="1" stop-color="#070B16"/>
     </linearGradient>
+    <linearGradient id="escudo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBF7EF"/><stop offset="1" stop-color="#DCD3C2"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="512" cy="470" r="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5F7DC2" stop-opacity=".35"/><stop offset="1" stop-color="#5F7DC2" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sombra" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#000" flood-opacity=".45"/>
+    </filter>
   </defs>
   <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
-  <!-- iPhone -->
-  <rect x="262" y="168" width="360" height="660" rx="72" fill="none" stroke="#F3EFE6" stroke-width="40"/>
-  <rect x="397" y="222" width="90" height="22" rx="11" fill="#F3EFE6"/>
-  <!-- Señal de prohibido, separada del teléfono por un hueco del color del fondo -->
-  <circle cx="676" cy="676" r="196" fill="url(#bg)"/>
-  <circle cx="676" cy="676" r="150" fill="none" stroke="#FF5A4F" stroke-width="48"/>
-  <line x1="570" y1="570" x2="782" y2="782" stroke="#FF5A4F" stroke-width="48" stroke-linecap="round"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#halo)"/>
+  <g filter="url(#sombra)">
+    <path d="M512 138 C610 194 712 214 818 218 L818 494 C818 700 694 832 512 894 C330 832 206 700 206 494 L206 218 C312 214 414 194 512 138 Z" fill="url(#escudo)"/>
+  </g>
+  <path d="M512 186 C598 234 688 252 778 256 L778 494 C778 676 670 792 512 846 C354 792 246 676 246 494 L246 256 C336 252 426 234 512 186 Z" fill="none" stroke="#14203D" stroke-opacity=".14" stroke-width="6"/>
+  <rect x="417" y="290" width="190" height="360" rx="42" fill="none" stroke="#14203D" stroke-width="30"/>
+  <rect x="482" y="322" width="60" height="15" rx="7.5" fill="#14203D"/>
+  <circle cx="640" cy="652" r="134" fill="#F3EDE2"/>
+  <circle cx="640" cy="652" r="102" fill="none" stroke="#E5483D" stroke-width="34"/>
+  <line x1="568" y1="580" x2="712" y2="724" stroke="#E5483D" stroke-width="34" stroke-linecap="round"/>
 </svg>

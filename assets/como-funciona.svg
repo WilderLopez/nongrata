@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 672" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#14203D"/>
+    </marker>
+    <marker id="flecha-roja" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#E5483D"/>
+    </marker>
+    <filter id="sombra" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#14203D" flood-opacity=".10"/>
+    </filter>
+    <clipPath id="capa-56"><rect x="56" y="436" width="254" height="180" rx="18"/></clipPath>
+    <clipPath id="capa-334"><rect x="334" y="436" width="254" height="180" rx="18"/></clipPath>
+    <clipPath id="capa-612"><rect x="612" y="436" width="254" height="180" rx="18"/></clipPath>
+    <clipPath id="capa-890"><rect x="890" y="436" width="254" height="180" rx="18"/></clipPath>
+  </defs>
+  <rect width="1200" height="672" rx="28" fill="#F7F4EE"/>
+
+  <text x="56" y="70" font-size="30" font-weight="700" fill="#14203D">Cómo funciona</text>
+  <text x="56" y="102" font-size="17" fill="#5B6478">Una comprobación al abrir la app, al volver a primer plano, tras el login y antes del registro.</text>
+
+  <!-- Tu app -->
+  <g filter="url(#sombra)"><rect x="56" y="140" width="290" height="200" rx="20" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <rect x="80" y="166" width="34" height="58" rx="8" fill="none" stroke="#14203D" stroke-width="4"/>
+  <rect x="90" y="172" width="14" height="4" rx="2" fill="#14203D"/>
+  <text x="132" y="190" font-size="21" font-weight="700" fill="#14203D">Tu app</text>
+  <text x="132" y="216" font-size="16" fill="#5B6478">con el SDK NonGrata</text>
+  <text x="80" y="262" font-size="15" fill="#5B6478">Calcula los hashes de sus</text>
+  <text x="80" y="284" font-size="15" fill="#5B6478">identificadores y pide dos</text>
+  <text x="80" y="306" font-size="15" fill="#5B6478">tokens a DeviceCheck.</text>
+
+  <!-- Worker -->
+  <g filter="url(#sombra)"><rect x="455" y="140" width="290" height="200" rx="20" fill="#14203D"/></g>
+  <text x="479" y="190" font-size="21" font-weight="700" fill="#F7F4EE">Cloudflare Worker</text>
+  <text x="479" y="216" font-size="16" fill="#AEB8D0">un despliegue por app</text>
+  <text x="479" y="262" font-size="15" fill="#D5DBE8">Mira la lista y bit0, decide</text>
+  <text x="479" y="284" font-size="15" fill="#D5DBE8">ok o blocked y, al bloquear,</text>
+  <text x="479" y="306" font-size="15" fill="#D5DBE8">marca los identificadores nuevos.</text>
+
+  <!-- D1 y Apple -->
+  <g filter="url(#sombra)"><rect x="854" y="140" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <text x="878" y="176" font-size="19" font-weight="700" fill="#14203D">D1</text>
+  <text x="914" y="176" font-size="16" fill="#5B6478">lista de baneos</text>
+  <text x="878" y="204" font-size="15" fill="#5B6478">Solo hashes. Ni valores ni IPs.</text>
+  <g filter="url(#sombra)"><rect x="854" y="252" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <text x="878" y="288" font-size="19" font-weight="700" fill="#14203D">DeviceCheck</text>
+  <text x="1008" y="288" font-size="16" fill="#5B6478">de Apple</text>
+  <text x="878" y="316" font-size="15" fill="#5B6478">bit0 = baneado, en sus servidores.</text>
+
+  <!-- Flechas -->
+  <line x1="350" y1="206" x2="449" y2="206" stroke="#14203D" stroke-width="2.5" marker-end="url(#flecha)"/>
+  <text x="399" y="194" font-size="13" text-anchor="middle" fill="#14203D">hashes y tokens</text>
+  <line x1="451" y1="276" x2="352" y2="276" stroke="#E5483D" stroke-width="2.5" marker-end="url(#flecha-roja)"/>
+  <text x="401" y="300" font-size="13" text-anchor="middle" fill="#E5483D">ok / blocked</text>
+  <line x1="749" y1="184" x2="848" y2="184" stroke="#14203D" stroke-width="2.5" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+  <line x1="749" y1="296" x2="848" y2="296" stroke="#14203D" stroke-width="2.5" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
+
+  <!-- Capas -->
+  <text x="56" y="410" font-size="22" font-weight="700" fill="#14203D">Cuatro capas, cada una sobrevive a algo distinto</text>
+
+  <g filter="url(#sombra)"><rect x="56" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <rect x="56" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-56)"/>
+  <text x="80" y="482" font-size="20" font-weight="700" fill="#14203D">idfv</text>
+  <text x="80" y="506" font-size="15" fill="#5B6478">identifierForVendor</text>
+  <text x="80" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SOBREVIVE A</text>
+  <text x="80" y="574" font-size="15" fill="#14203D">cerrar sesión y abrir</text>
+  <text x="80" y="594" font-size="15" fill="#14203D">otra cuenta</text>
+
+  <g filter="url(#sombra)"><rect x="334" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <rect x="334" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-334)"/>
+  <text x="358" y="482" font-size="20" font-weight="700" fill="#14203D">installId</text>
+  <text x="358" y="506" font-size="15" fill="#5B6478">UUID en el Keychain</text>
+  <text x="358" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SOBREVIVE A</text>
+  <text x="358" y="574" font-size="15" fill="#14203D">reinstalar la app</text>
+
+  <g filter="url(#sombra)"><rect x="612" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <rect x="612" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-612)"/>
+  <text x="636" y="482" font-size="20" font-weight="700" fill="#14203D">iCloud</text>
+  <text x="636" y="506" font-size="15" fill="#5B6478">userRecordID (opcional)</text>
+  <text x="636" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SOBREVIVE A</text>
+  <text x="636" y="574" font-size="15" fill="#14203D">borrar el iPhone o usar</text>
+  <text x="636" y="594" font-size="15" fill="#14203D">otro con la misma cuenta</text>
+
+  <g filter="url(#sombra)"><rect x="890" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
+  <rect x="890" y="436" width="254" height="8" fill="#E5483D" clip-path="url(#capa-890)"/>
+  <text x="914" y="482" font-size="20" font-weight="700" fill="#14203D">bit0</text>
+  <text x="914" y="506" font-size="15" fill="#5B6478">DeviceCheck de Apple</text>
+  <text x="914" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SOBREVIVE A</text>
+  <text x="914" y="574" font-size="15" fill="#14203D">borrar el iPhone y cambiar</text>
+  <text x="914" y="594" font-size="15" fill="#14203D">de cuenta de Apple</text>
+</svg>
