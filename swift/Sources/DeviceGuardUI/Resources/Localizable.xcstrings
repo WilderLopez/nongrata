@@ -1,0 +1,60 @@
+{
+  "sourceLanguage" : "es",
+  "strings" : {
+    "deviceguard.suspended.message" : {
+      "comment" : "Explicación bajo el título de la pantalla de bloqueo. «El código de abajo» es el código de soporte.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device can't use the app. If you think this is a mistake, contact support and give them the code below."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo no puede usar la app. Si crees que es un error, contacta con soporte y facilita el código de abajo."
+          }
+        }
+      }
+    },
+    "deviceguard.suspended.supportCode" : {
+      "comment" : "Etiqueta sobre el código de 8 caracteres que el usuario dicta a soporte.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support code"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de soporte"
+          }
+        }
+      }
+    },
+    "deviceguard.suspended.title" : {
+      "comment" : "Título de la pantalla que se muestra cuando este dispositivo está bloqueado.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access suspended"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acceso suspendido"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

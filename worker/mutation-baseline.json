@@ -1,0 +1,16 @@
+{
+  "global": 99.47,
+  "supervivientes": 3,
+  "sinCobertura": 0,
+  "ficheros": {
+    "src/admin.ts": 100,
+    "src/apple/devicecheck.ts": 100,
+    "src/apple/jwt.ts": 100,
+    "src/check.ts": 99.3,
+    "src/env.ts": 97.62,
+    "src/hash.ts": 97.44,
+    "src/http.ts": 100,
+    "src/index.ts": 100,
+    "src/store.ts": 100
+  }
+}

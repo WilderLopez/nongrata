@@ -1,0 +1,35 @@
+# Secretos de wrangler en local
+.dev.vars*
+!.dev.vars.example
+
+node_modules/
+.wrangler/
+*.p8
+
+# Swift
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+.DS_Store
+
+# Stryker (informes y copias de seguridad de inPlace)
+reports/
+.stryker-tmp/
+
+# Obsidian
+.obsidian/
+
+# Configuración local de Claude Code (comandos de sesión, hooks y worktrees)
+.claude/
+
+# Despliegues reales: cada uno tiene su wrangler.jsonc con IDs propios. Solo el ejemplo es público.
+deployments/*
+!deployments/example/
+
+# Local de cada uno: objetivos de make, términos privados que no deben acabar en el repo
+local.mk
+.public-terms
+CLAUDE.md

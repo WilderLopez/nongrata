@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "pnpm",
+  "plugins_comment": "pnpm enlaza node_modules/@stryker-mutator/* con symlinks y el auto-descubrimiento no los sigue: hay que listarlos a mano.",
+  "plugins": [
+    "@stryker-mutator/tap-runner"
+  ],
+  "testRunner": "tap",
+  "tap": {
+    "testFiles": [
+      "test/**/*.test.ts"
+    ]
+  },
+  "coverageAnalysis": "perTest",
+  "inPlace_comment": "Sin sandbox: src/cli.ts importa ../../worker/src/hash.ts y los tests leen ../spec/hash-vectors.json, que quedarían fuera de él. Stryker restaura src/ al terminar; no edites src/ mientras corre. `make check` falla si quedan restos de instrumentación.",
+  "inPlace": true,
+  "mutate_comment": "main.ts solo conecta process con run(); hash.ts se muta desde worker/.",
+  "mutate": [
+    "src/**/*.ts",
+    "!src/main.ts"
+  ],
+  "reporters": [
+    "html",
+    "json",
+    "clear-text",
+    "progress"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds_comment": "Sin umbral que rompa: el que vigila es scripts/mutation-score.mjs, contra mutation-baseline.json.",
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "tempDirName": ".stryker-tmp",
+  "timeoutMS": 10000
+}

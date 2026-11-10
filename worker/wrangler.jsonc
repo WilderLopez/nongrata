@@ -1,0 +1,30 @@
+// Configuración de desarrollo local y tests. Los despliegues reales viven en
+// ../deployments/<app>/wrangler.jsonc y apuntan a este mismo código.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "device-guard-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "device-guard-dev",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
+  // App de pruebas. El secreto APPLE_DC_KEY_P8_DEMO va en .dev.vars (fuera de git).
+  "vars": {
+    "HASH_PREFIX_DEMO": "demo-ban-v1",
+    "ENFORCE_DEMO": "true",
+    "APPLE_TEAM_ID_DEMO": "TEAM000000",
+    "APPLE_KEY_ID_DEMO": "KEY0000000"
+  }
+}

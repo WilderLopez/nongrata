@@ -1,0 +1,61 @@
+# Mutation testing del Worker y de la CLI (Stryker).
+#
+# Corre una vez por semana y a demanda, no en cada push: su valor no es cortar un merge, sino
+# avisar de que los tests verifican menos que antes. En local es lo mismo que `make mutation`.
+#
+# Solo falla si el score global de un paquete baja más de 1 punto respecto a su
+# `<paquete>/mutation-baseline.json`. Si el descenso es intencionado, se actualiza en un PR con
+# `make mutation-baseline`.
+name: Mutation testing
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: mutation
+  cancel-in-progress: true
+
+jobs:
+  stryker:
+    name: Stryker (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [worker, cli]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sin `version`: usa la de `packageManager` en package.json.
+      - uses: pnpm/action-setup@v4
+
+      # La CLI necesita Node >= 22.18 para ejecutar TypeScript sin compilar.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Si la suite no está verde, el score no significa nada.
+      - name: Tests
+        run: pnpm --dir ${{ matrix.package }} test
+
+      - name: Mutation testing
+        run: pnpm --dir ${{ matrix.package }} run test:mutation
+
+      - name: Comparar con el baseline
+        # shell: bash activa pipefail; sin él, el exit 1 del guion lo tapa el exit 0 de tee.
+        shell: bash
+        run: node scripts/mutation-score.mjs ${{ matrix.package }} | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar el informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report-${{ matrix.package }}
+          path: ${{ matrix.package }}/reports/mutation/
+          retention-days: 30

@@ -1,0 +1,43 @@
+// Plantilla de despliegue para una app. Cópiala a deployments/<tu-app>/ (git ignora esas
+// carpetas, porque llevan IDs de tu cuenta) y cambia `myapp` y los valores entre <>.
+// Código y migraciones compartidos en ../../worker.
+//
+// Secretos (no van aquí), desde worker/:
+//   pnpm exec wrangler secret put ADMIN_TOKEN --config ../deployments/<tu-app>/wrangler.jsonc
+//   pnpm exec wrangler secret put APPLE_DC_KEY_P8_MYAPP --config ../deployments/<tu-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
+{
+  "$schema": "../../worker/node_modules/wrangler/config-schema.json",
+  "name": "device-guard-myapp",
+  "main": "../../worker/src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "device-guard-myapp",
+      // Lo devuelve `wrangler d1 create device-guard-myapp`.
+      "database_id": "<DATABASE_ID>",
+      "migrations_dir": "../../worker/migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      // Un número distinto por cada rate limiter de tu cuenta de Cloudflare.
+      "namespace_id": "<NAMESPACE_ID>",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
+  // Purga diaria de check_log (retención de 30 días).
+  "triggers": { "crons": ["17 3 * * *"] },
+  "vars": {
+    // El sufijo de cada variable es el `app` del SDK en mayúsculas, con "-" como "_".
+    "HASH_PREFIX_MYAPP": "myapp-ban-v1",
+    // Modo observación: registra el veredicto pero deja entrar a todos. "true" para bloquear.
+    "ENFORCE_MYAPP": "false",
+    // Sin las tres piezas de Apple (estas dos y el secreto), el Worker decide solo con D1.
+    "APPLE_TEAM_ID_MYAPP": "<TEAM_ID>",
+    "APPLE_KEY_ID_MYAPP": "<KEY_ID>"
+  },
+  // Sin registrar cuerpos de petición (docs/HANDOFF.md, sección 11).
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } }
+}

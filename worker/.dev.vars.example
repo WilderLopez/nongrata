@@ -1,0 +1,5 @@
+# Copia a .dev.vars para `pnpm dev`. Nunca subas .dev.vars a git.
+ADMIN_TOKEN=dev-admin-token
+APPLE_DC_KEY_P8_DEMO="-----BEGIN PRIVATE KEY-----
+...contenido del .p8 con DeviceCheck activado...
+-----END PRIVATE KEY-----"
