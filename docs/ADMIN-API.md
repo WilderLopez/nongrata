@@ -14,10 +14,12 @@ of the design document.
   `ADMIN_TOKEN`. Every request still says which `app` it is about, and the app must be configured
   in that Worker (`HASH_PREFIX_<APP>`): a typo in `app` gives `400 app not configured` instead of
   a `200` that does nothing.
-- **Authentication.** `Authorization: Bearer <ADMIN_TOKEN>` on every request. Without it, or with
-  the wrong token, any `/v1/admin/*` path answers `401 {"error":"unauthorized"}`, even one that
-  does not exist; only then does an unknown route or method give `404 {"error":"not_found"}`.
-  A Worker without `ADMIN_TOKEN` rejects everything.
+- **Authentication.** `Authorization: Bearer <ADMIN_TOKEN>` on every request, or the signature
+  of a paired admin device (section 6). Without either, or with the wrong token, any
+  `/v1/admin/*` path answers `401 {"error":"unauthorized"}`, even one that does not exist; only
+  then does an unknown route or method give `404 {"error":"not_found"}`. A Worker without
+  `ADMIN_TOKEN` rejects every token. A route the caller may not use gives
+  `403 {"error":"forbidden"}`.
 - **Only hashes.** The Worker never stores raw identifiers or IPs. You can send a raw `value` to
   `ban`, `unban` and `lookup`: the Worker hashes it with the app's prefix
   (`SHA-256(prefix:kind:value)`, see [hash and ref](concepts/hash-and-ref.md)) and keeps only the
@@ -28,8 +30,12 @@ of the design document.
   be shown as they are: `invalid app`, `app not configured`, `invalid kind`, `invalid hash`,
   `invalid value`, `invalid ref`, `missing value or hash`, `missing value, hash or ref`,
   `missing ref, value or hash`, `invalid reason`, `invalid blocked`, `invalid since`,
-  `invalid limit`, `invalid cursor`. `app` is always checked first. Unknown query parameters are
-  ignored.
+  `invalid limit`, `invalid cursor`; for devices, `invalid role`, `invalid label`,
+  `https required`, `invalid name`, `invalid platform`, `invalid pairing` and
+  `ambiguous credentials`. `app` is always checked first. Unknown query parameters are ignored.
+  The device routes also answer `404` (`pairing not found`, `not_found` for an unknown device),
+  `409` (`pairing not claimed`, `pairing already approved`, `pairing expired`) and `429`
+  (`rate_limited`, for claims).
 
 ## 2. Endpoints
 
@@ -40,10 +46,18 @@ of the design document.
 | `GET /v1/admin/lookup` | `?app&ref`: the device's pending or consumed unban and its last 20 checks. `?app&kind&(value or hash)`: the ban row, or `null`. |
 | `GET /v1/admin/bans` | The list of banned hashes, newest first. Filters: `kind`, `reason` (`manual` or `propagated`). |
 | `GET /v1/admin/checks` | The recent checks (`check_log`), newest first. Filters: `ref`, `blocked` (`0` or `1`), `since` (Unix ms, inclusive). |
-| `GET /v1/admin/log` | The admin actions: every successful `ban` and `unban`, newest first. |
+| `GET /v1/admin/log` | The admin actions, newest first. With `app`: every successful `ban` and `unban` of that app. Without `app`: the Worker's device events, `pair` and `revoke`. |
+| `GET /v1/admin/apps` | The apps configured in this Worker, with `enforce` and whether DeviceCheck is set. |
+| `GET /v1/admin/me` | The calling device (devices only). |
+| `GET /v1/admin/devices` | The paired devices, newest first. |
+| `POST /v1/admin/devices/{id}/revoke` | Revokes a device, for good. Idempotent. |
+| `POST /v1/admin/pairings`, `GET` and `DELETE /v1/admin/pairings/{id}`, `POST /v1/admin/pairings/{id}/approve` | Pairing a new admin device (`ADMIN_TOKEN` only). |
+| `POST /v1/pair/claim` | Outside `/v1/admin/`: the device claims a pairing, with no other credential. |
 
 `kind` is one of `idfv`, `install`, `icloud`, `user`, `android_id`. A `ref` is the 8-character
-uppercase support code the app shows on its block screen.
+uppercase support code the app shows on its block screen. The routes about devices, apps and
+pairings take no `app`: they concern the whole Worker. Section 6 and
+[Admin devices](DEVICE-PAIRING.md) describe them.
 
 ### Ban and unban
 
@@ -85,7 +99,7 @@ The items of each listing:
 |---|---|
 | `bans` | `{ hash, kind, reason, note, created_at }` |
 | `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` and `bit0` are `0` or `1` as in `lookup` (`bit0` is `null` when Apple was not asked or did not answer); `intent` as the SDK sent it |
-| `log` | `{ action, kind, hash, ref, note, created_at }`: `action` is `ban` or `unban`; the fields that do not apply are `null` |
+| `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` is `ban`, `unban`, `pair` or `revoke`; `device_id` is the device of `pair` and `revoke`; `actor` is `token` or `device:<device_id>` (`null` before migration `0003`); the fields that do not apply are `null` |
 
 In observation mode (`ENFORCE_<APP>` off) a check's `blocked` is what would have been blocked,
 which is what makes `checks?blocked=1` useful before turning blocking on.
@@ -122,10 +136,13 @@ done
 | Bans (`banned_ids`) | Until unbanned | The list itself. An unban deletes the row. |
 | Checks (`check_log`) | 30 days | The daily cron deletes older rows. `checks` cannot see further back. |
 | Admin log (`admin_log`) | Forever | Not purged, see below. |
+| Pairings (`admin_pairings`) | Until they expire (10 minutes) | The daily cron deletes them, approved or not. |
+| Devices (`admin_devices`) | Forever once approved; revoked ones stay | So the log can still name them. A pending device goes with its pairing. |
+| Nonces (`admin_nonces`) | 10 minutes | Only to reject replays. |
 
 The admin log is not purged because bans never expire: a hash banned two years ago still blocks,
 and the record of who banned it, when and with what note must outlive it. It grows by one row per
-human action (a `ban` or an `unban`), so it stays tiny next to `check_log`, which grows with
+human action (a `ban`, an `unban`, a `pair` or a `revoke`), so it stays tiny next to `check_log`, which grows with
 every app launch; purging it would save nothing and would add a second statement to the cron.
 It records what the endpoints already store: the hash (never the raw `value`), the `ref` and the
 note. It records that an unban by `ref` was scheduled; whether the device has consumed it shows
@@ -139,6 +156,12 @@ the log row is written in the same transaction, while `/v1/device/check` keeps w
 Check that it really ran with `wrangler d1 migrations list DB --remote` (nothing pending): from a
 script or another non-interactive shell, Wrangler may skip its confirmation prompt without
 applying anything; prefix the command with `CI=1` so it answers yes.
+
+**Upgrading to admin devices.** Pairing, signed requests and the `actor` of the log need
+migration `0003_admin_devices.sql`, which also rebuilds `admin_log` (keeping its rows). Apply it
+the same way before deploying, with `CI=1` from a non-interactive shell, and check it with
+`wrangler d1 migrations list DB --remote`: until it runs, `ban`, `unban` and `log` fail with a
+`500` while `/v1/device/check` keeps working.
 
 ## 5. From the CLI
 
@@ -154,21 +177,48 @@ The CLI prints the Worker's JSON as it comes, one page per call. It reads
 `NONGRATA_URL_<APP>` and `NONGRATA_ADMIN_TOKEN_<APP>`; see [section 9](DESIGN.md#9-admin-cli) of
 the design.
 
-## 6. Building a client
+```sh
+pnpm ng pair    app=myapp role=read label="Ana's iPhone"   # QR, wait, compare the code, approve
+pnpm ng devices app=myapp                                  # the paired devices
+pnpm ng devices revoke app=myapp id=<device_id>
+```
+
+Devices belong to the Worker, so here `app=` only picks which Worker (its URL and token).
+
+## 6. Admin devices
+
+A phone, tablet or Mac (for example the NonGrata Dashboard app) does not need the token: it
+pairs once and then signs each request with a key that never leaves its Secure Enclave. The
+protocol, the role table and the threat model are in [Admin devices](DEVICE-PAIRING.md). In
+short:
+
+- `pnpm ng pair` creates a one-time pairing (10 minutes) and shows it as a QR code. The device
+  claims it with `POST /v1/pair/claim`, both sides show a 6-digit verification code, and the
+  admin approves it in the terminal only if they match.
+- A device has the role `read` (everything that only reads, plus `apps` and `me`) or `admin`
+  (also `ban`, `unban`, `devices` and `revoke`). Only the token can create, approve or cancel
+  pairings.
+- A signed request carries `NonGrata-Device`, `NonGrata-Timestamp`, `NonGrata-Nonce` and
+  `NonGrata-Signature` instead of `Authorization`; with both, `400 ambiguous credentials`. A
+  clock more than 5 minutes off gives `401` with `"reason": "clock"` and the Worker's
+  `server_time`.
+- Revoke a lost device with `pnpm ng devices revoke`; the log's `actor` says who did each action.
+
+## 7. Building a client
 
 - Keep `ADMIN_TOKEN` on a server. It can ban and unban anyone in that app, so it does not belong
   in a browser, a mobile app or a chat bot's client side. A web panel calls its own backend,
-  which calls the Worker.
+  which calls the Worker. A mobile app pairs as an admin device instead (section 6).
 - Treat any non-`200` as an error and show the `error` string. A `5xx` without JSON (D1 down) can
   happen; retry `GET`s, and for `POST`s check with `lookup` or `log` before retrying.
 - `ban` and `unban` are idempotent in their effect (banning twice leaves one row; scheduling a
   `ref` twice leaves one pending unban), but each successful call adds a row to the log.
 
-## 7. Next steps (not built)
+## 8. Next steps (not built)
 
 - **Web panel.** A small admin UI on top of this API (bans, checks of a `ref`, the log).
 - **CORS.** The Worker sends no CORS headers, so a browser cannot call it directly; that is on
   purpose while there is a single all-powerful token.
-- **Per-operator tokens.** Today there is one `ADMIN_TOKEN` per Worker, and the log cannot say
-  who acted. Named tokens (or Cloudflare Access in front of `/v1/admin/`) would let the log record
-  the operator and allow read-only access.
+- **Per-operator tokens.** There is one `ADMIN_TOKEN` per Worker; paired devices already give
+  each operator their own identity in the log (`actor`) and a read-only role. Named tokens (or
+  Cloudflare Access in front of `/v1/admin/`) would do the same for servers and scripts.

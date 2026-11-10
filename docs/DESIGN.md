@@ -290,6 +290,14 @@ identifier (for example, the `icloud` of a couple who share an account).
 > does their record, and it only grows with human actions. The guide is
 > [Admin API](ADMIN-API.md) and the contract, the OpenAPI 3.1 spec in
 > [admin-api.yaml](admin-api.yaml).
+>
+> Admin devices (2026-11-10, migration `0003`): besides the token, an app such as the NonGrata
+> Dashboard can pair once (`pnpm ng pair`: QR, 6-digit verification code, approval in the
+> terminal) and then sign every request with a P-256 key kept in its Secure Enclave, with a
+> `read` or `admin` role. New routes `me`, `apps`, `devices`, `devices/{id}/revoke`,
+> `pairings…` and `POST /v1/pair/claim`; the log records the `actor` of each action and the
+> Worker-wide `pair` and `revoke`. The token keeps working as before and is the only way to
+> create pairings. The protocol is in [Admin devices](DEVICE-PAIRING.md).
 
 ## 7. Worker
 

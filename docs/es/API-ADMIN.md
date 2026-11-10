@@ -14,10 +14,12 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
   Aun así, cada petición dice de qué `app` se trata, y la app tiene que estar configurada en ese
   Worker (`HASH_PREFIX_<APP>`): una errata en `app` da `400 app not configured` en vez de un
   `200` que no hace nada.
-- **Autenticación.** `Authorization: Bearer <ADMIN_TOKEN>` en todas las peticiones. Sin él, o
-  con un token incorrecto, cualquier ruta `/v1/admin/*` responde
-  `401 {"error":"unauthorized"}`, también una que no existe; solo después una ruta o un método
-  desconocidos dan `404 {"error":"not_found"}`. Un Worker sin `ADMIN_TOKEN` lo rechaza todo.
+- **Autenticación.** `Authorization: Bearer <ADMIN_TOKEN>` en todas las peticiones, o la firma
+  de un dispositivo de administración emparejado (sección 6). Sin ninguno de los dos, o con un
+  token incorrecto, cualquier ruta `/v1/admin/*` responde `401 {"error":"unauthorized"}`, también
+  una que no existe; solo después una ruta o un método desconocidos dan
+  `404 {"error":"not_found"}`. Un Worker sin `ADMIN_TOKEN` rechaza cualquier token. Una ruta que
+  quien llama no puede usar da `403 {"error":"forbidden"}`.
 - **Solo hashes.** El Worker nunca guarda identificadores en bruto ni IPs. Puedes mandar un
   `value` en bruto a `ban`, `unban` y `lookup`: el Worker lo convierte en hash con el prefijo de
   la app (`SHA-256(prefijo:kind:valor)`, ver [hash y ref](conceptos/hash-y-ref.md)) y solo
@@ -29,8 +31,13 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
   pensados para mostrarse tal cual: `invalid app`, `app not configured`, `invalid kind`,
   `invalid hash`, `invalid value`, `invalid ref`, `missing value or hash`,
   `missing value, hash or ref`, `missing ref, value or hash`, `invalid reason`,
-  `invalid blocked`, `invalid since`, `invalid limit`, `invalid cursor`. `app` se comprueba
-  siempre lo primero. Los parámetros desconocidos se ignoran.
+  `invalid blocked`, `invalid since`, `invalid limit`, `invalid cursor`; para los
+  dispositivos, `invalid role`, `invalid label`, `https required`, `invalid name`,
+  `invalid platform`, `invalid pairing` y `ambiguous credentials`. `app` se comprueba siempre lo
+  primero. Los parámetros desconocidos se ignoran. Las rutas de dispositivos responden además
+  `404` (`pairing not found`, `not_found` para un dispositivo desconocido), `409`
+  (`pairing not claimed`, `pairing already approved`, `pairing expired`) y `429`
+  (`rate_limited`, en las reclamaciones).
 
 ## 2. Endpoints
 
@@ -41,10 +48,18 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
 | `GET /v1/admin/lookup` | `?app&ref`: el desbaneo pendiente o consumido del dispositivo y sus últimas 20 comprobaciones. `?app&kind&(value o hash)`: la fila del baneo, o `null`. |
 | `GET /v1/admin/bans` | La lista de hashes baneados, de más reciente a más antiguo. Filtros: `kind`, `reason` (`manual` o `propagated`). |
 | `GET /v1/admin/checks` | Las comprobaciones recientes (`check_log`), de más reciente a más antigua. Filtros: `ref`, `blocked` (`0` o `1`), `since` (ms Unix, inclusive). |
-| `GET /v1/admin/log` | Las acciones de administración: cada `ban` y `unban` con éxito, de más reciente a más antigua. |
+| `GET /v1/admin/log` | Las acciones de administración, de más reciente a más antigua. Con `app`: cada `ban` y `unban` con éxito de esa app. Sin `app`: los eventos de dispositivos del Worker, `pair` y `revoke`. |
+| `GET /v1/admin/apps` | Las apps configuradas en este Worker, con `enforce` y si DeviceCheck está configurado. |
+| `GET /v1/admin/me` | El dispositivo que llama (solo dispositivos). |
+| `GET /v1/admin/devices` | Los dispositivos emparejados, de más reciente a más antiguo. |
+| `POST /v1/admin/devices/{id}/revoke` | Revoca un dispositivo, para siempre. Idempotente. |
+| `POST /v1/admin/pairings`, `GET` y `DELETE /v1/admin/pairings/{id}`, `POST /v1/admin/pairings/{id}/approve` | Emparejar un dispositivo de administración nuevo (solo `ADMIN_TOKEN`). |
+| `POST /v1/pair/claim` | Fuera de `/v1/admin/`: el dispositivo reclama un emparejamiento, sin otra credencial. |
 
 `kind` es uno de `idfv`, `install`, `icloud`, `user`, `android_id`. Un `ref` es el código de
-soporte de 8 caracteres en mayúsculas que la app enseña en su pantalla de bloqueo.
+soporte de 8 caracteres en mayúsculas que la app enseña en su pantalla de bloqueo. Las rutas de
+dispositivos, apps y emparejamientos no llevan `app`: afectan a todo el Worker. Las describen la
+sección 6 y [Dispositivos de administración](EMPAREJAMIENTO.md).
 
 ### Banear y desbanear
 
@@ -86,7 +101,7 @@ Los elementos de cada listado:
 |---|---|
 | `bans` | `{ hash, kind, reason, note, created_at }` |
 | `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` y `bit0` valen `0` o `1`, como en `lookup` (`bit0` es `null` si no se preguntó a Apple o no respondió); `intent`, tal como lo mandó el SDK |
-| `log` | `{ action, kind, hash, ref, note, created_at }`: `action` es `ban` o `unban`; los campos que no aplican van a `null` |
+| `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` es `ban`, `unban`, `pair` o `revoke`; `device_id` es el dispositivo de `pair` y `revoke`; `actor` es `token` o `device:<device_id>` (`null` antes de la migración `0003`); los campos que no aplican van a `null` |
 
 En modo observación (`ENFORCE_<APP>` apagado), el `blocked` de una comprobación es lo que se
 habría bloqueado; por eso `checks?blocked=1` sirve antes de encender el bloqueo.
@@ -123,10 +138,13 @@ done
 | Baneos (`banned_ids`) | Hasta que se desbanean | Es la lista. Un desbaneo borra la fila. |
 | Comprobaciones (`check_log`) | 30 días | El cron diario borra las filas más antiguas. `checks` no ve más atrás. |
 | Registro de administración (`admin_log`) | Siempre | No se purga, ver abajo. |
+| Emparejamientos (`admin_pairings`) | Hasta que caducan (10 minutos) | El cron diario los borra, aprobados o no. |
+| Dispositivos (`admin_devices`) | Siempre una vez aprobados; los revocados se quedan | Para que el registro pueda seguir nombrándolos. Uno pendiente se va con su emparejamiento. |
+| Nonces (`admin_nonces`) | 10 minutos | Solo para rechazar repeticiones. |
 
 El registro de administración no se purga porque los baneos no caducan: un hash baneado hace dos
 años sigue bloqueando, y la constancia de quién lo baneó, cuándo y con qué nota tiene que durar
-más que él. Crece una fila por acción humana (un `ban` o un `unban`), así que es diminuto al lado
+más que él. Crece una fila por acción humana (un `ban`, un `unban`, un `pair` o un `revoke`), así que es diminuto al lado
 de `check_log`, que crece con cada arranque de la app; purgarlo no ahorraría nada y añadiría una
 segunda sentencia al cron. Guarda lo que ya guardan los endpoints: el hash (nunca el `value` en
 bruto), el `ref` y la nota. Registra que se programó un desbaneo por `ref`; si el dispositivo ya
@@ -142,6 +160,13 @@ el README) antes de desplegar el Worker nuevo: hasta entonces, `ban` y `unban` f
 interactiva, Wrangler puede saltarse su pregunta de confirmación sin aplicar nada; antepón `CI=1`
 para que responda que sí.
 
+**Actualizar a dispositivos de administración.** El emparejamiento, las peticiones firmadas y el
+`actor` del registro necesitan la migración `0003_admin_devices.sql`, que además reconstruye
+`admin_log` (conservando sus filas). Aplícala igual antes de desplegar, con `CI=1` desde una
+terminal no interactiva, y compruébala con `wrangler d1 migrations list DB --remote`: hasta que
+se aplique, `ban`, `unban` y `log` fallan con un `500` mientras `/v1/device/check` sigue
+funcionando.
+
 ## 5. Desde la CLI
 
 ```sh
@@ -155,11 +180,40 @@ pnpm ng bans   app=myapp cursor=<next_cursor>  # la página siguiente
 La CLI imprime el JSON del Worker tal cual, una página por llamada. Lee `NONGRATA_URL_<APP>` y
 `NONGRATA_ADMIN_TOKEN_<APP>`; ver la [sección 9](DISENO.md#9-cli-de-administración) del diseño.
 
-## 6. Hacer un cliente
+```sh
+pnpm ng pair    app=myapp role=read label="Ana's iPhone"   # QR, esperar, comparar el código, aprobar
+pnpm ng devices app=myapp                                  # los dispositivos emparejados
+pnpm ng devices revoke app=myapp id=<device_id>
+```
+
+Los dispositivos son del Worker, así que aquí `app=` solo elige qué Worker (su URL y su token).
+
+## 6. Dispositivos de administración
+
+Un teléfono, una tableta o un Mac (por ejemplo la app NonGrata Dashboard) no necesita el token:
+se empareja una vez y después firma cada petición con una clave que nunca sale de su Secure
+Enclave. El protocolo, la tabla de roles y el modelo de amenazas están en
+[Dispositivos de administración](EMPAREJAMIENTO.md). En resumen:
+
+- `pnpm ng pair` crea un emparejamiento de un solo uso (10 minutos) y lo muestra como código QR.
+  El dispositivo lo reclama con `POST /v1/pair/claim`, los dos lados muestran un código de
+  verificación de 6 cifras, y el admin lo aprueba en la terminal solo si coinciden.
+- Un dispositivo tiene el rol `read` (todo lo que solo lee, más `apps` y `me`) o `admin`
+  (además `ban`, `unban`, `devices` y `revoke`). Solo el token puede crear, aprobar o cancelar
+  emparejamientos.
+- Una petición firmada lleva `NonGrata-Device`, `NonGrata-Timestamp`, `NonGrata-Nonce` y
+  `NonGrata-Signature` en vez de `Authorization`; con las dos cosas, `400 ambiguous
+  credentials`. Un reloj desfasado más de 5 minutos da `401` con `"reason": "clock"` y el
+  `server_time` del Worker.
+- Revoca un dispositivo perdido con `pnpm ng devices revoke`; el `actor` del registro dice quién
+  hizo cada acción.
+
+## 7. Hacer un cliente
 
 - Guarda `ADMIN_TOKEN` en un servidor. Puede banear y desbanear a cualquiera en esa app, así que
   no va en un navegador, en una app móvil ni en el lado cliente de un bot. Un panel web llama a
-  su propio backend, y este al Worker.
+  su propio backend, y este al Worker. Una app móvil se empareja como dispositivo de
+  administración (sección 6).
 - Trata cualquier respuesta que no sea `200` como un error y muestra el texto de `error`. Puede
   llegar un `5xx` sin JSON (D1 caída); reintenta los `GET`, y antes de reintentar un `POST`
   compruébalo con `lookup` o `log`.
@@ -167,12 +221,13 @@ La CLI imprime el JSON del Worker tal cual, una página por llamada. Lee `NONGRA
   veces un `ref` deja un desbaneo pendiente), pero cada llamada con éxito añade una fila al
   registro.
 
-## 7. Próximos pasos (sin hacer)
+## 8. Próximos pasos (sin hacer)
 
 - **Panel web.** Una interfaz de administración pequeña sobre esta API (baneos, comprobaciones
   de un `ref`, el registro).
 - **CORS.** El Worker no manda cabeceras CORS, así que un navegador no puede llamarlo
   directamente; es a propósito mientras haya un solo token con todos los permisos.
-- **Tokens por operador.** Hoy hay un `ADMIN_TOKEN` por Worker y el registro no puede decir
-  quién actuó. Tokens con nombre (o Cloudflare Access delante de `/v1/admin/`) permitirían
-  registrar al operador y dar acceso de solo lectura.
+- **Tokens por operador.** Hay un `ADMIN_TOKEN` por Worker; los dispositivos emparejados ya dan
+  a cada operador su propia identidad en el registro (`actor`) y un rol de solo lectura. Tokens
+  con nombre (o Cloudflare Access delante de `/v1/admin/`) harían lo mismo para servidores y
+  scripts.

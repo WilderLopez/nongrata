@@ -4,13 +4,19 @@ info:
   version: v1
   summary: Ban, unban and inspect devices and Apple accounts of one app's NonGrata Worker.
   description: |
-    The admin endpoints of a NonGrata Worker (`/v1/admin/*`). The guide is
-    [docs/ADMIN-API.md](ADMIN-API.md); the design, in section 6.4 of docs/DESIGN.md.
+    The admin endpoints of a NonGrata Worker (`/v1/admin/*`) and the claim of a pairing
+    (`/v1/pair/claim`). The guide is [docs/ADMIN-API.md](ADMIN-API.md); the design, in section
+    6.4 of docs/DESIGN.md; admin devices, in [docs/DEVICE-PAIRING.md](DEVICE-PAIRING.md).
 
-    - Every request carries `Authorization: Bearer <ADMIN_TOKEN>`. Without it, or with the wrong
-      token, any `/v1/admin/*` path answers `401` before anything else, even an unknown one.
-    - Every endpoint requires `app`, and the app must be configured in that Worker
-      (`HASH_PREFIX_<APP>`); otherwise `400 invalid app` or `400 app not configured`.
+    - Every request to `/v1/admin/*` carries either `Authorization: Bearer <ADMIN_TOKEN>` or the
+      four `NonGrata-*` headers of a paired admin device (`deviceSignature`), never both (`400
+      ambiguous credentials`). Without valid credentials any `/v1/admin/*` path answers `401`
+      before anything else, even an unknown one. A route the caller's role does not allow
+      answers `403`.
+    - Every ban, lookup and listing endpoint requires `app`, and the app must be configured in
+      that Worker (`HASH_PREFIX_<APP>`); otherwise `400 invalid app` or `400 app not
+      configured`. The device, app and pairing endpoints concern the whole Worker and take no
+      `app`.
     - The Worker only stores and returns hashes (SHA-256 of `prefix:kind:value`) and support
       codes (`ref`): never raw identifiers or IPs. A raw `value` sent to `ban`, `unban` or
       `lookup` is hashed with the app's prefix and not kept.
@@ -33,11 +39,16 @@ servers:
     description: wrangler dev
 security:
   - adminToken: []
+  - deviceSignature: []
 tags:
   - name: actions
     description: Change the ban list. Every successful call is recorded in the admin log.
   - name: inspection
     description: Read-only.
+  - name: devices
+    description: |
+      Admin devices: pairing (token only), the device's own identity, the device list and
+      revocation. See docs/DEVICE-PAIRING.md.
 
 paths:
   /v1/admin/ban:
@@ -79,8 +90,9 @@ paths:
           $ref: "#/components/responses/BadRequest"
           description: |
             `invalid app`, `app not configured`, `missing value or hash`, `invalid kind`,
-            `invalid hash`, `invalid value`.
+            `invalid hash`, `invalid value`; `ambiguous credentials`.
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /v1/admin/unban:
     post:
@@ -137,8 +149,9 @@ paths:
           $ref: "#/components/responses/BadRequest"
           description: |
             `invalid app`, `app not configured`, `missing value, hash or ref`, `invalid kind`,
-            `invalid hash`, `invalid value`, `invalid ref`.
+            `invalid hash`, `invalid value`, `invalid ref`; `ambiguous credentials`.
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /v1/admin/lookup:
     get:
@@ -334,12 +347,18 @@ paths:
       operationId: listAdminLog
       summary: List the admin actions
       description: |
-        One entry per successful `ban` or `unban`, newest first. It stores what those endpoints
-        store (hash, ref, note), never a raw `value`. It is not purged: bans do not expire, and
+        With `app`: one entry per successful `ban` or `unban` of that app, newest first. Without
+        `app`: the Worker-wide device events, `pair` (an approved device) and `revoke`, with the
+        same pagination and `app: null` in the page. A present but bad `app` is still `invalid
+        app` or `app not configured`. It stores what those endpoints store (hash, ref, note),
+        never a raw `value`, and who acted (`actor`). It is not purged: bans do not expire, and
         neither does the record of who was banned or unbanned and why. Unbans by `ref` record
         when they were scheduled; when a device consumes one shows in `lookup` by `ref`.
       parameters:
-        - $ref: "#/components/parameters/app"
+        - name: app
+          in: query
+          description: Omit it for the Worker's device events.
+          schema: { $ref: "#/components/schemas/App" }
         - $ref: "#/components/parameters/limit"
         - $ref: "#/components/parameters/cursor"
       responses:
@@ -352,24 +371,355 @@ paths:
                   - $ref: "#/components/schemas/Page"
                   - type: object
                     properties:
+                      app:
+                        oneOf:
+                          - $ref: "#/components/schemas/App"
+                          - type: "null"
+                        description: "`null` for the Worker's device events."
                       items:
                         type: array
                         items: { $ref: "#/components/schemas/LogEntry" }
-              example:
-                app: myapp
-                items:
-                  - { action: unban, kind: null, hash: null, ref: 7F3A9C21, note: null, created_at: 1762790400000 }
-                  - action: ban
-                    kind: idfv
-                    hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c
-                    ref: null
-                    note: spam
-                    created_at: 1762700000000
-                next_cursor: null
+              examples:
+                app:
+                  value:
+                    app: myapp
+                    items:
+                      - { action: unban, kind: null, hash: null, ref: 7F3A9C21, note: null, device_id: null, actor: "device:7sKpQ2mN4vX8yL1zR6tBcA", created_at: 1762790400000 }
+                      - { action: ban, kind: idfv, hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c, ref: null, note: spam, device_id: null, actor: null, created_at: 1762700000000 }
+                    next_cursor: null
+                devices:
+                  value:
+                    app: null
+                    items:
+                      - { action: revoke, kind: null, hash: null, ref: null, note: null, device_id: 7sKpQ2mN4vX8yL1zR6tBcA, actor: token, created_at: 1762791000000 }
+                      - { action: pair, kind: null, hash: null, ref: null, note: "Ana's iPhone", device_id: 7sKpQ2mN4vX8yL1zR6tBcA, actor: token, created_at: 1762786000000 }
+                    next_cursor: null
         "400":
           $ref: "#/components/responses/BadRequest"
           description: "`invalid app`, `app not configured`, `invalid limit`, `invalid cursor`."
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/apps:
+    get:
+      tags: [inspection]
+      operationId: listApps
+      summary: The apps configured in this Worker
+      description: |
+        Every app with a `HASH_PREFIX_<APP>`, sorted. The Worker only sees the variable's
+        suffix, so `app` is that suffix in lowercase (an app id with `-` shows with `_`).
+        Nothing secret.
+      responses:
+        "200":
+          description: The apps.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [apps]
+                properties:
+                  apps:
+                    type: array
+                    items:
+                      type: object
+                      required: [app, enforce, devicecheck]
+                      properties:
+                        app: { $ref: "#/components/schemas/App" }
+                        enforce: { type: boolean, description: "`ENFORCE_<APP>` is `true` (otherwise observation mode)." }
+                        devicecheck: { type: boolean, description: The Apple DeviceCheck key is set. }
+              example: { apps: [{ app: myapp, enforce: true, devicecheck: true }] }
+        "400": { $ref: "#/components/responses/AmbiguousCredentials" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/admin/me:
+    get:
+      tags: [devices]
+      operationId: me
+      summary: The calling device
+      description: |
+        Devices only (the token gets `403`). A pending device may call this, and only this
+        (anything else gives it `403`), while its pairing lives: it tells it when it has been
+        approved. Once the pairing is cancelled or expires, it gets `401` and should delete its
+        key.
+      security:
+        - deviceSignature: []
+      responses:
+        "200":
+          description: The device.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device_id, name, platform, role, status, created_at]
+                properties:
+                  device_id: { $ref: "#/components/schemas/DeviceId" }
+                  name: { type: string }
+                  platform: { $ref: "#/components/schemas/Platform" }
+                  role: { $ref: "#/components/schemas/Role" }
+                  status: { type: string, enum: [pending, active] }
+                  created_at: { $ref: "#/components/schemas/Millis" }
+        "400": { $ref: "#/components/responses/AmbiguousCredentials" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/admin/devices:
+    get:
+      tags: [devices]
+      operationId: listDevices
+      summary: List the admin devices
+      description: Every device, newest first, pending and revoked ones included. Never the public key. Token or an `admin` device.
+      responses:
+        "200":
+          description: The devices.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices]
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/Device" }
+        "400": { $ref: "#/components/responses/AmbiguousCredentials" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/admin/devices/{id}/revoke:
+    post:
+      tags: [devices]
+      operationId: revokeDevice
+      summary: Revoke a device
+      description: |
+        Permanent: from its next request the device gets `401`; to use it again, pair it again.
+        The token or an `admin` device may revoke any device; any active device may revoke
+        itself. Idempotent: revoking again answers the original `revoked_at` and writes nothing.
+        Recorded once in the admin log as `revoke`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/DeviceId" }
+      responses:
+        "200":
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device_id, revoked_at]
+                properties:
+                  device_id: { $ref: "#/components/schemas/DeviceId" }
+                  revoked_at: { $ref: "#/components/schemas/Millis" }
+        "400": { $ref: "#/components/responses/AmbiguousCredentials" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+          description: "`not_found`: no such device."
+
+  /v1/admin/pairings:
+    post:
+      tags: [devices]
+      operationId: createPairing
+      summary: Create a pairing for a new admin device
+      description: |
+        Token only. A one-time pairing that expires in 10 minutes. The secret is returned once;
+        the Worker keeps only its SHA-256. Show `pair_url` to the device (as a QR code). The
+        request must reach the Worker over https, except `http://localhost` and
+        `http://127.0.0.1` (any port) for `wrangler dev`.
+      security:
+        - adminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: "#/components/schemas/Role" }
+                label:
+                  type: [string, "null"]
+                  minLength: 1
+                  maxLength: 64
+                  description: A hint for the admin, 1 to 64 UTF-16 code units; clients truncate it.
+            example: { role: admin, label: "Ana's iPhone" }
+      responses:
+        "200":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, secret, role, expires_at, pair_url]
+                properties:
+                  id: { $ref: "#/components/schemas/PairingId" }
+                  secret: { type: string, pattern: "^[A-Za-z0-9_-]{43}$", description: 32 random bytes, base64url. }
+                  role: { $ref: "#/components/schemas/Role" }
+                  expires_at: { $ref: "#/components/schemas/Millis" }
+                  pair_url:
+                    type: string
+                    description: |
+                      Exactly `nongrata://pair?v=1&url=<origin, percent-encoded>&id=<id>&secret=<secret>&role=<role>&exp=<expires_at>`.
+                      `role` and `exp` are hints for the device's screen; the stored role is the one that counts.
+                    example: "nongrata://pair?v=1&url=https%3A%2F%2Fnongrata-myapp.example.workers.dev&id=q3VZbVqK0n8xJ3fR2sTgWw&secret=Xk9aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5a&role=admin&exp=1762790000000"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: "`invalid role`, `invalid label`, `https required`."
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/admin/pairings/{id}:
+    parameters:
+      - $ref: "#/components/parameters/pairingId"
+    get:
+      tags: [devices]
+      operationId: getPairing
+      summary: The state of a pairing
+      description: |
+        Token only. `approved` wins; otherwise `expired` after `expires_at` or once burned
+        (5 failed claims); then `claimed` or `pending`. `device` is there once claimed, while the
+        device exists. The CLI polls this every 2 seconds.
+      security:
+        - adminToken: []
+      responses:
+        "200":
+          description: The pairing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, role, label, expires_at]
+                properties:
+                  status: { type: string, enum: [pending, claimed, approved, expired] }
+                  role: { $ref: "#/components/schemas/Role" }
+                  label: { type: [string, "null"] }
+                  expires_at: { $ref: "#/components/schemas/Millis" }
+                  device:
+                    type: object
+                    required: [device_id, name, platform, verification_code]
+                    properties:
+                      device_id: { $ref: "#/components/schemas/DeviceId" }
+                      name: { type: string }
+                      platform: { $ref: "#/components/schemas/Platform" }
+                      verification_code: { $ref: "#/components/schemas/VerificationCode" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+          description: "`pairing not found`."
+    delete:
+      tags: [devices]
+      operationId: cancelPairing
+      summary: Cancel a pairing
+      description: Token only. Deletes the pairing and, if it was claimed, its pending device. An approved one cannot be cancelled; revoke the device instead.
+      security:
+        - adminToken: []
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cancelled]
+                properties:
+                  cancelled: { const: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+          description: "`pairing not found`."
+        "409":
+          $ref: "#/components/responses/Conflict"
+          description: "`pairing already approved`."
+
+  /v1/admin/pairings/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/pairingId"
+    post:
+      tags: [devices]
+      operationId: approvePairing
+      summary: Approve a claimed pairing
+      description: |
+        Token only, after comparing the verification code with the one the device shows. The
+        device becomes `active`; recorded in the admin log as `pair`, with the label as note.
+      security:
+        - adminToken: []
+      responses:
+        "200":
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device_id, name, platform, role, status]
+                properties:
+                  device_id: { $ref: "#/components/schemas/DeviceId" }
+                  name: { type: string }
+                  platform: { $ref: "#/components/schemas/Platform" }
+                  role: { $ref: "#/components/schemas/Role" }
+                  status: { const: active }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+          description: "`pairing not found`."
+        "409":
+          $ref: "#/components/responses/Conflict"
+          description: "`pairing not claimed`, `pairing already approved`, `pairing expired`."
+
+  /v1/pair/claim:
+    post:
+      tags: [devices]
+      operationId: claimPairing
+      summary: Claim a pairing (the device)
+      description: |
+        No credential: the pairing's secret is the credential. Rate-limited per IP. `proof` is a
+        signature with the new key over `"NONGRATA-PAIR-V1\n" + id + "\n" + public_key` (the
+        base64url strings as sent). The shape of `name` and `platform` is checked first and
+        named (`invalid name`, `invalid platform`), without touching the pairing or counting an
+        attempt. After that every failure is the same `400 invalid pairing`, and every failure on
+        an existing pairing counts towards the 5 that burn it.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, secret, public_key, name, platform, proof]
+              properties:
+                id: { $ref: "#/components/schemas/PairingId" }
+                secret: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+                public_key:
+                  type: string
+                  pattern: "^[A-Za-z0-9_-]{87}$"
+                  description: Uncompressed P-256 point (65 bytes, 0x04 || X || Y), base64url.
+                name: { type: string, minLength: 1, maxLength: 64, description: 1 to 64 UTF-16 code units; clients truncate it. }
+                platform: { $ref: "#/components/schemas/Platform" }
+                proof: { $ref: "#/components/schemas/Signature" }
+      responses:
+        "200":
+          description: Claimed; the device is pending until the admin approves it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device_id, role, verification_code]
+                properties:
+                  device_id: { $ref: "#/components/schemas/DeviceId" }
+                  role: { $ref: "#/components/schemas/Role" }
+                  verification_code: { $ref: "#/components/schemas/VerificationCode" }
+              example: { device_id: 7sKpQ2mN4vX8yL1zR6tBcA, role: admin, verification_code: "123456" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+          description: "`invalid name`, `invalid platform`; otherwise `invalid pairing`, whatever failed."
+        "429":
+          description: Over the rate limit.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: rate_limited }
 
 components:
   securitySchemes:
@@ -377,6 +727,18 @@ components:
       type: http
       scheme: bearer
       description: The Worker's `ADMIN_TOKEN` secret. One token per Worker, so per app.
+    deviceSignature:
+      type: apiKey
+      in: header
+      name: NonGrata-Signature
+      description: |
+        A paired admin device (docs/DEVICE-PAIRING.md, section 3). All base64url values are
+        unpadded. Four headers instead of
+        `Authorization`: `NonGrata-Device` (the device_id), `NonGrata-Timestamp` (Unix ms, within
+        5 minutes of the Worker's clock), `NonGrata-Nonce` (16 random bytes, base64url, new for
+        every request) and `NonGrata-Signature`: ECDSA P-256 / SHA-256, raw r || s (64 bytes),
+        base64url, over the canonical string of the request (method, host, path, canonical query,
+        timestamp, nonce, device and the SHA-256 of the body). Roles: `read` or `admin`.
 
   parameters:
     app:
@@ -394,6 +756,11 @@ components:
       in: query
       description: The `next_cursor` of the previous page. Opaque; only valid for the same listing.
       schema: { type: string }
+    pairingId:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/PairingId" }
 
   responses:
     BadRequest:
@@ -403,11 +770,48 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
           example: { error: app not configured }
     Unauthorized:
-      description: Missing or wrong bearer token, or a Worker without `ADMIN_TOKEN`.
+      description: |
+        Missing or wrong bearer token, a Worker without `ADMIN_TOKEN`, or a signed request that
+        fails (unknown, pending or revoked device, bad signature, replayed nonce, malformed
+        headers). Only a clock more than 5 minutes off says why, with the Worker's time.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/Error"
+              - $ref: "#/components/schemas/ClockError"
+          examples:
+            unauthorized:
+              value: { error: unauthorized }
+            clock:
+              value: { error: unauthorized, reason: clock, server_time: 1762790400000 }
+    Forbidden:
+      description: |
+        The caller is authenticated but its role does not allow this route: a `read` device on
+        an admin route, any device on the pairing routes, a pending device on anything but `me`,
+        or the token on `me`.
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
-          example: { error: unauthorized }
+          example: { error: forbidden }
+    AmbiguousCredentials:
+      description: Both `Authorization` and `NonGrata-Device` were sent.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: ambiguous credentials }
+    NotFound:
+      description: There is no such pairing (`pairing not found`) or device (`not_found`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: not_found }
+    Conflict:
+      description: The pairing or device is not in a state that allows this.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: pairing expired }
 
   schemas:
     App:
@@ -449,6 +853,55 @@ components:
       required: [error]
       properties:
         error: { type: string }
+    ClockError:
+      type: object
+      required: [error, reason, server_time]
+      properties:
+        error: { const: unauthorized }
+        reason: { const: clock }
+        server_time: { $ref: "#/components/schemas/Millis" }
+    Role:
+      type: string
+      enum: [read, admin]
+      description: "`read`: everything that only reads, plus `apps` and `me`. `admin`: also ban, unban, devices and revoke."
+    Platform:
+      type: string
+      enum: [ios, ipados, macos, other]
+    PairingId:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{22}$"
+      description: 16 random bytes, base64url without padding.
+    DeviceId:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{22}$"
+      description: 16 random bytes, base64url without padding.
+      example: 7sKpQ2mN4vX8yL1zR6tBcA
+    Signature:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{86}$"
+      description: ECDSA P-256 / SHA-256 as raw r || s (64 bytes), base64url. Not DER.
+    VerificationCode:
+      type: string
+      pattern: "^[0-9]{6}$"
+      description: The first 4 bytes of SHA-256("NONGRATA-VERIFY-V1\n" + pairing id + "\n" + public_key), big-endian, modulo 1 000 000, as 6 digits.
+    Device:
+      type: object
+      required: [device_id, name, platform, role, status, created_at, last_used_at, revoked_at]
+      properties:
+        device_id: { $ref: "#/components/schemas/DeviceId" }
+        name: { type: string }
+        platform: { $ref: "#/components/schemas/Platform" }
+        role: { $ref: "#/components/schemas/Role" }
+        status: { type: string, enum: [pending, active] }
+        created_at: { $ref: "#/components/schemas/Millis" }
+        last_used_at:
+          oneOf:
+            - $ref: "#/components/schemas/Millis"
+            - type: "null"
+        revoked_at:
+          oneOf:
+            - $ref: "#/components/schemas/Millis"
+            - type: "null"
     BanByValue:
       type: object
       required: [app, kind, value]
@@ -511,9 +964,20 @@ components:
         created_at: { $ref: "#/components/schemas/Millis" }
     LogEntry:
       type: object
-      required: [action, kind, hash, ref, note, created_at]
+      required: [action, kind, hash, ref, note, device_id, actor, created_at]
       properties:
-        action: { type: string, enum: [ban, unban] }
+        action: { type: string, enum: [ban, unban, pair, revoke] }
+        device_id:
+          description: The device of `pair` and `revoke`; `null` for `ban` and `unban`.
+          oneOf:
+            - $ref: "#/components/schemas/DeviceId"
+            - type: "null"
+        actor:
+          description: Who acted. `null` in rows written before migration 0003.
+          oneOf:
+            - type: string
+              pattern: "^(token|device:[A-Za-z0-9_-]{22})$"
+            - type: "null"
         kind:
           oneOf:
             - $ref: "#/components/schemas/Kind"

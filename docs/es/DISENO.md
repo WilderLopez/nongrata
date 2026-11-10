@@ -288,6 +288,15 @@ concreto (por ejemplo, el `icloud` de una pareja que comparte cuenta).
 > transacción. El registro no se purga: los baneos no caducan, así que su constancia tampoco, y
 > solo crece con acciones humanas. La guía es [API de administración](API-ADMIN.md) y el
 > contrato, la especificación OpenAPI 3.1 de [admin-api.yaml](../admin-api.yaml).
+>
+> Dispositivos de administración (2026-11-10, migración `0003`): además del token, una app como
+> NonGrata Dashboard puede emparejarse una vez (`pnpm ng pair`: QR, código de verificación de 6
+> cifras, aprobación en la terminal) y después firmar cada petición con una clave P-256 guardada
+> en su Secure Enclave, con rol `read` o `admin`. Rutas nuevas `me`, `apps`, `devices`,
+> `devices/{id}/revoke`, `pairings…` y `POST /v1/pair/claim`; el registro apunta el `actor` de
+> cada acción y los `pair` y `revoke` de todo el Worker. El token sigue funcionando como antes y
+> es la única forma de crear emparejamientos. El protocolo está en
+> [Dispositivos de administración](EMPAREJAMIENTO.md).
 
 ## 7. Worker
 

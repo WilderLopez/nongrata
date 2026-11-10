@@ -192,7 +192,11 @@ pnpm ng lookup app=myapp ref=7F3A9C21     # what is known about that support cod
 pnpm ng unban  app=myapp ref=7F3A9C21     # full unban on the device's next check
 pnpm ng hash   prefix=myapp-ban-v1 kind=idfv value=<IDFV>   # the hash, offline
 pnpm ng bans   app=myapp                  # the ban list; also checks and log
+pnpm ng pair   app=myapp role=read        # pair a phone (NonGrata Dashboard) by QR code
 ```
+
+Besides the token, an admin app on a phone can pair with the Worker once and sign every request
+with a key in its Secure Enclave: see [Admin devices](docs/DEVICE-PAIRING.md).
 
 The CLI is one client of the Worker's HTTP admin API; to build another (a web panel, a bot, your
 backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](docs/admin-api.yaml).
@@ -211,7 +215,8 @@ backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](do
 - [Full design](docs/DESIGN.md): the problem, architecture, contract, algorithm, risks and what
   is still to be verified.
 - [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
-- [Admin API](docs/ADMIN-API.md), with its [OpenAPI spec](docs/admin-api.yaml).
+- [Admin API](docs/ADMIN-API.md), with its [OpenAPI spec](docs/admin-api.yaml), and
+  [admin devices](docs/DEVICE-PAIRING.md) (pairing a phone and signed requests).
 - Concepts: [identifiers](docs/concepts/identifiers.md),
   [DeviceCheck](docs/concepts/devicecheck.md), [hash and ref](docs/concepts/hash-and-ref.md),
   [check flow](docs/concepts/check-flow.md), [propagation](docs/concepts/propagation.md),
