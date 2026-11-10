@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">NonGrata</title>
+  <defs>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1024">
+      <stop offset="0" stop-color="#22304D"/>
+      <stop offset="1" stop-color="#0D1424"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
+  <!-- iPhone -->
+  <rect x="262" y="168" width="360" height="660" rx="72" fill="none" stroke="#F3EFE6" stroke-width="40"/>
+  <rect x="397" y="222" width="90" height="22" rx="11" fill="#F3EFE6"/>
+  <!-- Señal de prohibido, separada del teléfono por un hueco del color del fondo -->
+  <circle cx="676" cy="676" r="196" fill="url(#bg)"/>
+  <circle cx="676" cy="676" r="150" fill="none" stroke="#FF5A4F" stroke-width="48"/>
+  <line x1="570" y1="570" x2="782" y2="782" stroke="#FF5A4F" stroke-width="48" stroke-linecap="round"/>
+</svg>

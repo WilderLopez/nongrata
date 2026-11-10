@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F4EE"/>
+      <stop offset="1" stop-color="#ECE6DA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#fondo)"/>
+  <image href="icon.svg" xlink:href="icon.svg" x="110" y="150" width="340" height="340"/>
+  <text x="520" y="318" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="112" font-weight="700" fill="#0D1424" letter-spacing="-2">NonGrata</text>
+  <text x="524" y="390" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="34" fill="#3B4660">Baneo por dispositivo y por cuenta de Apple</text>
+  <text x="524" y="436" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="34" fill="#3B4660">para apps iOS. SDK Swift, Worker y CLI.</text>
+</svg>

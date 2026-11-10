@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.svg" width="128" height="128" alt="Icono de NonGrata: un iPhone con la señal de prohibido">
+</p>
+
 # NonGrata
 
 Baneo por dispositivo y por cuenta de Apple para apps iOS, sin tocar el backend de la app.
