@@ -2,7 +2,7 @@
 // computes the hash with the app's prefix. The formula is imported from the Worker so there are
 // never two copies: `hash` uses it offline and the tests run the vectors through it.
 
-import { hashId, isHash, isKind, isRef, KINDS, refFromInstallHash } from "../../worker/src/hash.ts";
+import { hashId, isHash, isKind, isRef, KINDS, refFromInstallHash, type Kind } from "../../worker/src/hash.ts";
 
 export const USAGE = `Usage:
   nongrata ban    app=<app> kind=<kind> (value=<value> | hash=<hash>) [note=<text>]
@@ -10,9 +10,14 @@ export const USAGE = `Usage:
   nongrata unban  app=<app> kind=<kind> (value=<value> | hash=<hash>)
   nongrata lookup app=<app> ref=<REF>
   nongrata lookup app=<app> kind=<kind> (value=<value> | hash=<hash>)
+  nongrata bans   app=<app> [kind=<kind>] [reason=manual|propagated] [limit=<n>] [cursor=<c>]
+  nongrata checks app=<app> [ref=<REF>] [blocked=0|1] [since=<unix ms>] [limit=<n>] [cursor=<c>]
+  nongrata log    app=<app> [limit=<n>] [cursor=<c>]
   nongrata hash   prefix=<prefix> kind=<kind> value=<value>    (offline)
 
 kind: ${KINDS.join(", ")}
+bans, checks and log print one page, newest first (limit 1 to 100, 50 by default); for the next
+one, pass its next_cursor as cursor=<c>. checks only covers the last 30 days.
 
 Environment (the suffix is the app in uppercase, with "-" as "_"; it wins over the generic one):
   NONGRATA_URL_<APP>          or NONGRATA_URL           URL of that app's Worker
@@ -58,10 +63,14 @@ function requireParam(params: Params, key: string): string {
   return v;
 }
 
+function checkKind(kind: string): asserts kind is Kind {
+  if (!isKind(kind)) throw new UsageError(`invalid kind: ${kind} (${KINDS.join(", ")})`);
+}
+
 /** `{ kind, value }` or `{ kind, hash }`, validated the way the Worker validates it. */
 function identifier(params: Params): Params {
   const kind = requireParam(params, "kind");
-  if (!isKind(kind)) throw new UsageError(`invalid kind: ${kind} (${KINDS.join(", ")})`);
+  checkKind(kind);
   const { value, hash } = params;
   if ((value === undefined) === (hash === undefined)) throw new UsageError("give value or hash, not both");
   if (hash !== undefined) {
@@ -84,6 +93,15 @@ function refOrIdentifier(params: Params): Params {
   if (params.ref === undefined) return identifier(params);
   allowOnly(params, ["app", "ref"]);
   return { ref: ref(params) };
+}
+
+/** Filters of a listing, as given except `app` (it goes apart) and `kind` and `ref`, checked as above. */
+function listing(params: Params, allowed: string[]): Params {
+  allowOnly(params, ["app", ...allowed]);
+  const { app: _, ...filters } = params;
+  if (filters.kind !== undefined) checkKind(filters.kind);
+  if (filters.ref !== undefined) filters.ref = ref(params);
+  return filters;
 }
 
 export function endpoint(app: string, env: Io["env"]): { url: URL; token: string } {
@@ -130,6 +148,18 @@ export function buildRequest(command: string, params: Params, env: Io["env"]): R
       method = "GET";
       payload = { app, ...refOrIdentifier(params) };
       break;
+    case "bans":
+      method = "GET";
+      payload = { app, ...listing(params, ["kind", "reason", "limit", "cursor"]) };
+      break;
+    case "checks":
+      method = "GET";
+      payload = { app, ...listing(params, ["ref", "blocked", "since", "limit", "cursor"]) };
+      break;
+    case "log":
+      method = "GET";
+      payload = { app, ...listing(params, ["limit", "cursor"]) };
+      break;
     default:
       throw new UsageError(`unknown command: ${command}`);
   }
@@ -149,7 +179,7 @@ async function localHash(params: Params): Promise<unknown> {
   allowOnly(params, ["prefix", "kind", "value"]);
   const prefix = requireParam(params, "prefix");
   const kind = requireParam(params, "kind");
-  if (!isKind(kind)) throw new UsageError(`invalid kind: ${kind} (${KINDS.join(", ")})`);
+  checkKind(kind);
   const hash = await hashId(prefix, kind, requireParam(params, "value"));
   return kind === "install" ? { kind, hash, ref: refFromInstallHash(hash) } : { kind, hash };
 }

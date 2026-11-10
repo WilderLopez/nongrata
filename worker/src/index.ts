@@ -61,6 +61,12 @@ export async function handle(
         return admin.unban(request, env, store, now);
       case "GET /v1/admin/lookup":
         return admin.lookup(url, env, store);
+      case "GET /v1/admin/bans":
+        return admin.listBans(url, env, store);
+      case "GET /v1/admin/checks":
+        return admin.listChecks(url, env, store);
+      case "GET /v1/admin/log":
+        return admin.listAdminLog(url, env, store);
     }
   }
 

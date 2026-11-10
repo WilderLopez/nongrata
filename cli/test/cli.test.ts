@@ -146,6 +146,46 @@ describe("requests to the Worker", () => {
     });
   });
 
+  const listingQuery = async (argv: string[]) => {
+    const h = harness();
+    assert.equal(await run(argv, h.io), 0);
+    const req = h.requests[0]!;
+    assert.equal(req.method, "GET");
+    assert.equal(req.headers.get("authorization"), "Bearer tok");
+    const url = new URL(req.url);
+    return { path: url.pathname, query: Object.fromEntries(url.searchParams) };
+  };
+
+  it("bans: GET with the filters and the page in the query string", async () => {
+    assert.deepEqual(await listingQuery(["bans", "app=myapp"]), { path: "/v1/admin/bans", query: { app: "myapp" } });
+    assert.deepEqual(
+      await listingQuery(["bans", "app=myapp", "kind=icloud", "reason=propagated", "limit=10", "cursor=MTAuZmY"]),
+      {
+        path: "/v1/admin/bans",
+        query: { app: "myapp", kind: "icloud", reason: "propagated", limit: "10", cursor: "MTAuZmY" },
+      },
+    );
+  });
+
+  it("checks: the ref in uppercase; the other filters as given (the Worker checks them)", async () => {
+    assert.deepEqual(await listingQuery(["checks", "app=myapp"]), { path: "/v1/admin/checks", query: { app: "myapp" } });
+    assert.deepEqual(
+      await listingQuery(["checks", "app=myapp", "ref=a1b2c3d4", "blocked=1", "since=1700000000000", "limit=5", "cursor=c"]),
+      {
+        path: "/v1/admin/checks",
+        query: { app: "myapp", ref: "A1B2C3D4", blocked: "1", since: "1700000000000", limit: "5", cursor: "c" },
+      },
+    );
+  });
+
+  it("log: GET with the page in the query string", async () => {
+    assert.deepEqual(await listingQuery(["log", "app=myapp"]), { path: "/v1/admin/log", query: { app: "myapp" } });
+    assert.deepEqual(await listingQuery(["log", "app=myapp", "limit=100", "cursor=c"]), {
+      path: "/v1/admin/log",
+      query: { app: "myapp", limit: "100", cursor: "c" },
+    });
+  });
+
   it("app-suffixed variables take precedence over the generic ones", async () => {
     const h = harness({
       ...ENV,
@@ -261,6 +301,14 @@ describe("incorrect usage: exit code 2, the reason and the help on stderr, and n
       "unknown parameter: kind, value",
     ],
     ["ban by ref", ["ban", "app=myapp", "ref=A1B2C3D4"], "unknown parameter: ref"],
+    ["bans without app", ["bans", "kind=idfv"], "missing app"],
+    ["bans with an invalid kind", ["bans", "app=myapp", "kind=ip"], badKind],
+    ["bans with an empty kind", ["bans", "app=myapp", "kind="], "invalid kind:  (idfv, install, icloud, user, android_id)"],
+    ["bans by ref", ["bans", "app=myapp", "ref=A1B2C3D4"], "unknown parameter: ref"],
+    ["checks with an invalid ref", ["checks", "app=myapp", "ref=XYZ"], "invalid ref: 8 hex characters"],
+    ["checks by kind", ["checks", "app=myapp", "kind=idfv"], "unknown parameter: kind"],
+    ["log with a filter", ["log", "app=myapp", "reason=manual"], "unknown parameter: reason"],
+    ["log without app", ["log", "limit=5"], "missing app"],
     [
       "no token",
       ["unban", "app=my-app", "ref=A1B2C3D4"],
