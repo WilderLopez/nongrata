@@ -1,8 +1,8 @@
 .PHONY: install test test-worker test-cli test-swift typecheck build-ios check no-instrumentation \
 	mutation mutation-worker mutation-cli mutation-baseline docs
 
-# Todo lo que debe estar en verde antes de dar algo por terminado. `mutation` va después de
-# `test`: con la suite en rojo, el score no significa nada.
+# Everything that must be green before calling something done. `mutation` runs after `test`:
+# with a red suite, the score means nothing.
 check: no-instrumentation docs typecheck test build-ios mutation
 
 install:
@@ -26,13 +26,13 @@ typecheck:
 build-ios:
 	xcodebuild -quiet -scheme NonGrata-Package -destination 'generic/platform=iOS' build
 
-# Stryker muta src/ en su sitio (inPlace) y lo restaura al terminar. Si el proceso muere antes,
-# el código instrumentado sigue pasando los tests: que no llegue a un commit.
+# Stryker mutates src/ in place (inPlace) and restores it when it finishes. If the process dies
+# first, the instrumented code still passes the tests: keep it out of any commit.
 no-instrumentation:
 	@if grep -rlE 'stryMutAct_|stryNS_' worker/src cli/src; then \
-		echo "Restos de Stryker en los ficheros de arriba: restáuralos con git."; exit 1; fi
+		echo "Stryker leftovers in the files above: restore them with git."; exit 1; fi
 
-# Mutation testing (Stryker). Falla si el score baja más de un punto respecto al baseline.
+# Mutation testing (Stryker). Fails if the score drops more than one point below the baseline.
 mutation: mutation-worker mutation-cli
 
 mutation-worker:
@@ -43,16 +43,17 @@ mutation-cli:
 	pnpm --dir cli run test:mutation
 	node scripts/mutation-score.mjs cli
 
-# Tras un descenso intencionado (se borró un test obsoleto, módulo nuevo aún sin cubrir).
+# After an intentional drop (an obsolete test was deleted, a new module is not covered yet).
 mutation-baseline:
 	pnpm --dir worker run test:mutation
 	node scripts/mutation-score.mjs worker --update
 	pnpm --dir cli run test:mutation
 	node scripts/mutation-score.mjs cli --update
 
-# Enlaces de docs/ sin romper y, con un .public-terms local, ningún nombre privado en el repo.
+# No broken links in docs/, English and Spanish docs linked to each other and, with a local
+# .public-terms, no private names anywhere in the repo.
 docs:
 	@node scripts/check-docs.mjs
 
-# Objetivos locales de cada uno (por ejemplo, notas de trabajo fuera del repo). Git lo ignora.
+# Personal local targets (for example, work notes outside the repo). Git ignores it.
 -include local.mk

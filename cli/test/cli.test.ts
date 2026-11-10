@@ -21,7 +21,7 @@ function harness(env: Io["env"] = ENV, reply = () => Response.json({ ok: true })
   return { io, requests, out, err };
 }
 
-describe("hash (sin red)", () => {
+describe("hash (offline)", () => {
   for (const v of vectors.vectors) {
     it(`vector ${v.prefix} ${v.kind} ${v.value}`, async () => {
       const h = harness();
@@ -29,16 +29,16 @@ describe("hash (sin red)", () => {
       assert.equal(code, 0);
       const result = JSON.parse(h.out[0]!);
       assert.equal(result.hash, v.hash);
-      // El ref solo tiene sentido para el hash de install.
+      // A ref only makes sense for the install hash.
       assert.equal(result.ref, v.kind === "install" ? v.ref : undefined);
       assert.equal(h.requests.length, 0);
     });
   }
 });
 
-describe("ayuda", () => {
+describe("help", () => {
   for (const flag of ["help", "-h", "--help"]) {
-    it(`${flag}: la ayuda por stdout y código 0`, async () => {
+    it(`${flag}: help on stdout and exit code 0`, async () => {
       const h = harness();
       assert.equal(await run([flag], h.io), 0);
       assert.deepEqual(h.out, [USAGE]);
@@ -47,35 +47,35 @@ describe("ayuda", () => {
     });
   }
 
-  it("sin argumentos: solo la ayuda, por stderr, y código 2", async () => {
+  it("no arguments: only the help, on stderr, and exit code 2", async () => {
     const h = harness();
     assert.equal(await run([], h.io), 2);
     assert.deepEqual(h.err, [USAGE]);
     assert.deepEqual(h.out, []);
   });
 
-  it("lista los kind válidos", () => {
+  it("lists the valid kinds", () => {
     assert.match(USAGE, /^kind: idfv, install, icloud, user, android_id$/m);
   });
 });
 
 describe("parseArgs", () => {
-  it("parte por el primer '=': el valor puede contenerlo", () => {
+  it("splits on the first '=': the value may contain one", () => {
     const { command, params } = parseArgs(["ban", "app=myapp", "note=a=b"]);
     assert.equal(command, "ban");
-    // params no tiene prototipo (ver parseArgs): se compara su contenido.
+    // params has no prototype (see parseArgs): compare its contents.
     assert.deepEqual({ ...params }, { app: "myapp", note: "a=b" });
   });
 
-  it("rechaza argumentos sin clave y claves repetidas", () => {
+  it("rejects arguments without a key and duplicate keys", () => {
     assert.throws(() => parseArgs(["ban", "myapp"]), UsageError);
     assert.throws(() => parseArgs(["ban", "=x"]), UsageError);
     assert.throws(() => parseArgs(["ban", "app=a", "app=b"]), UsageError);
   });
 });
 
-describe("peticiones al Worker", () => {
-  it("ban: POST con Bearer y el valor en bruto; el hash lo calcula el Worker", async () => {
+describe("requests to the Worker", () => {
+  it("ban: POST with Bearer and the raw value; the Worker computes the hash", async () => {
     const h = harness();
     const code = await run(["ban", "app=myapp", "kind=idfv", "value=E621E1F8", "note=spam"], h.io);
     assert.equal(code, 0);
@@ -87,26 +87,26 @@ describe("peticiones al Worker", () => {
     assert.deepEqual(await req!.json(), { app: "myapp", kind: "idfv", value: "E621E1F8", note: "spam" });
   });
 
-  it("ban por hash", async () => {
+  it("ban by hash", async () => {
     const h = harness();
     const hash = "b".repeat(64);
     assert.equal(await run(["ban", "app=myapp", "kind=icloud", `hash=${hash}`], h.io), 0);
     assert.deepEqual(await h.requests[0]!.json(), { app: "myapp", kind: "icloud", hash });
   });
 
-  it("ban con note vacía: no manda note", async () => {
+  it("ban with an empty note: note is not sent", async () => {
     const h = harness();
     assert.equal(await run(["ban", "app=myapp", "kind=idfv", "value=x", "note="], h.io), 0);
     assert.deepEqual(await h.requests[0]!.json(), { app: "myapp", kind: "idfv", value: "x" });
   });
 
-  it("unban por ref: acepta minúsculas y manda mayúsculas", async () => {
+  it("unban by ref: accepts lowercase and sends uppercase", async () => {
     const h = harness();
     assert.equal(await run(["unban", "app=myapp", "ref=a1b2c3d4"], h.io), 0);
     assert.deepEqual(await h.requests[0]!.json(), { app: "myapp", ref: "A1B2C3D4" });
   });
 
-  it("unban por identificador, con value o con hash", async () => {
+  it("unban by identifier, with value or with hash", async () => {
     const byValue = harness();
     assert.equal(await run(["unban", "app=myapp", "kind=user", "value=u-1"], byValue.io), 0);
     assert.equal(byValue.requests[0]!.url, "https://guard.example.com/v1/admin/unban");
@@ -118,7 +118,7 @@ describe("peticiones al Worker", () => {
     assert.deepEqual(await byHash.requests[0]!.json(), { app: "myapp", kind: "install", hash });
   });
 
-  it("lookup: GET con los parámetros en la query", async () => {
+  it("lookup: GET with the parameters in the query string", async () => {
     const h = harness();
     const hash = "c".repeat(64);
     assert.equal(await run(["lookup", "app=myapp", "kind=user", `hash=${hash}`], h.io), 0);
@@ -129,7 +129,7 @@ describe("peticiones al Worker", () => {
     assert.deepEqual(Object.fromEntries(url.searchParams), { app: "myapp", kind: "user", hash });
   });
 
-  it("lookup por ref y por value", async () => {
+  it("lookup by ref and by value", async () => {
     const byRef = harness();
     assert.equal(await run(["lookup", "app=myapp", "ref=a1b2c3d4"], byRef.io), 0);
     assert.deepEqual(Object.fromEntries(new URL(byRef.requests[0]!.url).searchParams), {
@@ -146,7 +146,7 @@ describe("peticiones al Worker", () => {
     });
   });
 
-  it("las variables con sufijo de app tienen prioridad sobre las genéricas", async () => {
+  it("app-suffixed variables take precedence over the generic ones", async () => {
     const h = harness({
       ...ENV,
       NONGRATA_URL_MY_APP: "https://my-app.example.com",
@@ -157,7 +157,7 @@ describe("peticiones al Worker", () => {
     assert.equal(h.requests[0]!.headers.get("authorization"), "Bearer tok-my-app");
   });
 
-  it("http solo hacia localhost (wrangler dev)", async () => {
+  it("http only towards localhost (wrangler dev)", async () => {
     for (const url of ["http://localhost:8787", "http://127.0.0.1:8787", "http://[::1]:8787"]) {
       const local = harness({ ...ENV, NONGRATA_URL: url });
       assert.equal(await run(["unban", "app=demo", "ref=A1B2C3D4"], local.io), 0, url);
@@ -169,55 +169,55 @@ describe("peticiones al Worker", () => {
     assert.equal(remote.requests.length, 0);
   });
 
-  it("respuesta correcta: el JSON del Worker, indentado, por stdout", async () => {
+  it("successful response: the Worker's JSON, indented, on stdout", async () => {
     const h = harness(ENV, () => Response.json({ ok: true, hashes: 2 }));
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 0);
     assert.deepEqual(h.out, [JSON.stringify({ ok: true, hashes: 2 }, null, 2)]);
     assert.deepEqual(h.err, []);
   });
 
-  it("respuesta que no es JSON: el texto tal cual", async () => {
+  it("non-JSON response: the text as is", async () => {
     const h = harness(ENV, () => new Response("Internal Server Error", { status: 500 }));
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
     assert.deepEqual(h.err, ["nongrata: HTTP 500\nInternal Server Error"]);
     assert.deepEqual(h.out, []);
   });
 
-  it("error del Worker: código 1 y el cuerpo por stderr", async () => {
+  it("Worker error: exit code 1 and the body on stderr", async () => {
     const h = harness(ENV, () => Response.json({ error: "unauthorized" }, { status: 401 }));
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
     assert.match(h.err[0]!, /HTTP 401/);
     assert.match(h.err[0]!, /unauthorized/);
   });
 
-  it("sin respuesta: código 1", async () => {
+  it("no response: exit code 1", async () => {
     const h = harness();
     h.io.fetch = async () => {
       throw new TypeError("fetch failed");
     };
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
-    assert.match(h.err[0]!, /sin respuesta de https:\/\/guard\.example\.com/);
+    assert.match(h.err[0]!, /no response from https:\/\/guard\.example\.com/);
   });
 
-  it("corta la petición a los 15 s: código 1", async (t) => {
+  it("aborts the request after 15 s: exit code 1", async (t) => {
     const timeouts: number[] = [];
     t.mock.method(AbortSignal, "timeout", (ms: number) => {
       timeouts.push(ms);
       return AbortSignal.abort(new DOMException("timeout", "TimeoutError"));
     });
     const h = harness();
-    // Como el fetch real: rechaza con el motivo de la señal si ya está abortada.
+    // Like the real fetch: rejects with the signal's reason if it is already aborted.
     h.io.fetch = async (_input, init) => {
       if (init?.signal?.aborted) throw init.signal.reason;
       return Response.json({ ok: true });
     };
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
     assert.deepEqual(timeouts, [15_000]);
-    assert.deepEqual(h.err, ["nongrata: sin respuesta de https://guard.example.com: timeout"]);
+    assert.deepEqual(h.err, ["nongrata: no response from https://guard.example.com: timeout"]);
   });
 
-  it("un error que no es de uso no se disfraza de uso incorrecto", async () => {
-    // Un token con salto de línea no es una cabecera válida: Request lanza TypeError.
+  it("an error that is not a usage error is not disguised as one", async () => {
+    // A token with a newline is not a valid header value: Request throws TypeError.
     const h = harness({ ...ENV, NONGRATA_ADMIN_TOKEN: "to\nk" });
     await assert.rejects(run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), TypeError);
     assert.deepEqual(h.err, []);
@@ -225,60 +225,60 @@ describe("peticiones al Worker", () => {
   });
 });
 
-describe("uso incorrecto: código 2, el motivo y la ayuda por stderr, y nada sale por la red", () => {
+describe("incorrect usage: exit code 2, the reason and the help on stderr, and nothing goes out on the network", () => {
   const hashA = "a".repeat(64);
-  const badKind = "kind inválido: ip (idfv, install, icloud, user, android_id)";
-  const https = "la URL debe ser https (http solo para localhost)";
+  const badKind = "invalid kind: ip (idfv, install, icloud, user, android_id)";
+  const https = "the URL must be https (http only for localhost)";
   const cases: [string, string[], string, Io["env"]?][] = [
-    ["argumento sin clave=valor", ["ban", "myapp"], "argumento sin formato clave=valor: myapp"],
-    ["clave repetida", ["ban", "app=a", "app=b"], "app repetido"],
-    ["comando desconocido", ["purge", "app=myapp"], "comando desconocido: purge"],
-    ["sin app", ["ban", "kind=idfv", "value=x"], "falta app"],
-    ["sin kind", ["ban", "app=myapp", "value=x"], "falta kind"],
-    ["kind inválido", ["ban", "app=myapp", "kind=ip", "value=1.2.3.4"], badKind],
-    ["value y hash a la vez", ["ban", "app=myapp", "kind=idfv", "value=x", `hash=${hashA}`], "indica value o hash, no ambos"],
-    ["ni value ni hash", ["ban", "app=myapp", "kind=idfv"], "indica value o hash, no ambos"],
-    ["value vacío", ["ban", "app=myapp", "kind=idfv", "value="], "value vacío"],
+    ["argument without key=value", ["ban", "myapp"], "argument not in key=value form: myapp"],
+    ["duplicate key", ["ban", "app=a", "app=b"], "duplicate parameter: app"],
+    ["unknown command", ["purge", "app=myapp"], "unknown command: purge"],
+    ["no app", ["ban", "kind=idfv", "value=x"], "missing app"],
+    ["no kind", ["ban", "app=myapp", "value=x"], "missing kind"],
+    ["invalid kind", ["ban", "app=myapp", "kind=ip", "value=1.2.3.4"], badKind],
+    ["value and hash at once", ["ban", "app=myapp", "kind=idfv", "value=x", `hash=${hashA}`], "give value or hash, not both"],
+    ["neither value nor hash", ["ban", "app=myapp", "kind=idfv"], "give value or hash, not both"],
+    ["empty value", ["ban", "app=myapp", "kind=idfv", "value="], "empty value"],
     [
-      "hash mal formado",
+      "malformed hash",
       ["ban", "app=myapp", "kind=idfv", `hash=${"A".repeat(64)}`],
-      "hash inválido: 64 caracteres hex en minúsculas",
+      "invalid hash: 64 lowercase hex characters",
     ],
-    ["parámetro con errata", ["ban", "app=myapp", "kind=idfv", "value=x", "nota=spam"], "parámetro desconocido: nota"],
-    // Nombres que existen en Object.prototype: siguen siendo parámetros desconocidos, no repetidos.
-    ["parámetro constructor", ["ban", "app=myapp", "kind=idfv", "value=x", "constructor=x"], "parámetro desconocido: constructor"],
-    ["parámetro toString", ["ban", "app=myapp", "kind=idfv", "value=x", "toString=x"], "parámetro desconocido: toString"],
-    ["parámetro __proto__", ["ban", "app=myapp", "kind=idfv", "value=x", "__proto__=x"], "parámetro desconocido: __proto__"],
+    ["misspelled parameter", ["ban", "app=myapp", "kind=idfv", "value=x", "nota=spam"], "unknown parameter: nota"],
+    // Names that exist on Object.prototype: still unknown parameters, not duplicates.
+    ["constructor parameter", ["ban", "app=myapp", "kind=idfv", "value=x", "constructor=x"], "unknown parameter: constructor"],
+    ["toString parameter", ["ban", "app=myapp", "kind=idfv", "value=x", "toString=x"], "unknown parameter: toString"],
+    ["__proto__ parameter", ["ban", "app=myapp", "kind=idfv", "value=x", "__proto__=x"], "unknown parameter: __proto__"],
     [
-      "varios parámetros desconocidos",
+      "several unknown parameters",
       ["ban", "app=myapp", "kind=idfv", "value=x", "nota=spam", "motivo=x"],
-      "parámetro desconocido: nota, motivo",
+      "unknown parameter: nota, motivo",
     ],
-    ["ref inválido", ["unban", "app=myapp", "ref=XYZ"], "ref inválido: 8 caracteres hex"],
+    ["invalid ref", ["unban", "app=myapp", "ref=XYZ"], "invalid ref: 8 hex characters"],
     [
-      "ref e identificador a la vez",
+      "ref and identifier at once",
       ["unban", "app=myapp", "ref=A1B2C3D4", "kind=idfv", "value=x"],
-      "parámetro desconocido: kind, value",
+      "unknown parameter: kind, value",
     ],
-    ["ban por ref", ["ban", "app=myapp", "ref=A1B2C3D4"], "parámetro desconocido: ref"],
+    ["ban by ref", ["ban", "app=myapp", "ref=A1B2C3D4"], "unknown parameter: ref"],
     [
-      "sin token",
+      "no token",
       ["unban", "app=my-app", "ref=A1B2C3D4"],
-      "falta NONGRATA_ADMIN_TOKEN_MY_APP o NONGRATA_ADMIN_TOKEN",
+      "missing NONGRATA_ADMIN_TOKEN_MY_APP or NONGRATA_ADMIN_TOKEN",
       { NONGRATA_URL: ENV.NONGRATA_URL },
     ],
     [
-      "sin URL",
+      "no URL",
       ["unban", "app=my-app", "ref=A1B2C3D4"],
-      "falta NONGRATA_URL_MY_APP o NONGRATA_URL",
+      "missing NONGRATA_URL_MY_APP or NONGRATA_URL",
       { NONGRATA_ADMIN_TOKEN: "tok" },
     ],
-    ["URL inválida", ["unban", "app=myapp", "ref=A1B2C3D4"], "URL inválida: guard", { ...ENV, NONGRATA_URL: "guard" }],
-    ["http fuera de localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "http://guard.example.com" }],
-    ["otro esquema hacia localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "ftp://localhost:8787" }],
-    ["hash sin prefix", ["hash", "kind=idfv", "value=x"], "falta prefix"],
-    ["hash con kind inválido", ["hash", "prefix=p", "kind=ip", "value=1.2.3.4"], badKind],
-    ["hash con parámetro desconocido", ["hash", "prefix=p", "kind=idfv", "value=x", "app=myapp"], "parámetro desconocido: app"],
+    ["invalid URL", ["unban", "app=myapp", "ref=A1B2C3D4"], "invalid URL: guard", { ...ENV, NONGRATA_URL: "guard" }],
+    ["http outside localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "http://guard.example.com" }],
+    ["another scheme towards localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "ftp://localhost:8787" }],
+    ["hash without prefix", ["hash", "kind=idfv", "value=x"], "missing prefix"],
+    ["hash with an invalid kind", ["hash", "prefix=p", "kind=ip", "value=1.2.3.4"], badKind],
+    ["hash with an unknown parameter", ["hash", "prefix=p", "kind=idfv", "value=x", "app=myapp"], "unknown parameter: app"],
   ];
   for (const [name, argv, message, env] of cases) {
     it(name, async () => {

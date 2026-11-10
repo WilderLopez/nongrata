@@ -2,16 +2,16 @@ packages:
   - worker
   - cli
 
-# Cadena de suministro. Los scripts de instalación solo se ejecutan si se aprueban aquí,
-# paquete a paquete; cualquier otro hace fallar la instalación (strictDepBuilds, activo por defecto).
+# Supply chain. Install scripts only run if they are approved here, package by package; any
+# other one makes the install fail (strictDepBuilds, on by default).
 allowBuilds:
-  esbuild: true   # descarga su binario nativo
-  workerd: true   # runtime de Workers para wrangler y los tests
-  fsevents: false # opcional, solo vigilancia de ficheros en macOS
+  esbuild: true   # downloads its native binary
+  workerd: true   # Workers runtime for wrangler and the tests
+  fsevents: false # optional, only file watching on macOS
 
-# No instalar versiones publicadas hace menos de un día (en minutos). Al fijarlo
-# explícitamente, la resolución falla en vez de recurrir a una versión más joven.
+# Do not install versions published less than a day ago (in minutes). Because it is set
+# explicitly, resolution fails instead of falling back to a younger version.
 minimumReleaseAge: 1440
 
-# Falla si una versión nueva de un paquete llega con menos garantías de procedencia que las anteriores.
+# Fail if a new version of a package comes with weaker provenance guarantees than earlier ones.
 trustPolicy: no-downgrade

@@ -1,8 +1,8 @@
 {
   "global": 100,
-  "supervivientes": 0,
-  "sinCobertura": 0,
-  "ficheros": {
+  "survived": 0,
+  "noCoverage": 0,
+  "files": {
     "src/cli.ts": 100
   }
 }

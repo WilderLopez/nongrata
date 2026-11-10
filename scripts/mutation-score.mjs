@@ -1,30 +1,30 @@
 #!/usr/bin/env node
 /**
- * Compara el informe JSON de Stryker de un paquete (`<paquete>/reports/mutation/mutation.json`)
- * con su baseline versionado (`<paquete>/mutation-baseline.json`).
+ * Compares a package's Stryker JSON report (`<package>/reports/mutation/mutation.json`) with its
+ * versioned baseline (`<package>/mutation-baseline.json`).
  *
- * Sale con código 1 si el score global baja más de TOLERANCIA puntos. No hay umbral absoluto:
- * un mínimo fijo invita a escribir asserts de relleno; lo que importa es no retroceder.
+ * Exits with code 1 if the global score drops by more than TOLERANCE points. There is no absolute
+ * threshold: a fixed minimum invites filler asserts; what matters is not going backwards.
  *
- * Uso:
- *   node scripts/mutation-score.mjs worker            # compara con el baseline
- *   node scripts/mutation-score.mjs worker --update   # reescribe el baseline con lo medido
+ * Usage:
+ *   node scripts/mutation-score.mjs worker            # compare with the baseline
+ *   node scripts/mutation-score.mjs worker --update   # rewrite the baseline with the measurement
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PACKAGES = ["worker", "cli"];
-const TOLERANCIA = 1.0; // puntos porcentuales de margen para el ruido de timeouts
+const TOLERANCE = 1.0; // percentage points of slack for timeout noise
 
-const HELP = `Uso: node scripts/mutation-score.mjs <${PACKAGES.join("|")}> [--update]
+const HELP = `Usage: node scripts/mutation-score.mjs <${PACKAGES.join("|")}> [--update]
 
-Compara <paquete>/reports/mutation/mutation.json (la salida de "pnpm --dir <paquete>
-test:mutation") con <paquete>/mutation-baseline.json y falla (código 1) si el score global bajó
-más de ${TOLERANCIA} punto.
+Compares <package>/reports/mutation/mutation.json (the output of "pnpm --dir <package>
+test:mutation") with <package>/mutation-baseline.json and fails (exit code 1) if the global score
+dropped by more than ${TOLERANCE} point.
 
-  --update      reescribe el baseline con lo medido en la corrida actual
-  --help, -h    muestra esta ayuda`;
+  --update      rewrite the baseline with the current run's measurement
+  --help, -h    show this help`;
 
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.includes("-h")) {
@@ -40,72 +40,72 @@ if (!PACKAGES.includes(pkg)) {
 const REPORT = join(pkg, "reports/mutation/mutation.json");
 const BASELINE = join(pkg, "mutation-baseline.json");
 
-/** Killed y Timeout cuentan como detectados; los errores de compilación no cuentan. */
+/** Killed and Timeout count as detected; compile errors do not count. */
 function scoreOf(mutants) {
   const n = (status) => mutants.filter((m) => m.status === status).length;
-  const detectados = n("Killed") + n("Timeout");
-  const total = detectados + n("Survived") + n("NoCoverage");
+  const detected = n("Killed") + n("Timeout");
+  const total = detected + n("Survived") + n("NoCoverage");
   return {
-    score: total === 0 ? 100 : (detectados * 100) / total,
+    score: total === 0 ? 100 : (detected * 100) / total,
     survived: n("Survived"),
     noCoverage: n("NoCoverage"),
   };
 }
 
 if (!existsSync(REPORT)) {
-  console.error(`No encuentro ${REPORT}. ¿Has corrido "pnpm --dir ${pkg} test:mutation"?`);
+  console.error(`${REPORT} not found. Did you run "pnpm --dir ${pkg} test:mutation"?`);
   process.exit(2);
 }
 
 const report = JSON.parse(readFileSync(REPORT, "utf8"));
-const files = Object.entries(report.files ?? {}).map(([ruta, datos]) => [ruta, datos.mutants ?? []]);
+const files = Object.entries(report.files ?? {}).map(([path, data]) => [path, data.mutants ?? []]);
 const global = scoreOf(files.flatMap(([, mutants]) => mutants));
 
-const medido = {
+const measured = {
   global: Number(global.score.toFixed(2)),
-  supervivientes: global.survived,
-  sinCobertura: global.noCoverage,
-  ficheros: Object.fromEntries(
+  survived: global.survived,
+  noCoverage: global.noCoverage,
+  files: Object.fromEntries(
     files
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ruta, mutants]) => [ruta, Number(scoreOf(mutants).score.toFixed(2))]),
+      .map(([path, mutants]) => [path, Number(scoreOf(mutants).score.toFixed(2))]),
   ),
 };
 
 if (args.includes("--update")) {
-  writeFileSync(BASELINE, `${JSON.stringify(medido, null, 2)}\n`);
-  console.log(`${pkg}: baseline actualizado, ${medido.global}% global.`);
+  writeFileSync(BASELINE, `${JSON.stringify(measured, null, 2)}\n`);
+  console.log(`${pkg}: baseline updated, ${measured.global}% global.`);
   process.exit(0);
 }
 
 console.log(
-  `${pkg}: score global ${medido.global}%  (${medido.supervivientes} supervivientes, ` +
-    `${medido.sinCobertura} sin cobertura)`,
+  `${pkg}: global score ${measured.global}%  (${measured.survived} survived, ` +
+    `${measured.noCoverage} without coverage)`,
 );
 
 if (!existsSync(BASELINE)) {
-  console.log(`No hay baseline todavía. Créalo con: node scripts/mutation-score.mjs ${pkg} --update`);
+  console.log(`No baseline yet. Create it with: node scripts/mutation-score.mjs ${pkg} --update`);
   process.exit(0);
 }
 
 const base = JSON.parse(readFileSync(BASELINE, "utf8"));
-const diff = medido.global - base.global;
-console.log(`${pkg}: baseline     ${base.global}%  (diferencia: ${diff >= 0 ? "+" : ""}${diff.toFixed(2)})`);
+const diff = measured.global - base.global;
+console.log(`${pkg}: baseline     ${base.global}%  (difference: ${diff >= 0 ? "+" : ""}${diff.toFixed(2)})`);
 
-const bajadas = Object.entries(medido.ficheros)
-  .map(([ruta, score]) => [ruta, score, base.ficheros?.[ruta]])
-  .filter(([, score, anterior]) => anterior !== undefined && score < anterior - TOLERANCIA);
-if (bajadas.length > 0) {
-  console.log("\nFicheros que han bajado:");
-  for (const [ruta, score, anterior] of bajadas) console.log(`  ${ruta}: ${anterior}% → ${score}%`);
+const drops = Object.entries(measured.files)
+  .map(([path, score]) => [path, score, base.files?.[path]])
+  .filter(([, score, previous]) => previous !== undefined && score < previous - TOLERANCE);
+if (drops.length > 0) {
+  console.log("\nFiles that dropped:");
+  for (const [path, score, previous] of drops) console.log(`  ${path}: ${previous}% → ${score}%`);
 }
 
-if (diff < -TOLERANCIA) {
+if (diff < -TOLERANCE) {
   console.error(
-    `\n${pkg}: el score global ha bajado ${Math.abs(diff).toFixed(2)} puntos. Hay tests que ` +
-      `verifican menos que antes: mira ${pkg}/reports/mutation/index.html y añade los asserts que faltan.`,
+    `\n${pkg}: the global score dropped by ${Math.abs(diff).toFixed(2)} points. Some tests ` +
+      `verify less than before: look at ${pkg}/reports/mutation/index.html and add the missing asserts.`,
   );
   process.exit(1);
 }
 
-console.log(`${pkg}: sin retrocesos.`);
+console.log(`${pkg}: no regressions.`);

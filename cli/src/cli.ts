@@ -1,22 +1,22 @@
-// CLI de administración (docs/HANDOFF.md, sección 9). Envuelve los endpoints /v1/admin/* del
-// Worker; el hash lo calcula el Worker con el prefijo de la app. La fórmula se importa del
-// Worker para que no haya dos copias: `hash` la usa sin red y los tests pasan los vectores.
+// Admin CLI (docs/HANDOFF.md, section 9). Wraps the Worker's /v1/admin/* endpoints; the Worker
+// computes the hash with the app's prefix. The formula is imported from the Worker so there are
+// never two copies: `hash` uses it offline and the tests run the vectors through it.
 
 import { hashId, isHash, isKind, isRef, KINDS, refFromInstallHash } from "../../worker/src/hash.ts";
 
-export const USAGE = `Uso:
-  nongrata ban    app=<app> kind=<kind> (value=<valor> | hash=<hash>) [note=<texto>]
+export const USAGE = `Usage:
+  nongrata ban    app=<app> kind=<kind> (value=<value> | hash=<hash>) [note=<text>]
   nongrata unban  app=<app> ref=<REF>
-  nongrata unban  app=<app> kind=<kind> (value=<valor> | hash=<hash>)
+  nongrata unban  app=<app> kind=<kind> (value=<value> | hash=<hash>)
   nongrata lookup app=<app> ref=<REF>
-  nongrata lookup app=<app> kind=<kind> (value=<valor> | hash=<hash>)
-  nongrata hash   prefix=<prefijo> kind=<kind> value=<valor>    (sin red)
+  nongrata lookup app=<app> kind=<kind> (value=<value> | hash=<hash>)
+  nongrata hash   prefix=<prefix> kind=<kind> value=<value>    (offline)
 
 kind: ${KINDS.join(", ")}
 
-Entorno (el sufijo es la app en mayúsculas, con "-" como "_"; tiene prioridad sobre el genérico):
-  NONGRATA_URL_<APP>          o NONGRATA_URL           URL del Worker de esa app
-  NONGRATA_ADMIN_TOKEN_<APP>  o NONGRATA_ADMIN_TOKEN   ADMIN_TOKEN de ese Worker`;
+Environment (the suffix is the app in uppercase, with "-" as "_"; it wins over the generic one):
+  NONGRATA_URL_<APP>          or NONGRATA_URL           URL of that app's Worker
+  NONGRATA_ADMIN_TOKEN_<APP>  or NONGRATA_ADMIN_TOKEN   ADMIN_TOKEN of that Worker`;
 
 const TIMEOUT_MS = 15_000;
 
@@ -33,15 +33,15 @@ type Params = Record<string, string>;
 
 /** `ban app=myapp kind=idfv value=a=b` → `{ command: "ban", params: { app, kind, value: "a=b" } }`. */
 export function parseArgs(argv: string[]): { command: string; params: Params } {
-  // Stryker disable next-line StringLiteral: run() atiende argv vacío antes de llamar aquí; el valor por defecto solo existe para que command sea string.
+  // Stryker disable next-line StringLiteral: run() handles an empty argv before calling this; the default only exists so that command is a string.
   const [command = "", ...rest] = argv;
-  // Sin prototipo: `constructor=` o `__proto__=` son parámetros como cualquier otro, no heredados.
+  // No prototype: `constructor=` or `__proto__=` are parameters like any other, not inherited ones.
   const params: Params = Object.create(null);
   for (const arg of rest) {
     const eq = arg.indexOf("=");
-    if (eq <= 0) throw new UsageError(`argumento sin formato clave=valor: ${arg}`);
+    if (eq <= 0) throw new UsageError(`argument not in key=value form: ${arg}`);
     const key = arg.slice(0, eq);
-    if (key in params) throw new UsageError(`${key} repetido`);
+    if (key in params) throw new UsageError(`duplicate parameter: ${key}`);
     params[key] = arg.slice(eq + 1);
   }
   return { command, params };
@@ -49,37 +49,37 @@ export function parseArgs(argv: string[]): { command: string; params: Params } {
 
 function allowOnly(params: Params, allowed: string[]): void {
   const unknown = Object.keys(params).filter((k) => !allowed.includes(k));
-  if (unknown.length > 0) throw new UsageError(`parámetro desconocido: ${unknown.join(", ")}`);
+  if (unknown.length > 0) throw new UsageError(`unknown parameter: ${unknown.join(", ")}`);
 }
 
 function requireParam(params: Params, key: string): string {
   const v = params[key];
-  if (!v) throw new UsageError(`falta ${key}`);
+  if (!v) throw new UsageError(`missing ${key}`);
   return v;
 }
 
-/** `{ kind, value }` o `{ kind, hash }`, validado como lo valida el Worker. */
+/** `{ kind, value }` or `{ kind, hash }`, validated the way the Worker validates it. */
 function identifier(params: Params): Params {
   const kind = requireParam(params, "kind");
-  if (!isKind(kind)) throw new UsageError(`kind inválido: ${kind} (${KINDS.join(", ")})`);
+  if (!isKind(kind)) throw new UsageError(`invalid kind: ${kind} (${KINDS.join(", ")})`);
   const { value, hash } = params;
-  if ((value === undefined) === (hash === undefined)) throw new UsageError("indica value o hash, no ambos");
+  if ((value === undefined) === (hash === undefined)) throw new UsageError("give value or hash, not both");
   if (hash !== undefined) {
-    if (!isHash(hash)) throw new UsageError("hash inválido: 64 caracteres hex en minúsculas");
+    if (!isHash(hash)) throw new UsageError("invalid hash: 64 lowercase hex characters");
     return { kind, hash };
   }
-  if (!value) throw new UsageError("value vacío");
+  if (!value) throw new UsageError("empty value");
   return { kind, value };
 }
 
-/** El `ref` lo dicta el usuario a soporte; se aceptan minúsculas. */
+/** The user reads the `ref` out to support, so lowercase is accepted. */
 function ref(params: Params): string {
   const r = params.ref!.toUpperCase();
-  if (!isRef(r)) throw new UsageError("ref inválido: 8 caracteres hex");
+  if (!isRef(r)) throw new UsageError("invalid ref: 8 hex characters");
   return r;
 }
 
-/** `ref=` o `kind` + `value`/`hash`, nunca los dos (para no hacer dos cosas por error). */
+/** `ref=` or `kind` + `value`/`hash`, never both (so as not to do two things by mistake). */
 function refOrIdentifier(params: Params): Params {
   if (params.ref === undefined) return identifier(params);
   allowOnly(params, ["app", "ref"]);
@@ -90,24 +90,24 @@ export function endpoint(app: string, env: Io["env"]): { url: URL; token: string
   const suffix = app.toUpperCase().replace(/-/g, "_");
   const rawUrl = env[`NONGRATA_URL_${suffix}`] || env.NONGRATA_URL;
   const token = env[`NONGRATA_ADMIN_TOKEN_${suffix}`] || env.NONGRATA_ADMIN_TOKEN;
-  if (!rawUrl) throw new UsageError(`falta NONGRATA_URL_${suffix} o NONGRATA_URL`);
-  if (!token) throw new UsageError(`falta NONGRATA_ADMIN_TOKEN_${suffix} o NONGRATA_ADMIN_TOKEN`);
+  if (!rawUrl) throw new UsageError(`missing NONGRATA_URL_${suffix} or NONGRATA_URL`);
+  if (!token) throw new UsageError(`missing NONGRATA_ADMIN_TOKEN_${suffix} or NONGRATA_ADMIN_TOKEN`);
 
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new UsageError(`URL inválida: ${rawUrl}`);
+    throw new UsageError(`invalid URL: ${rawUrl}`);
   }
-  // El token viaja en la cabecera: en claro solo hacia `wrangler dev`.
+  // The token travels in a header: in cleartext only towards `wrangler dev`.
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
-    throw new UsageError("la URL debe ser https (http solo para localhost)");
+    throw new UsageError("the URL must be https (http only for localhost)");
   }
   return { url, token };
 }
 
-/** Petición HTTP de un comando de administración, sin enviarla. */
+/** The HTTP request for an admin command, without sending it. */
 export function buildRequest(command: string, params: Params, env: Io["env"]): Request {
   const app = requireParam(params, "app");
   let method: "GET" | "POST";
@@ -131,7 +131,7 @@ export function buildRequest(command: string, params: Params, env: Io["env"]): R
       payload = { app, ...refOrIdentifier(params) };
       break;
     default:
-      throw new UsageError(`comando desconocido: ${command}`);
+      throw new UsageError(`unknown command: ${command}`);
   }
 
   const { url: base, token } = endpoint(app, env);
@@ -149,12 +149,12 @@ async function localHash(params: Params): Promise<unknown> {
   allowOnly(params, ["prefix", "kind", "value"]);
   const prefix = requireParam(params, "prefix");
   const kind = requireParam(params, "kind");
-  if (!isKind(kind)) throw new UsageError(`kind inválido: ${kind} (${KINDS.join(", ")})`);
+  if (!isKind(kind)) throw new UsageError(`invalid kind: ${kind} (${KINDS.join(", ")})`);
   const hash = await hashId(prefix, kind, requireParam(params, "value"));
   return kind === "install" ? { kind, hash, ref: refFromInstallHash(hash) } : { kind, hash };
 }
 
-/** Devuelve el código de salida: 0 bien, 1 error del Worker o de red, 2 uso incorrecto. */
+/** Returns the exit code: 0 success, 1 Worker or network error, 2 incorrect usage. */
 export async function run(argv: string[], io: Io): Promise<number> {
   if (argv.length === 0 || ["help", "-h", "--help"].includes(argv[0]!)) {
     (argv.length === 0 ? io.err : io.out)(USAGE);
@@ -179,7 +179,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
   try {
     response = await io.fetch(request, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (e) {
-    io.err(`nongrata: sin respuesta de ${new URL(request.url).origin}: ${(e as Error).message}`);
+    io.err(`nongrata: no response from ${new URL(request.url).origin}: ${(e as Error).message}`);
     return 1;
   }
 

@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "pnpm",
-  "plugins_comment": "pnpm enlaza node_modules/@stryker-mutator/* con symlinks y el auto-descubrimiento no los sigue: hay que listarlos a mano.",
+  "plugins_comment": "pnpm links node_modules/@stryker-mutator/* with symlinks and auto-discovery does not follow them: they have to be listed by hand.",
   "plugins": [
     "@stryker-mutator/tap-runner"
   ],
@@ -12,9 +12,9 @@
     ]
   },
   "coverageAnalysis": "perTest",
-  "inPlace_comment": "Sin sandbox: src/cli.ts importa ../../worker/src/hash.ts y los tests leen ../spec/hash-vectors.json, que quedarían fuera de él. Stryker restaura src/ al terminar; no edites src/ mientras corre. `make check` falla si quedan restos de instrumentación.",
+  "inPlace_comment": "No sandbox: src/cli.ts imports ../../worker/src/hash.ts and the tests read ../spec/hash-vectors.json, which would be left outside it. Stryker restores src/ when it finishes; do not edit src/ while it runs. `make check` fails if instrumentation leftovers remain.",
   "inPlace": true,
-  "mutate_comment": "main.ts solo conecta process con run(); hash.ts se muta desde worker/.",
+  "mutate_comment": "main.ts only wires process to run(); hash.ts is mutated from worker/.",
   "mutate": [
     "src/**/*.ts",
     "!src/main.ts"
@@ -31,7 +31,7 @@
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
   },
-  "thresholds_comment": "Sin umbral que rompa: el que vigila es scripts/mutation-score.mjs, contra mutation-baseline.json.",
+  "thresholds_comment": "No breaking threshold: scripts/mutation-score.mjs is the guard, against mutation-baseline.json.",
   "thresholds": {
     "high": 80,
     "low": 60,
