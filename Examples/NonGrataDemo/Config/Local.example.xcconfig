@@ -1,0 +1,8 @@
+// Copy to Local.xcconfig (git ignores it) and fill in your values.
+NONGRATA_DEMO_TEAM = <YOUR_TEAM_ID>
+// A bundle ID your team can register, e.g. com.yourname.nongrata-demo.
+NONGRATA_DEMO_BUNDLE_ID = com.yourname.nongrata-demo
+NONGRATA_DEMO_ENDPOINT = https:/$()/nongrata-demo.<your-subdomain>.workers.dev/v1/device/check
+// Must match the Worker: app "demo" reads HASH_PREFIX_DEMO.
+NONGRATA_DEMO_APP_ID = demo
+NONGRATA_DEMO_HASH_PREFIX = demo-ban-v1

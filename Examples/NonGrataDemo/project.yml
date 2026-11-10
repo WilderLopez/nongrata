@@ -1,0 +1,46 @@
+# XcodeGen spec for the NonGrata demo app. Generate the project with `xcodegen generate`
+# (the .xcodeproj is not committed). Your Team ID, bundle ID and Worker URL go in
+# Config/Local.xcconfig, which git ignores; see README.md.
+name: NonGrataDemo
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  NonGrata:
+    path: ../..
+targets:
+  NonGrataDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: NonGrataDemo
+        excludes:
+          - AppIcon.svg   # source of the app icon; regenerate the PNG with rsvg-convert
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    dependencies:
+      - package: NonGrata
+        product: NonGrata
+      - package: NonGrata
+        product: NonGrataUI
+    info:
+      path: NonGrataDemo/Info.plist
+      properties:
+        CFBundleDisplayName: NonGrata Demo
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NonGrataDemoEndpoint: $(NONGRATA_DEMO_ENDPOINT)
+        NonGrataDemoAppId: $(NONGRATA_DEMO_APP_ID)
+        NonGrataDemoHashPrefix: $(NONGRATA_DEMO_HASH_PREFIX)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(NONGRATA_DEMO_BUNDLE_ID)
+        DEVELOPMENT_TEAM: $(NONGRATA_DEMO_TEAM)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"

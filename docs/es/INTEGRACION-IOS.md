@@ -17,8 +17,15 @@ el código sigue en `swift/`.
 
 ## 2. Capacidades del App ID
 
-- DeviceCheck no necesita entitlement, pero la app debe pertenecer a la cuenta de desarrollador
-  cuya clave usa el Worker.
+- DeviceCheck no necesita entitlement, pero la app debe pertenecer al equipo de desarrollo cuya
+  clave usa el Worker. La clave y la app tienen que estar en el **mismo equipo**: una app de
+  otro equipo necesita su propia clave de DeviceCheck.
+- **Registra un App ID explícito para el bundle ID** (Certificates, IDs & Profiles →
+  Identifiers, sin capacidades). Observado el 2026-11-10: con una app firmada solo con el App ID
+  comodín del equipo, el dispositivo genera tokens pero Apple responde al Worker
+  `400 Bad Authorization Token`, así que el Worker no obtiene `bit0` y decide solo con su lista.
+  Unos minutos después de registrar el App ID, la misma build funcionó. Las apps de la App Store
+  siempre lo tienen; afecta sobre todo a apps de prueba y de demostración.
 - Solo con `useICloud: true`: iCloud con CloudKit (contenedor por defecto) y key-value storage
   (`com.apple.developer.ubiquity-kvstore-identifier`). Sin CloudKit, `useICloud` hace fallar la
   app al leer el ID de iCloud.

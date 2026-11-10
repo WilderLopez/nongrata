@@ -133,6 +133,12 @@ desde `0.2.0`. O en tu `Package.swift`:
 
 Productos: `NonGrata` (obligatorio) y `NonGrataUI` (la pantalla, opcional).
 
+### 3. Míralo funcionar
+
+[`Examples/NonGrataDemo`](Examples/NonGrataDemo/README.md) es una app pequeña para probar todo
+el recorrido en un iPhone de verdad: banearlo desde la terminal, vaciar la lista, reinstalar,
+desbanear con el código de soporte y quedarse sin conexión (su README está en inglés).
+
 ## Uso en la app
 
 ```swift

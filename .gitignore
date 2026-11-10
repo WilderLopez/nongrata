@@ -33,3 +33,8 @@ deployments/*
 local.mk
 .public-terms
 CLAUDE.md
+
+# Demo app: local signing and Worker values, and the generated Xcode project
+Examples/NonGrataDemo/Config/Local.xcconfig
+Examples/NonGrataDemo/*.xcodeproj/
+Examples/NonGrataDemo/build/

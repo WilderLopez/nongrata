@@ -17,8 +17,15 @@ subfolder); the code still lives in `swift/`.
 
 ## 2. App ID capabilities
 
-- DeviceCheck needs no entitlement, but the app must belong to the developer account whose key
-  the Worker uses.
+- DeviceCheck needs no entitlement, but the app must belong to the developer team whose key
+  the Worker uses. The key and the app have to be in the **same team**: an app from another
+  team needs its own DeviceCheck key.
+- **Register an explicit App ID for the bundle ID** (Certificates, IDs & Profiles → Identifiers,
+  no capabilities needed). Observed on 2026-11-10: with an app signed only through the team's
+  wildcard App ID, the device generates tokens but Apple answers the Worker with
+  `400 Bad Authorization Token`, so the Worker never gets `bit0` and decides with its list only.
+  A few minutes after registering the App ID, the same build worked. App Store apps always have
+  one; this mostly bites test and demo apps.
 - Only with `useICloud: true`: iCloud with CloudKit (default container) and key-value storage
   (`com.apple.developer.ubiquity-kvstore-identifier`). Without CloudKit, `useICloud` makes the
   app fail when reading the iCloud ID.

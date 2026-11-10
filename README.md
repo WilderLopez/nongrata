@@ -132,6 +132,12 @@ from `0.2.0`. Or in your `Package.swift`:
 
 Products: `NonGrata` (required) and `NonGrataUI` (the screen, optional).
 
+### 3. See it working
+
+[`Examples/NonGrataDemo`](Examples/NonGrataDemo/README.md) is a small app to try the whole flow
+on a real iPhone: ban it from the terminal, erase the list, reinstall, unban with the support
+code and go offline.
+
 ## Using it in your app
 
 ```swift

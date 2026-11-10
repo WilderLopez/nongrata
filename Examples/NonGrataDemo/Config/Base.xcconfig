@@ -1,0 +1,11 @@
+// Defaults for the demo app. Override them in Local.xcconfig (git ignores it):
+//   cp Config/Local.example.xcconfig Config/Local.xcconfig
+NONGRATA_DEMO_BUNDLE_ID = com.example.nongrata-demo
+NONGRATA_DEMO_TEAM =
+// Full URL of your Worker's check endpoint. In xcconfig "//" starts a comment, so write the
+// scheme as https:/$()/ (see Local.example.xcconfig). Empty: set it in the app's Settings.
+NONGRATA_DEMO_ENDPOINT =
+NONGRATA_DEMO_APP_ID = demo
+NONGRATA_DEMO_HASH_PREFIX = demo-ban-v1
+
+#include? "Local.xcconfig"

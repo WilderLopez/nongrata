@@ -1,0 +1,222 @@
+import NonGrata
+import NonGrataUI
+import SwiftUI
+import UIKit
+
+struct ContentView: View {
+    @Bindable var model: DemoModel
+
+    var body: some View {
+        if let nonGrata = model.nonGrata {
+            content
+                // The SDK's optional screen: covers the app only while the verdict is
+                // `.blocked`, and goes away by itself once the Worker answers `ok`.
+                .nonGrataBlockingOverlay(nonGrata) { ref in
+                    Button("Copy support code") { UIPasteboard.general.string = ref }
+                        .buttonStyle(.borderedProminent)
+                }
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        NavigationStack {
+            Form {
+                verdictSection
+                deviceSection
+                checksSection
+                diagnosticsSection
+                historySection
+                settingsSection
+            }
+            .navigationTitle("NonGrata Demo")
+        }
+    }
+
+    // MARK: Sections
+
+    private var verdictSection: some View {
+        Section("Verdict") {
+            if let nonGrata = model.nonGrata {
+                VerdictRow(verdict: nonGrata.verdict)
+                CopyRow(label: "Support code", value: nonGrata.supportCode)
+            } else {
+                Label("Set your Worker URL in Settings below.", systemImage: "gearshape")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var deviceSection: some View {
+        Section {
+            CopyRow(label: "installId", value: model.nonGrata?.installId)
+            CopyRow(label: "idfv", value: model.idfv)
+            CopyRow(label: "Ban this device", value: model.banCommand, monospaced: true)
+            CopyRow(label: "Unban by support code", value: model.unbanCommand, monospaced: true)
+        } header: {
+            Text("This device")
+        } footer: {
+            Text("Tap a row to copy it. Run the commands from the repo root with the Worker's URL and ADMIN_TOKEN in your environment.")
+        }
+    }
+
+    private var checksSection: some View {
+        Section {
+            Button("Check: launch") { run(.launch) }
+            Button("Check: foreground") { run(.foreground) }
+            HStack {
+                Button("Check: login") { run(.login) }
+                TextField("userId", text: $model.userId)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            Button("Check: sign-up") { run(.signup) }
+        } header: {
+            Text("Run a check")
+        } footer: {
+            Text("Sign-up is strict by default: if the Worker can't be reached, the check doesn't permit it.")
+        }
+        .disabled(!model.isConfigured || model.isChecking)
+    }
+
+    private var diagnosticsSection: some View {
+        Section {
+            LabeledContent("DeviceCheck", value: model.deviceCheckStatus)
+            Button("Test DeviceCheck") { Task { await model.testDeviceCheck() } }
+        } header: {
+            Text("Diagnostics")
+        } footer: {
+            Text("If no token can be generated, checks reach the Worker without DeviceCheck and it decides with its list only.")
+        }
+    }
+
+    private var historySection: some View {
+        Section("History") {
+            if model.history.isEmpty {
+                Text("No checks yet.").foregroundStyle(.secondary)
+            }
+            ForEach(model.history) { entry in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(entry.intent.rawValue).font(.body.monospaced())
+                        Text(entry.date, style: .time).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing) {
+                        Text(entry.verdict.label).foregroundStyle(entry.verdict.color)
+                        if let permitted = entry.permitted {
+                            Text(permitted ? "sign-up permitted" : "sign-up refused")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var settingsSection: some View {
+        Section {
+            TextField("https://…/v1/device/check", text: $model.endpoint)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            LabeledContent("appId") {
+                TextField("demo", text: $model.appId)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            LabeledContent("hashPrefix") {
+                TextField("demo-ban-v1", text: $model.hashPrefix)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            Button("Apply") { model.apply() }
+        } header: {
+            Text("Settings")
+        } footer: {
+            Text("appId and hashPrefix must match the Worker (HASH_PREFIX_<APP>). The iCloud layer is off in this demo: it needs CloudKit on the App ID.")
+        }
+    }
+
+    private func run(_ intent: CheckIntent) {
+        Task { await model.check(intent) }
+    }
+}
+
+// MARK: - Rows
+
+private struct VerdictRow: View {
+    let verdict: NonGrataVerdict
+
+    var body: some View {
+        HStack {
+            Image(systemName: verdict.symbol).foregroundStyle(verdict.color)
+            Text(verdict.label).font(.headline)
+            Spacer()
+            Text(verdict.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private struct CopyRow: View {
+    let label: String
+    let value: String?
+    var monospaced = false
+
+    var body: some View {
+        Button {
+            UIPasteboard.general.string = value
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(value ?? "–")
+                    .font(monospaced ? .footnote.monospaced() : .body.monospaced())
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+            }
+        }
+        .disabled(value == nil)
+    }
+}
+
+private extension NonGrataVerdict {
+    var label: String {
+        switch self {
+        case .allowed: "allowed"
+        case .blocked: "blocked"
+        case .unknown: "unknown"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .allowed: "The Worker answered ok."
+        case let .blocked(ref): "Banned. Support code \(ref)."
+        case .unknown: "No answer and no local flag: fail-open."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .allowed: "checkmark.shield.fill"
+        case .blocked: "hand.raised.fill"
+        case .unknown: "questionmark.circle"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .allowed: .green
+        case .blocked: .red
+        case .unknown: .orange
+        }
+    }
+}
