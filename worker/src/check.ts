@@ -1,4 +1,4 @@
-// POST /v1/device/check (docs/HANDOFF.md, section 6.1).
+// POST /v1/device/check (docs/DESIGN.md, section 6.1).
 
 import type { AppleEnv, DeviceCheckClient, TwoBits } from "./apple/devicecheck";
 import type { AppConfig } from "./env";

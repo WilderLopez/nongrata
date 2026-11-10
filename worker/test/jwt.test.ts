@@ -36,7 +36,7 @@ describe("b64url", () => {
 });
 
 describe("ES256 JWT for Apple", () => {
-  // docs/HANDOFF.md, section 16, item 1: pkcs8 import of a P-256 key in the Workers runtime.
+  // docs/DESIGN.md, section 16, item 1: pkcs8 import of a P-256 key in the Workers runtime.
   it("imports a .p8 (PKCS#8, P-256) and signs a verifiable JWT", async () => {
     const key = await importP8(env.APPLE_DC_KEY_P8_DEMO);
     const jwt = await signAppleJWT(key, "KEY0000000", "TEAM000000", 1_800_000_000);

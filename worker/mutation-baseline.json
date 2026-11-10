@@ -1,8 +1,8 @@
 {
   "global": 99.47,
-  "supervivientes": 3,
-  "sinCobertura": 0,
-  "ficheros": {
+  "survived": 3,
+  "noCoverage": 0,
+  "files": {
     "src/admin.ts": 100,
     "src/apple/devicecheck.ts": 100,
     "src/apple/jwt.ts": 100,

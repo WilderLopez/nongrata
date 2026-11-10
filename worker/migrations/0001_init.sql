@@ -1,4 +1,4 @@
--- Initial schema (docs/HANDOFF.md, section 7.1). Only hashes with a per-app prefix:
+-- Initial schema (docs/DESIGN.md, section 7.1). Only hashes with a per-app prefix:
 -- never raw identifiers or IPs. Timestamps are Unix milliseconds.
 
 CREATE TABLE banned_ids (

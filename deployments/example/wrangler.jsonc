@@ -38,6 +38,6 @@
     "APPLE_TEAM_ID_MYAPP": "<TEAM_ID>",
     "APPLE_KEY_ID_MYAPP": "<KEY_ID>"
   },
-  // No request bodies logged (docs/HANDOFF.md, section 11).
+  // No request bodies logged (docs/DESIGN.md, section 11).
   "observability": { "enabled": true, "logs": { "invocation_logs": false } }
 }

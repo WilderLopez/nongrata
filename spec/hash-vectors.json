@@ -49,7 +49,7 @@
       "value": " e621e1f8-c36c-495a-93fc-0c247a3e6e5f\r\n",
       "hash": "b55ea8ae1f1ece0d1fd58ce1ebdf9c6573beedb75ef78b13335904980c55c408",
       "ref": "B55EA8AE",
-      "note": "UUID en minúsculas y con espacios: mismo hash que en mayúsculas"
+      "note": "lowercase UUID with spaces: same hash as uppercase"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -57,7 +57,7 @@
       "value": "\t3f2504e0-4f89-11d3-9a0c-0305e82c3301 ",
       "hash": "c1456573e3a96b15719a3522e962118ab1277207541d95b4ff72c2ea9de08b10",
       "ref": "C1456573",
-      "note": "UUID en minúsculas y con tabulador"
+      "note": "lowercase UUID with a tab"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -65,7 +65,7 @@
       "value": "e621e1f8-ß",
       "hash": "077c01e47758c8ace7153dc4533f96f8004dc2e7f2e398888760410c426de2a9",
       "ref": "077C01E4",
-      "note": "solo a-z pasa a mayúsculas; ß se queda igual"
+      "note": "only a-z is uppercased; ß stays as is"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -73,7 +73,7 @@
       "value": "_2A3B4C5D6E7F8091A2B3C4D5E6F70819",
       "hash": "3c1d849946f255fb26b8843ca77549fd346bb9581e06084f723700bc44b77464",
       "ref": "3C1D8499",
-      "note": "icloud es opaco: conserva mayúsculas"
+      "note": "icloud is opaque: case is kept"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -81,7 +81,7 @@
       "value": "  user_12345\n",
       "hash": "83b1273587f3f4c91e0dcab9c6952765dfb2b00f743d0979cb9679d82f493854",
       "ref": "83B12735",
-      "note": "user: quita espacios de los extremos"
+      "note": "user: leading and trailing spaces are removed"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -89,7 +89,7 @@
       "value": "User_12345",
       "hash": "77ac2d5eca5e7df463c15ea259134ff10fe78cd91d78eb183e5076f07389926a",
       "ref": "77AC2D5E",
-      "note": "user es opaco: conserva mayúsculas"
+      "note": "user is opaque: case is kept"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -97,7 +97,7 @@
       "value": "user_12345 ",
       "hash": "9d97841901376293c23ca2743eab4adaa32ac948ecaf682e7775a91bb5b1862a",
       "ref": "9D978419",
-      "note": "el espacio no separable no se quita"
+      "note": "the non-breaking space is not removed"
     }
   ]
 }

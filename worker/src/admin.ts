@@ -1,4 +1,4 @@
-// /v1/admin/* endpoints (docs/HANDOFF.md, section 6.4). All of them require Bearer ADMIN_TOKEN.
+// /v1/admin/* endpoints (docs/DESIGN.md, section 6.4). All of them require Bearer ADMIN_TOKEN.
 
 import { appConfig, isAppId, type AppConfig, type GuardEnv } from "./env";
 import { hashId, isHash, isKind, isRef, type Kind } from "./hash";
