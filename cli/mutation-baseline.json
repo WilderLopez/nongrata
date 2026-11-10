@@ -3,6 +3,7 @@
   "survived": 0,
   "noCoverage": 0,
   "files": {
-    "src/cli.ts": 100
+    "src/cli.ts": 100,
+    "src/qr.ts": 100
   }
 }

@@ -17,6 +17,10 @@ function harness(env: Io["env"] = ENV, reply = () => Response.json({ ok: true })
     },
     out: (t) => out.push(t),
     err: (t) => err.push(t),
+    ask: async () => {
+      throw new Error("no command but pair asks");
+    },
+    sleep: async () => {},
   };
   return { io, requests, out, err };
 }
