@@ -148,7 +148,8 @@ describe("admin listings: authorization and app", () => {
     expect(await get(path, params)).toEqual({ status: 400, body: { error } });
   });
 
-  it.each(["/v1/admin/bans", "/v1/admin/checks", "/v1/admin/log"])("%s without app: invalid app", async (path) => {
+  // The log without app lists the Worker's device events instead (signed-requests.test.ts).
+  it.each(["/v1/admin/bans", "/v1/admin/checks"])("%s without app: invalid app", async (path) => {
     const res = await handle(
       new Request(`https://guard.test${path}`, { headers: { authorization: `Bearer ${TOKEN}` } }),
       guardEnv,
@@ -402,6 +403,8 @@ interface LogItem {
   hash: string | null;
   ref: string | null;
   note: string | null;
+  device_id: string | null;
+  actor: string | null;
   created_at: number;
 }
 
@@ -419,11 +422,11 @@ describe("GET /v1/admin/log", () => {
     const res = await get<LogItem>("/v1/admin/log");
     expect(res.body.next_cursor).toBeNull();
     expect(res.body.items).toEqual([
-      { action: "unban", kind: "icloud", hash, ref: "B1B2C3D4", note: null, created_at: expect.any(Number) },
-      { action: "unban", kind: null, hash: null, ref: "A1B2C3D4", note: null, created_at: expect.any(Number) },
-      { action: "unban", kind: "user", hash, ref: null, note: null, created_at: expect.any(Number) },
-      { action: "ban", kind: "user", hash, ref: null, note: null, created_at: expect.any(Number) },
-      { action: "ban", kind: "idfv", hash: banned.body.hash, ref: null, note: "spam", created_at: expect.any(Number) },
+      { action: "unban", kind: "icloud", hash, ref: "B1B2C3D4", note: null, device_id: null, actor: "token", created_at: expect.any(Number) },
+      { action: "unban", kind: null, hash: null, ref: "A1B2C3D4", note: null, device_id: null, actor: "token", created_at: expect.any(Number) },
+      { action: "unban", kind: "user", hash, ref: null, note: null, device_id: null, actor: "token", created_at: expect.any(Number) },
+      { action: "ban", kind: "user", hash, ref: null, note: null, device_id: null, actor: "token", created_at: expect.any(Number) },
+      { action: "ban", kind: "idfv", hash: banned.body.hash, ref: null, note: "spam", device_id: null, actor: "token", created_at: expect.any(Number) },
     ]);
     for (const item of res.body.items) expect(item.created_at).toBeGreaterThanOrEqual(before);
   });

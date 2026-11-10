@@ -1,16 +1,18 @@
 {
-  "global": 99.47,
+  "global": 99.78,
   "survived": 3,
   "noCoverage": 0,
   "files": {
     "src/admin.ts": 100,
     "src/apple/devicecheck.ts": 100,
     "src/apple/jwt.ts": 100,
-    "src/check.ts": 99.3,
+    "src/check.ts": 99.34,
+    "src/devices.ts": 100,
     "src/env.ts": 97.62,
-    "src/hash.ts": 97.44,
+    "src/hash.ts": 98.11,
     "src/http.ts": 100,
     "src/index.ts": 100,
+    "src/signature.ts": 100,
     "src/store.ts": 100
   }
 }

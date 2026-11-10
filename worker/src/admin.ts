@@ -1,11 +1,12 @@
 // /v1/admin/* endpoints (docs/DESIGN.md, section 6.4; docs/ADMIN-API.md and its OpenAPI spec,
-// docs/admin-api.yaml). All of them require Bearer ADMIN_TOKEN.
+// docs/admin-api.yaml). Who may call each one (the ADMIN_TOKEN or a paired device) is decided in
+// devices.ts before they run.
 
 import { b64url } from "./apple/jwt";
 import { appConfig, isAppId, type AppConfig, type GuardEnv } from "./env";
 import { hashId, isHash, isKind, isRef, type Kind } from "./hash";
 import { json } from "./http";
-import type { After, BanReason, Store } from "./store";
+import type { Actor, After, BanReason, Store } from "./store";
 
 /** Query string parameters; a repeated one keeps its last value. */
 type Query = Record<string, string | undefined>;
@@ -52,7 +53,7 @@ async function resolveId(
 }
 
 // Stryker disable all: redundant; the callers reject anything that is not an object with a valid `app` anyway.
-async function readBody(request: Request): Promise<Record<string, unknown> | null> {
+export async function readBody(request: Request): Promise<Record<string, unknown> | null> {
   try {
     const body = await request.json();
     return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
@@ -62,7 +63,7 @@ async function readBody(request: Request): Promise<Record<string, unknown> | nul
 }
 // Stryker restore all
 
-export async function ban(request: Request, env: GuardEnv, store: Store, now: number) {
+export async function ban(request: Request, env: GuardEnv, store: Store, actor: Actor, now: number) {
   const b = (await readBody(request)) ?? {};
   const config = configuredApp(env, b.app);
   if (config instanceof Response) return config;
@@ -72,11 +73,11 @@ export async function ban(request: Request, env: GuardEnv, store: Store, now: nu
   if ("error" in id) return json(id, 400);
   const note = typeof b.note === "string" ? b.note.slice(0, 500) : null;
   // The ban and its admin_log row go in one transaction.
-  await store.banManual(app, id, note, now);
+  await store.banManual(app, id, note, actor, now);
   return json({ app, kind: id.kind, hash: id.hash });
 }
 
-export async function unban(request: Request, env: GuardEnv, store: Store, now: number) {
+export async function unban(request: Request, env: GuardEnv, store: Store, actor: Actor, now: number) {
   const b = (await readBody(request)) ?? {};
   const config = configuredApp(env, b.app);
   if (config instanceof Response) return config;
@@ -89,7 +90,7 @@ export async function unban(request: Request, env: GuardEnv, store: Store, now: 
 
   const ref = isRef(b.ref) ? b.ref : null;
   // Deleting, scheduling and the admin_log row go in one transaction.
-  const removed = await store.unban(app, id, ref, now);
+  const removed = await store.unban(app, id, ref, actor, now);
   const result: Record<string, unknown> = { app };
   if (id) {
     result.hash = id.hash;
@@ -173,7 +174,7 @@ function pageParams(
  * and the cursor points at the last row returned.
  */
 function page<T extends { created_at: number }>(
-  app: string,
+  app: string | null,
   rows: T[],
   limit: number,
   keyOf: (row: T) => string | number,
@@ -224,11 +225,18 @@ export async function listChecks(url: URL, env: GuardEnv, store: Store) {
   return page(app, rows, params.limit, (r) => r.id, ({ id: _, ...item }) => item);
 }
 
+/**
+ * With `app`, that app's `ban` and `unban`. Without it, the Worker-wide device events (`pair`,
+ * `revoke`), with `app: null` in the page. A present but bad `app` is still an error.
+ */
 export async function listAdminLog(url: URL, env: GuardEnv, store: Store) {
   const p: Query = Object.fromEntries(url.searchParams);
-  const config = configuredApp(env, p.app);
-  if (config instanceof Response) return config;
-  const { app } = config;
+  let app: string | null = null;
+  if (p.app !== undefined) {
+    const config = configuredApp(env, p.app);
+    if (config instanceof Response) return config;
+    app = config.app;
+  }
 
   const params = pageParams(p, wholeNumber);
   if ("error" in params) return json(params, 400);

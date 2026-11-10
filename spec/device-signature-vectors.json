@@ -1,0 +1,111 @@
+{
+  "description": "Golden vectors for NonGrata admin devices (docs/DEVICE-PAIRING.md, sections 2.2, 2.3 and 3). Read by the Worker tests and by the Swift tests of admin clients. Computed outside any NonGrata code: canonical strings written by hand from the spec, SHA-256 with `shasum -a 256`, signatures with `openssl dgst -sha256 -sign` (DER) and r || s taken from `openssl asn1parse`. ECDSA signatures are randomized: these verify, but signing again gives different bytes. TEST KEY ONLY: never use it for a real device.",
+  "key": {
+    "curve": "P-256",
+    "private_key_d_hex": "5bc00962dd239ab3589e9a78b1405226684faab24cc6cc2aa8893151cd6f1588",
+    "public_key": "BOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM"
+  },
+  "pairing": {
+    "id": "AAECAwQFBgcICQoLDA0ODw",
+    "public_key": "BOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM",
+    "proof_message": "NONGRATA-PAIR-V1\nAAECAwQFBgcICQoLDA0ODw\nBOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM",
+    "proof": "CPgy_NMv-72x2rpPUIGhiUVLd5Q9tkRdV9J7ax2OI1j9iI_9Y-2_kF016YLtTHr12GL1W5RJqi_qqbbMZTkvxw",
+    "proof_der": "MEUCIAj4MvzTL_u9sdq6T1CBoYlFS3eUPbZEXVfSe2sdjiNYAiEA_YiP_WPtv5BdNemC7Ux69dhi9VuUSaov6qm2zGU5L8c",
+    "verification_message": "NONGRATA-VERIFY-V1\nAAECAwQFBgcICQoLDA0ODw\nBOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM",
+    "verification_sha256": "894f91f6c0e44efc87ebd620381f23e66ef45cae365e81e8558c5aaaa1f1b046",
+    "verification_code": "693302"
+  },
+  "requests": [
+    {
+      "name": "GET with no query and no body",
+      "method": "GET",
+      "url": "https://nongrata-myapp.example.workers.dev/v1/admin/me",
+      "headers": {
+        "NonGrata-Device": "8OHSw7Sllod4aVpLPC0eDw",
+        "NonGrata-Timestamp": "1762790400000",
+        "NonGrata-Nonce": "ABEiM0RVZneImaq7zN3u_w"
+      },
+      "body": null,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "NONGRATA-SIG-V1\nGET\nnongrata-myapp.example.workers.dev\n/v1/admin/me\n\n1762790400000\nABEiM0RVZneImaq7zN3u_w\n8OHSw7Sllod4aVpLPC0eDw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "iEZl4MKc4lBJ4DxtwaTMLh6F0CiKD2aYw75nn8phCtJv5dfUqjNkFRuaqC1uloLwfZ5KL6FrkGi7t8OSobMC6A",
+      "signature_der": "MEUCIQCIRmXgwpziUEngPG3BpMwuHoXQKIoPZpjDvmefymEK0gIgb-XX1KozZBUbmqgtbpaC8H2eSi-ha5Bou7fDkqGzAug"
+    },
+    {
+      "name": "GET with a query: sorted by name",
+      "method": "GET",
+      "url": "https://nongrata-myapp.example.workers.dev/v1/admin/bans?limit=20&kind=icloud&app=myapp",
+      "headers": {
+        "NonGrata-Device": "8OHSw7Sllod4aVpLPC0eDw",
+        "NonGrata-Timestamp": "1762790400000",
+        "NonGrata-Nonce": "ABEiM0RVZneImaq7zN3u_w"
+      },
+      "body": null,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "NONGRATA-SIG-V1\nGET\nnongrata-myapp.example.workers.dev\n/v1/admin/bans\napp=myapp&kind=icloud&limit=20\n1762790400000\nABEiM0RVZneImaq7zN3u_w\n8OHSw7Sllod4aVpLPC0eDw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "rkA5O6cpl_Fmg7OnLHF3NoLf0y3h36OAQKW1DiPJvjnM6z3Qy9GRK0N-jxzxcMPST4Rsod5qGIKnolV1rU0s-Q",
+      "signature_der": "MEYCIQCuQDk7pymX8WaDs6cscXc2gt_TLeHfo4BApbUOI8m-OQIhAMzrPdDL0ZErQ36PHPFww9JPhGyh3moYgqeiVXWtTSz5"
+    },
+    {
+      "name": "Query with a port, '+', repeated names, non-ASCII, empty values and reserved characters",
+      "method": "GET",
+      "url": "http://localhost:8787/v1/admin/checks?note=a+b&z=%7E&b=2&b=10&%C3%B1=%E2%9C%93&empty=&a*=x!",
+      "headers": {
+        "NonGrata-Device": "8OHSw7Sllod4aVpLPC0eDw",
+        "NonGrata-Timestamp": "1762790400000",
+        "NonGrata-Nonce": "ABEiM0RVZneImaq7zN3u_w"
+      },
+      "body": null,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "NONGRATA-SIG-V1\nGET\nlocalhost:8787\n/v1/admin/checks\n%C3%B1=%E2%9C%93&a%2A=x%21&b=10&b=2&empty=&note=a%20b&z=~\n1762790400000\nABEiM0RVZneImaq7zN3u_w\n8OHSw7Sllod4aVpLPC0eDw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "MjIaFjEjkl39uaPDBo5GplmrzX6iWjDz-8mwShQz_AKU_IKWQKZsfgGFeDzTcpYNCKt96KTLwq4uaRip4VNzTw",
+      "signature_der": "MEUCIDIyGhYxI5Jd_bmjwwaORqZZq81-olow8_vJsEoUM_wCAiEAlPyClkCmbH4BhXg803KWDQirfeiky8KuLmkYqeFTc08"
+    },
+    {
+      "name": "POST with a JSON body",
+      "method": "POST",
+      "url": "https://nongrata-myapp.example.workers.dev/v1/admin/ban",
+      "headers": {
+        "NonGrata-Device": "8OHSw7Sllod4aVpLPC0eDw",
+        "NonGrata-Timestamp": "1762790400000",
+        "NonGrata-Nonce": "ABEiM0RVZneImaq7zN3u_w"
+      },
+      "body": "{\"app\":\"myapp\",\"kind\":\"idfv\",\"value\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\",\"note\":\"spam\"}",
+      "body_sha256": "bfe43327598500418e05baa95ff48c7556234380f3d496cb0c09f7c8d610aaf4",
+      "canonical": "NONGRATA-SIG-V1\nPOST\nnongrata-myapp.example.workers.dev\n/v1/admin/ban\n\n1762790400000\nABEiM0RVZneImaq7zN3u_w\n8OHSw7Sllod4aVpLPC0eDw\nbfe43327598500418e05baa95ff48c7556234380f3d496cb0c09f7c8d610aaf4",
+      "signature": "eMXITMRp54dykxShmCeGK819FhAsPpUUNXBBkS3hkc2hd0JuOi6j43nDrTQdB9xbNLPpg9fB8N_Nwn2EBmUZ-Q",
+      "signature_der": "MEUCIHjFyEzEaeeHcpMUoZgnhivNfRYQLD6VFDVwQZEt4ZHNAiEAoXdCbjouo-N5w600HQfcWzSz6YPXwfDfzcJ9hAZlGfk"
+    },
+    {
+      "name": "POST with no body",
+      "method": "POST",
+      "url": "https://nongrata-myapp.example.workers.dev/v1/admin/devices/8OHSw7Sllod4aVpLPC0eDw/revoke",
+      "headers": {
+        "NonGrata-Device": "8OHSw7Sllod4aVpLPC0eDw",
+        "NonGrata-Timestamp": "1762790400000",
+        "NonGrata-Nonce": "ABEiM0RVZneImaq7zN3u_w"
+      },
+      "body": null,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical": "NONGRATA-SIG-V1\nPOST\nnongrata-myapp.example.workers.dev\n/v1/admin/devices/8OHSw7Sllod4aVpLPC0eDw/revoke\n\n1762790400000\nABEiM0RVZneImaq7zN3u_w\n8OHSw7Sllod4aVpLPC0eDw\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "UDzK4BrC4FeKtMNmDHRVktI_0LmRw6rRNT9lRJpx57nzm6mBIkSTkTF84p2SbtNkSWvIPPOfs-tTGsXrZyZp3w",
+      "signature_der": "MEUCIFA8yuAawuBXirTDZgx0VZLSP9C5kcOq0TU_ZUSacee5AiEA85upgSJEk5ExfOKdkm7TZElryDzzn7PrUxrF62cmad8"
+    }
+  ],
+  "verification_codes": [
+    {
+      "name": "the pairing above",
+      "id": "AAECAwQFBgcICQoLDA0ODw",
+      "public_key": "BOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM",
+      "sha256": "894f91f6c0e44efc87ebd620381f23e66ef45cae365e81e8558c5aaaa1f1b046",
+      "code": "693302"
+    },
+    {
+      "name": "leading zeros: 0x3c6147c8 = 1013008328",
+      "id": "AAAAAAAAAAAAAAAAAAAADw",
+      "public_key": "BOlWa3p-o7y7OygCHgCCxtoemvxWr3IKyHD6JirMUPbaCDxKiELjOK4xXfRPMZe2EJuAxmUWzxdzkwhdRn5IEEM",
+      "sha256": "3c6147c84c6769491c3590031b6dba1c73fc45d072325a21eaff6ed9317b0880",
+      "code": "008328"
+    }
+  ]
+}

@@ -15,6 +15,6 @@ describe("Store", () => {
   // Only a hash can be "removed": scheduling a ref changes a row too, but that is not a removal.
   it("unban by ref alone: removed is false", async () => {
     const app = `s${randomHash().slice(0, 12)}`;
-    expect(await new Store(guardEnv.DB).unban(app, null, "A1B2C3D4", Date.now())).toBe(false);
+    expect(await new Store(guardEnv.DB).unban(app, null, "A1B2C3D4", "token", Date.now())).toBe(false);
   });
 });
