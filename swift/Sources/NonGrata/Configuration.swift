@@ -1,6 +1,6 @@
 import Foundation
 
-public struct DeviceGuardConfiguration: Sendable {
+public struct NonGrataConfiguration: Sendable {
     public enum DeviceCheckEnvironment: String, Sendable {
         case development
         case production
@@ -39,7 +39,7 @@ public struct DeviceGuardConfiguration: Sendable {
         foregroundInterval: Duration = .seconds(6 * 3600),
         timeout: Duration = .seconds(5),
         iCloudTimeout: Duration = .seconds(2),
-        keychainService: String = "device-guard",
+        keychainService: String = "nongrata",
         deviceCheckEnvironment: DeviceCheckEnvironment = Self.defaultDeviceCheckEnvironment
     ) {
         self.endpoint = endpoint
@@ -70,7 +70,7 @@ public enum CheckIntent: String, Sendable, CaseIterable {
     case signup
 }
 
-public enum DeviceGuardVerdict: Sendable, Equatable {
+public enum NonGrataVerdict: Sendable, Equatable {
     case allowed
     case blocked(ref: String)
     /// No se pudo comprobar y no hay marca local.

@@ -2,13 +2,13 @@
 // ../deployments/<app>/wrangler.jsonc y apuntan a este mismo código.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "device-guard-dev",
+  "name": "nongrata-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "device-guard-dev",
+      "database_name": "nongrata-dev",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }

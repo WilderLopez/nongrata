@@ -1,7 +1,7 @@
 {
   "sourceLanguage" : "es",
   "strings" : {
-    "deviceguard.suspended.message" : {
+    "nongrata.suspended.message" : {
       "comment" : "Explicación bajo el título de la pantalla de bloqueo. «El código de abajo» es el código de soporte.",
       "extractionState" : "manual",
       "localizations" : {
@@ -19,7 +19,7 @@
         }
       }
     },
-    "deviceguard.suspended.supportCode" : {
+    "nongrata.suspended.supportCode" : {
       "comment" : "Etiqueta sobre el código de 8 caracteres que el usuario dicta a soporte.",
       "extractionState" : "manual",
       "localizations" : {
@@ -37,7 +37,7 @@
         }
       }
     },
-    "deviceguard.suspended.title" : {
+    "nongrata.suspended.title" : {
       "comment" : "Título de la pantalla que se muestra cuando este dispositivo está bloqueado.",
       "extractionState" : "manual",
       "localizations" : {

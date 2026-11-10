@@ -40,6 +40,6 @@ reinstalar y a borrar el iPhone.
 
 - JWT ES256: `worker/src/apple/jwt.ts`.
 - Cliente HTTP: `worker/src/apple/devicecheck.ts`.
-- Tokens en el SDK: `deviceTokens()` en `swift/Sources/DeviceGuard/DeviceGuard.swift`.
+- Tokens en el SDK: `deviceTokens()` en `swift/Sources/NonGrata/NonGrata.swift`.
 
 Diseño: secciones 3 y 7.2 del [HANDOFF](../HANDOFF.md).

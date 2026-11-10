@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Contenido de `DeviceGuardSuspendedView`, que lo coloca centrado o dentro de un scroll.
+/// Contenido de `NonGrataSuspendedView`, que lo coloca centrado o dentro de un scroll.
 struct SuspendedContent<SupportAction: View>: View {
     let ref: String
     let title: LocalizedStringResource

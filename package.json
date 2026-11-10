@@ -1,10 +1,10 @@
 {
-  "name": "device-guard",
+  "name": "nongrata",
   "private": true,
   "license": "MIT",
   "packageManager": "pnpm@12.11.2",
   "scripts": {
-    "dg": "node cli/src/main.ts",
+    "ng": "node cli/src/main.ts",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   }

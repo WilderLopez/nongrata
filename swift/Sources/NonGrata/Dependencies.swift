@@ -1,8 +1,8 @@
 import Foundation
 
 // Todo lo que toca el sistema queda detrás de estos protocolos para poder probar
-// `DeviceGuard` sin Keychain, iCloud, DeviceCheck ni red. Se usan siempre desde el
-// main actor, igual que `DeviceGuard`.
+// `NonGrata` sin Keychain, iCloud, DeviceCheck ni red. Se usan siempre desde el
+// main actor, igual que `NonGrata`.
 
 enum SecureStoreError: Error, Equatable {
     /// El Keychain no está disponible (por ejemplo, tras reiniciar y antes del primer desbloqueo).

@@ -1,7 +1,7 @@
-# Device Guard: documento de traspaso
+# NonGrata: diseño
 
 Fecha: 2026-10-15
-Nombre de trabajo: `device-guard` (provisional)
+Nombre: NonGrata, de *persona non grata* (alguien que ya no es bienvenido).
 Estado (2026-11-10): implementado salvo App Attest y las pruebas de extremo a extremo en un iPhone.
 
 Este documento recoge todo lo investigado y decidido para construir un sistema de baneo por
@@ -110,8 +110,8 @@ Bloquear la app en un dispositivo marcado, antes del login y del registro, de fo
 ## 5. Arquitectura
 
 ```
- App (SDK)                                 Worker device-guard                         Apple
- ─────────                                 ───────────────────                         ─────
+ App (SDK)                                 Worker NonGrata                             Apple
+ ─────────                                 ───────────────                             ─────
  1. idfv, installId (Keychain),
     userRecordID (iCloud), userId
     → hashes SHA-256 con prefijo de la app
@@ -377,7 +377,7 @@ efectos colaterales.
 ### 8.1 API pública propuesta
 
 ```swift
-public struct DeviceGuardConfiguration: Sendable {
+public struct NonGrataConfiguration: Sendable {
     public var endpoint: URL
     public var appId: String                 // "myapp"
     public var hashPrefix: String            // igual que HASH_PREFIX_<APP> del Worker
@@ -388,7 +388,7 @@ public struct DeviceGuardConfiguration: Sendable {
     public var keychainService: String
 }
 
-public enum DeviceGuardVerdict: Sendable, Equatable {
+public enum NonGrataVerdict: Sendable, Equatable {
     case allowed
     case blocked(ref: String)
     case unknown            // no se pudo comprobar y no hay marca local
@@ -396,10 +396,10 @@ public enum DeviceGuardVerdict: Sendable, Equatable {
 
 @MainActor
 @Observable
-public final class DeviceGuard {
-    public init(configuration: DeviceGuardConfiguration)
-    public private(set) var verdict: DeviceGuardVerdict      // lee la marca local en el init
-    public func check(intent: CheckIntent, userId: String?) async -> DeviceGuardVerdict
+public final class NonGrata {
+    public init(configuration: NonGrataConfiguration)
+    public private(set) var verdict: NonGrataVerdict      // lee la marca local en el init
+    public func check(intent: CheckIntent, userId: String?) async -> NonGrataVerdict
     public var installId: String { get }                     // para analítica y soporte
     public var iCloudIdHash: String? { get }
 }
@@ -408,8 +408,8 @@ public final class DeviceGuard {
 El SDK no impone interfaz: cada app pinta su pantalla de suspendido con su propio sistema de
 presentación. Opcionalmente, una vista SwiftUI por defecto en un target aparte.
 
-> Implementación (2026-10-29): producto `DeviceGuardUI` con `DeviceGuardSuspendedView(ref:)` (hueco
-> `supportAction` para el contacto con soporte) y `.deviceGuardBlockingOverlay(_:)`, que solo cubre
+> Implementación (2026-10-29): producto `NonGrataUI` con `NonGrataSuspendedView(ref:)` (hueco
+> `supportAction` para el contacto con soporte) y `.nonGrataBlockingOverlay(_:)`, que solo cubre
 > con `.blocked`. El código de soporte se puede seleccionar y VoiceOver lo deletrea. Ver
 > `docs/INTEGRATION-IOS.md`.
 
@@ -459,17 +459,17 @@ Sin `isSupported` (simulador), se manda sin `dc_token` y el Worker decide solo c
 Un comando pequeño (Node o Swift) que envuelve los endpoints de admin:
 
 ```
-device-guard ban    app=myapp kind=idfv value=<valor> note=spam
-device-guard unban  app=myapp ref=A1B2C3D4
-device-guard lookup app=myapp ref=A1B2C3D4
+nongrata ban    app=myapp kind=idfv value=<valor> note=spam
+nongrata unban  app=myapp ref=A1B2C3D4
+nongrata lookup app=myapp ref=A1B2C3D4
 ```
 
 Lee el endpoint y el `ADMIN_TOKEN` de variables de entorno. El hash lo calcula el Worker.
 
 > Implementación (2026-10-26), en `cli/`: TypeScript ejecutado con Node, sin dependencias. Como
-> cada app tiene su propio Worker, lee `DEVICE_GUARD_URL_<APP>` y `DEVICE_GUARD_ADMIN_TOKEN_<APP>`
-> con `DEVICE_GUARD_URL` y `DEVICE_GUARD_ADMIN_TOKEN` como respaldo, y exige https salvo hacia
-> localhost. Añade `device-guard hash prefix=… kind=… value=…`, que calcula el hash sin red con la
+> cada app tiene su propio Worker, lee `NONGRATA_URL_<APP>` y `NONGRATA_ADMIN_TOKEN_<APP>`
+> con `NONGRATA_URL` y `NONGRATA_ADMIN_TOKEN` como respaldo, y exige https salvo hacia
+> localhost. Añade `nongrata hash prefix=… kind=… value=…`, que calcula el hash sin red con la
 > misma fórmula del Worker (pasa `spec/hash-vectors.json`). Acepta el `ref` en minúsculas.
 > Códigos de salida: 0 bien, 1 error del Worker o de red, 2 uso incorrecto.
 
@@ -478,9 +478,9 @@ Lee el endpoint y el `ADMIN_TOKEN` de variables de entorno. El hash lo calcula e
 Un monorepo:
 
 ```
-device-guard/
+nongrata/
 ├── Package.swift          Manifiesto del paquete Swift (en la raíz para que SPM lo resuelva por URL)
-├── swift/                 Código del paquete (DeviceGuard + DeviceGuardUI opcional) y tests
+├── swift/                 Código del paquete (NonGrata + NonGrataUI opcional) y tests
 ├── worker/                Núcleo del Worker en TypeScript y tests con Vitest
 ├── deployments/
 │   ├── example/           plantilla de wrangler.jsonc para una app

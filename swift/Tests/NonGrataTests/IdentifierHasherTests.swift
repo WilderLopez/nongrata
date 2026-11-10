@@ -1,4 +1,4 @@
-import DeviceGuard
+import NonGrata
 import Foundation
 import Testing
 
@@ -19,7 +19,7 @@ private struct VectorFile: Decodable {
 /// Vectores compartidos con el Worker (`spec/hash-vectors.json`, en la raíz del repo).
 private let vectors: [Vector] = {
     let url = URL(filePath: #filePath)
-        .deletingLastPathComponent() // DeviceGuardTests
+        .deletingLastPathComponent() // NonGrataTests
         .deletingLastPathComponent() // Tests
         .deletingLastPathComponent() // swift
         .deletingLastPathComponent() // raíz del repo

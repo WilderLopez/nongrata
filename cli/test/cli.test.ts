@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import vectors from "../../spec/hash-vectors.json" with { type: "json" };
 import { parseArgs, run, USAGE, UsageError, type Io } from "../src/cli.ts";
 
-const ENV = { DEVICE_GUARD_URL: "https://guard.example.com", DEVICE_GUARD_ADMIN_TOKEN: "tok" };
+const ENV = { NONGRATA_URL: "https://guard.example.com", NONGRATA_ADMIN_TOKEN: "tok" };
 
 function harness(env: Io["env"] = ENV, reply = () => Response.json({ ok: true })) {
   const requests: Request[] = [];
@@ -149,8 +149,8 @@ describe("peticiones al Worker", () => {
   it("las variables con sufijo de app tienen prioridad sobre las genéricas", async () => {
     const h = harness({
       ...ENV,
-      DEVICE_GUARD_URL_MY_APP: "https://my-app.example.com",
-      DEVICE_GUARD_ADMIN_TOKEN_MY_APP: "tok-my-app",
+      NONGRATA_URL_MY_APP: "https://my-app.example.com",
+      NONGRATA_ADMIN_TOKEN_MY_APP: "tok-my-app",
     });
     assert.equal(await run(["unban", "app=my-app", "ref=A1B2C3D4"], h.io), 0);
     assert.equal(new URL(h.requests[0]!.url).host, "my-app.example.com");
@@ -159,12 +159,12 @@ describe("peticiones al Worker", () => {
 
   it("http solo hacia localhost (wrangler dev)", async () => {
     for (const url of ["http://localhost:8787", "http://127.0.0.1:8787", "http://[::1]:8787"]) {
-      const local = harness({ ...ENV, DEVICE_GUARD_URL: url });
+      const local = harness({ ...ENV, NONGRATA_URL: url });
       assert.equal(await run(["unban", "app=demo", "ref=A1B2C3D4"], local.io), 0, url);
       assert.equal(local.requests[0]!.url, `${url}/v1/admin/unban`);
     }
 
-    const remote = harness({ ...ENV, DEVICE_GUARD_URL: "http://guard.example.com" });
+    const remote = harness({ ...ENV, NONGRATA_URL: "http://guard.example.com" });
     assert.equal(await run(["unban", "app=demo", "ref=A1B2C3D4"], remote.io), 2);
     assert.equal(remote.requests.length, 0);
   });
@@ -179,7 +179,7 @@ describe("peticiones al Worker", () => {
   it("respuesta que no es JSON: el texto tal cual", async () => {
     const h = harness(ENV, () => new Response("Internal Server Error", { status: 500 }));
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
-    assert.deepEqual(h.err, ["device-guard: HTTP 500\nInternal Server Error"]);
+    assert.deepEqual(h.err, ["nongrata: HTTP 500\nInternal Server Error"]);
     assert.deepEqual(h.out, []);
   });
 
@@ -213,12 +213,12 @@ describe("peticiones al Worker", () => {
     };
     assert.equal(await run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), 1);
     assert.deepEqual(timeouts, [15_000]);
-    assert.deepEqual(h.err, ["device-guard: sin respuesta de https://guard.example.com: timeout"]);
+    assert.deepEqual(h.err, ["nongrata: sin respuesta de https://guard.example.com: timeout"]);
   });
 
   it("un error que no es de uso no se disfraza de uso incorrecto", async () => {
     // Un token con salto de línea no es una cabecera válida: Request lanza TypeError.
-    const h = harness({ ...ENV, DEVICE_GUARD_ADMIN_TOKEN: "to\nk" });
+    const h = harness({ ...ENV, NONGRATA_ADMIN_TOKEN: "to\nk" });
     await assert.rejects(run(["unban", "app=myapp", "ref=A1B2C3D4"], h.io), TypeError);
     assert.deepEqual(h.err, []);
     assert.equal(h.requests.length, 0);
@@ -264,18 +264,18 @@ describe("uso incorrecto: código 2, el motivo y la ayuda por stderr, y nada sal
     [
       "sin token",
       ["unban", "app=my-app", "ref=A1B2C3D4"],
-      "falta DEVICE_GUARD_ADMIN_TOKEN_MY_APP o DEVICE_GUARD_ADMIN_TOKEN",
-      { DEVICE_GUARD_URL: ENV.DEVICE_GUARD_URL },
+      "falta NONGRATA_ADMIN_TOKEN_MY_APP o NONGRATA_ADMIN_TOKEN",
+      { NONGRATA_URL: ENV.NONGRATA_URL },
     ],
     [
       "sin URL",
       ["unban", "app=my-app", "ref=A1B2C3D4"],
-      "falta DEVICE_GUARD_URL_MY_APP o DEVICE_GUARD_URL",
-      { DEVICE_GUARD_ADMIN_TOKEN: "tok" },
+      "falta NONGRATA_URL_MY_APP o NONGRATA_URL",
+      { NONGRATA_ADMIN_TOKEN: "tok" },
     ],
-    ["URL inválida", ["unban", "app=myapp", "ref=A1B2C3D4"], "URL inválida: guard", { ...ENV, DEVICE_GUARD_URL: "guard" }],
-    ["http fuera de localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, DEVICE_GUARD_URL: "http://guard.example.com" }],
-    ["otro esquema hacia localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, DEVICE_GUARD_URL: "ftp://localhost:8787" }],
+    ["URL inválida", ["unban", "app=myapp", "ref=A1B2C3D4"], "URL inválida: guard", { ...ENV, NONGRATA_URL: "guard" }],
+    ["http fuera de localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "http://guard.example.com" }],
+    ["otro esquema hacia localhost", ["unban", "app=myapp", "ref=A1B2C3D4"], https, { ...ENV, NONGRATA_URL: "ftp://localhost:8787" }],
     ["hash sin prefix", ["hash", "kind=idfv", "value=x"], "falta prefix"],
     ["hash con kind inválido", ["hash", "prefix=p", "kind=ip", "value=1.2.3.4"], badKind],
     ["hash con parámetro desconocido", ["hash", "prefix=p", "kind=idfv", "value=x", "app=myapp"], "parámetro desconocido: app"],
@@ -285,7 +285,7 @@ describe("uso incorrecto: código 2, el motivo y la ayuda por stderr, y nada sal
       const h = harness(env);
       assert.equal(await run(argv, h.io), 2);
       assert.equal(h.requests.length, 0);
-      assert.deepEqual(h.err, [`device-guard: ${message}\n\n${USAGE}`]);
+      assert.deepEqual(h.err, [`nongrata: ${message}\n\n${USAGE}`]);
       assert.deepEqual(h.out, []);
     });
   }

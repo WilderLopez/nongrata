@@ -7,7 +7,7 @@ struct SupportCodeView: View {
 
     var body: some View {
         VStack {
-            Text(DeviceGuardUIStrings.supportCodeLabel)
+            Text(NonGrataUIStrings.supportCodeLabel)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 

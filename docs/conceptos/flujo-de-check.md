@@ -5,7 +5,7 @@ aliases: [Flujo de una comprobación, check, /v1/device/check]
 
 # Flujo de una comprobación
 
-Lo que pasa cada vez que la app llama a `deviceGuard.check(intent:)`. Es el corazón del sistema;
+Lo que pasa cada vez que la app llama a `nonGrata.check(intent:)`. Es el corazón del sistema;
 el resto de notas explica cada pieza.
 
 ```mermaid
@@ -49,7 +49,7 @@ sequenceDiagram
 
 ## Dónde está en el código
 
-- SDK: `swift/Sources/DeviceGuard/DeviceGuard.swift` (`check`, `performCheck`, `apply`).
+- SDK: `swift/Sources/NonGrata/NonGrata.swift` (`check`, `performCheck`, `apply`).
 - Worker: `worker/src/check.ts` (`runCheck`); el SQL en `worker/src/store.ts`; Apple en
   `worker/src/apple/`.
 - Diseño: sección 6.1 del [HANDOFF](../HANDOFF.md).

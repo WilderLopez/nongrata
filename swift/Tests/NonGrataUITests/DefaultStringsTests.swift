@@ -1,4 +1,4 @@
-import DeviceGuardUI
+import NonGrataUI
 import Foundation
 import Testing
 
@@ -13,14 +13,14 @@ struct DefaultStringsTests {
         ]
     )
     func defaults(language: String, title: String, supportCode: String) {
-        #expect(resolve(DeviceGuardUIStrings.suspendedTitle, in: language) == title)
-        #expect(resolve(DeviceGuardUIStrings.supportCodeLabel, in: language) == supportCode)
+        #expect(resolve(NonGrataUIStrings.suspendedTitle, in: language) == title)
+        #expect(resolve(NonGrataUIStrings.supportCodeLabel, in: language) == supportCode)
     }
 
     @Test("El mensaje existe en los dos idiomas y menciona el código", arguments: ["es", "en"])
     func message(language: String) {
-        let message = resolve(DeviceGuardUIStrings.suspendedMessage, in: language)
-        #expect(message.contains("deviceguard.") == false)
+        let message = resolve(NonGrataUIStrings.suspendedMessage, in: language)
+        #expect(message.contains("nongrata.") == false)
         #expect(message.localizedCaseInsensitiveContains(language == "es" ? "código" : "code"))
     }
 

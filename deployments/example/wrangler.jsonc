@@ -7,14 +7,14 @@
 //   pnpm exec wrangler secret put APPLE_DC_KEY_P8_MYAPP --config ../deployments/<tu-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
 {
   "$schema": "../../worker/node_modules/wrangler/config-schema.json",
-  "name": "device-guard-myapp",
+  "name": "nongrata-myapp",
   "main": "../../worker/src/index.ts",
   "compatibility_date": "2026-10-01",
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "device-guard-myapp",
-      // Lo devuelve `wrangler d1 create device-guard-myapp`.
+      "database_name": "nongrata-myapp",
+      // Lo devuelve `wrangler d1 create nongrata-myapp`.
       "database_id": "<DATABASE_ID>",
       "migrations_dir": "../../worker/migrations"
     }

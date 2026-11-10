@@ -1,10 +1,10 @@
-@testable import DeviceGuard
+@testable import NonGrata
 import Foundation
 import Testing
 
 @MainActor
-@Suite("DeviceGuard")
-struct DeviceGuardTests {
+@Suite("NonGrata")
+struct NonGrataTests {
     let device = TestDevice()
 
     // MARK: installId
@@ -188,7 +188,7 @@ struct DeviceGuardTests {
         let payload = try #require(device.transport.payloads.first)
         // Vector de spec/hash-vectors.json.
         #expect(payload.ids.icloud == "5d8f38cf7e2af497533f83ae0ae6e636626cae2eff6c802f50489f68c26d1268")
-        #expect(device.cloudStore.values["deviceguard.myapp.blockedRef"] == guardian.supportCode)
+        #expect(device.cloudStore.values["nongrata.myapp.blockedRef"] == guardian.supportCode)
     }
 
     @Test("Otro dispositivo pone la marca de iCloud: bloquea en caliente")
@@ -196,14 +196,14 @@ struct DeviceGuardTests {
         let guardian = device.launch(device.configuration(useICloud: true))
         #expect(guardian.verdict == .unknown)
 
-        device.cloudStore.simulateExternalChange("ABCDEF12", forKey: "deviceguard.myapp.blockedRef")
+        device.cloudStore.simulateExternalChange("ABCDEF12", forKey: "nongrata.myapp.blockedRef")
         await settle { guardian.verdict != .unknown }
         #expect(guardian.verdict == .blocked(ref: "ABCDEF12"))
     }
 
     @Test("La marca de iCloud de otro dispositivo bloquea al arrancar sin red")
     func iCloudMarkAtLaunch() {
-        device.cloudStore.values["deviceguard.myapp.blockedRef"] = "ABCDEF12"
+        device.cloudStore.values["nongrata.myapp.blockedRef"] = "ABCDEF12"
         #expect(device.launch(device.configuration(useICloud: true)).verdict == .blocked(ref: "ABCDEF12"))
         // Sin useICloud, la marca compartida se ignora.
         #expect(device.launch().verdict == .unknown)
@@ -249,7 +249,7 @@ struct DeviceGuardTests {
 
     @Test("Sin useICloud no se crea el almacén de iCloud: una app sin ese entitlement no lo toca")
     func systemDependenciesRespectUseICloud() {
-        var configuration = DeviceGuardConfiguration(
+        var configuration = NonGrataConfiguration(
             endpoint: URL(string: "https://guard.example/v1/device/check")!,
             appId: "myapp",
             hashPrefix: "myapp-ban-v1"

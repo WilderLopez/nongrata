@@ -5,7 +5,7 @@ aliases: [Worker, D1, wrangler, Cloudflare]
 
 # Cloudflare Worker y D1
 
-El servidor de device-guard no es una máquina que haya que mantener: es un **Worker** de
+El servidor de nongrata no es una máquina que haya que mantener: es un **Worker** de
 Cloudflare con una base de datos **D1**. Esta nota explica esas piezas para quien viene de iOS.
 
 ## Worker
@@ -88,8 +88,8 @@ como sufijo:
 
 El subdominio de Cloudflare donde queda publicado un Worker cuando no se le asigna un dominio
 propio, con la forma `<nombre-del-worker>.<subdominio-de-tu-cuenta>.workers.dev`. La plantilla
-no declara dominio propio, así que un despliegue llamado `device-guard-myapp` vive en
-`https://device-guard-myapp.<tu-subdominio>.workers.dev`. Esa URL, seguida de
+no declara dominio propio, así que un despliegue llamado `nongrata-myapp` vive en
+`https://nongrata-myapp.<tu-subdominio>.workers.dev`. Esa URL, seguida de
 `/v1/device/check`, es la que va en `endpoint` al configurar el SDK.
 
 ## Cron Trigger de purga
@@ -122,8 +122,8 @@ deployments/
 └── <tu-app>/wrangler.jsonc tu despliegue real (git lo ignora: lleva IDs de tu cuenta)
 ```
 
-Cada app tiene **su propio Worker** (`device-guard-myapp`) y **su propia base**
-(`device-guard-myapp`), pero **el mismo código**: su `wrangler.jsonc` apunta a
+Cada app tiene **su propio Worker** (`nongrata-myapp`) y **su propia base**
+(`nongrata-myapp`), pero **el mismo código**: su `wrangler.jsonc` apunta a
 `../../worker/src/index.ts` y a `../../worker/migrations`. Una app nueva es una copia de
 `deployments/example/` con su nombre, sus variables y sus secretos.
 

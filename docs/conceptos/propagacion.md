@@ -27,7 +27,7 @@ Sin propagación habría que encontrar y banear a mano cada identificador de cad
 - Nunca pisa una marca `manual`.
 - El desbaneo por `ref` borra los hashes de ese dispositivo, incluidos los propagados.
 - Caso delicado: una pareja que comparte cuenta de Apple. Se arregla retirando solo el hash
-  `icloud` con `pnpm dg unban app=myapp kind=icloud hash=…`.
+  `icloud` con `pnpm ng unban app=myapp kind=icloud hash=…`.
 
 Ver también [Flujo de una comprobación](flujo-de-check.md) e [Identificadores](identificadores.md).
 Diseño: secciones 5 y 6 del [HANDOFF](../HANDOFF.md).

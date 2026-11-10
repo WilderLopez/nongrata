@@ -24,7 +24,7 @@ typecheck:
 	pnpm --dir cli typecheck
 
 build-ios:
-	xcodebuild -quiet -scheme DeviceGuard-Package -destination 'generic/platform=iOS' build
+	xcodebuild -quiet -scheme NonGrata-Package -destination 'generic/platform=iOS' build
 
 # Stryker muta src/ en su sitio (inPlace) y lo restaura al terminar. Si el proceso muere antes,
 # el código instrumentado sigue pasando los tests: que no llegue a un commit.

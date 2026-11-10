@@ -1,16 +1,16 @@
-import DeviceGuard
+import NonGrata
 import SwiftUI
 
-/// Cubre el contenido con `DeviceGuardSuspendedView` mientras el veredicto sea `.blocked`.
+/// Cubre el contenido con `NonGrataSuspendedView` mientras el veredicto sea `.blocked`.
 /// Con `.allowed` o `.unknown` no hace nada: `.unknown` es el fail-open del SDK.
-struct DeviceGuardBlockingOverlay<SupportAction: View>: ViewModifier {
-    let deviceGuard: DeviceGuard
+struct NonGrataBlockingOverlay<SupportAction: View>: ViewModifier {
+    let nonGrata: NonGrata
     let title: LocalizedStringResource
     let message: LocalizedStringResource
     let supportAction: (String) -> SupportAction
 
     func body(content: Content) -> some View {
-        let ref = deviceGuard.verdict.blockedRef
+        let ref = nonGrata.verdict.blockedRef
 
         content
             // Debajo del bloqueo no se debe poder usar nada, tampoco con VoiceOver o teclado.
@@ -18,7 +18,7 @@ struct DeviceGuardBlockingOverlay<SupportAction: View>: ViewModifier {
             .accessibilityHidden(ref != nil)
             .overlay {
                 if let ref {
-                    DeviceGuardSuspendedView(ref: ref, title: title, message: message) {
+                    NonGrataSuspendedView(ref: ref, title: title, message: message) {
                         supportAction(ref)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -29,17 +29,17 @@ struct DeviceGuardBlockingOverlay<SupportAction: View>: ViewModifier {
 }
 
 extension View {
-    /// Cubre esta vista con la pantalla de suspendido mientras `deviceGuard.verdict` sea
+    /// Cubre esta vista con la pantalla de suspendido mientras `nonGrata.verdict` sea
     /// `.blocked`, y la retira sola cuando el Worker responde `ok`. Opcional: la app puede pintar
     /// su propia pantalla leyendo `verdict`. No cierra la sesión de la app; eso lo hace la app.
-    public func deviceGuardBlockingOverlay<SupportAction: View>(
-        _ deviceGuard: DeviceGuard,
-        title: LocalizedStringResource = DeviceGuardUIStrings.suspendedTitle,
-        message: LocalizedStringResource = DeviceGuardUIStrings.suspendedMessage,
+    public func nonGrataBlockingOverlay<SupportAction: View>(
+        _ nonGrata: NonGrata,
+        title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,
+        message: LocalizedStringResource = NonGrataUIStrings.suspendedMessage,
         @ViewBuilder supportAction: @escaping (_ ref: String) -> SupportAction
     ) -> some View {
-        modifier(DeviceGuardBlockingOverlay(
-            deviceGuard: deviceGuard,
+        modifier(NonGrataBlockingOverlay(
+            nonGrata: nonGrata,
             title: title,
             message: message,
             supportAction: supportAction
@@ -47,11 +47,11 @@ extension View {
     }
 
     /// Igual, sin acción de contacto con soporte.
-    public func deviceGuardBlockingOverlay(
-        _ deviceGuard: DeviceGuard,
-        title: LocalizedStringResource = DeviceGuardUIStrings.suspendedTitle,
-        message: LocalizedStringResource = DeviceGuardUIStrings.suspendedMessage
+    public func nonGrataBlockingOverlay(
+        _ nonGrata: NonGrata,
+        title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,
+        message: LocalizedStringResource = NonGrataUIStrings.suspendedMessage
     ) -> some View {
-        deviceGuardBlockingOverlay(deviceGuard, title: title, message: message) { _ in EmptyView() }
+        nonGrataBlockingOverlay(nonGrata, title: title, message: message) { _ in EmptyView() }
     }
 }

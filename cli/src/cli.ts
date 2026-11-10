@@ -5,18 +5,18 @@
 import { hashId, isHash, isKind, isRef, KINDS, refFromInstallHash } from "../../worker/src/hash.ts";
 
 export const USAGE = `Uso:
-  device-guard ban    app=<app> kind=<kind> (value=<valor> | hash=<hash>) [note=<texto>]
-  device-guard unban  app=<app> ref=<REF>
-  device-guard unban  app=<app> kind=<kind> (value=<valor> | hash=<hash>)
-  device-guard lookup app=<app> ref=<REF>
-  device-guard lookup app=<app> kind=<kind> (value=<valor> | hash=<hash>)
-  device-guard hash   prefix=<prefijo> kind=<kind> value=<valor>    (sin red)
+  nongrata ban    app=<app> kind=<kind> (value=<valor> | hash=<hash>) [note=<texto>]
+  nongrata unban  app=<app> ref=<REF>
+  nongrata unban  app=<app> kind=<kind> (value=<valor> | hash=<hash>)
+  nongrata lookup app=<app> ref=<REF>
+  nongrata lookup app=<app> kind=<kind> (value=<valor> | hash=<hash>)
+  nongrata hash   prefix=<prefijo> kind=<kind> value=<valor>    (sin red)
 
 kind: ${KINDS.join(", ")}
 
 Entorno (el sufijo es la app en mayúsculas, con "-" como "_"; tiene prioridad sobre el genérico):
-  DEVICE_GUARD_URL_<APP>          o DEVICE_GUARD_URL           URL del Worker de esa app
-  DEVICE_GUARD_ADMIN_TOKEN_<APP>  o DEVICE_GUARD_ADMIN_TOKEN   ADMIN_TOKEN de ese Worker`;
+  NONGRATA_URL_<APP>          o NONGRATA_URL           URL del Worker de esa app
+  NONGRATA_ADMIN_TOKEN_<APP>  o NONGRATA_ADMIN_TOKEN   ADMIN_TOKEN de ese Worker`;
 
 const TIMEOUT_MS = 15_000;
 
@@ -88,10 +88,10 @@ function refOrIdentifier(params: Params): Params {
 
 export function endpoint(app: string, env: Io["env"]): { url: URL; token: string } {
   const suffix = app.toUpperCase().replace(/-/g, "_");
-  const rawUrl = env[`DEVICE_GUARD_URL_${suffix}`] || env.DEVICE_GUARD_URL;
-  const token = env[`DEVICE_GUARD_ADMIN_TOKEN_${suffix}`] || env.DEVICE_GUARD_ADMIN_TOKEN;
-  if (!rawUrl) throw new UsageError(`falta DEVICE_GUARD_URL_${suffix} o DEVICE_GUARD_URL`);
-  if (!token) throw new UsageError(`falta DEVICE_GUARD_ADMIN_TOKEN_${suffix} o DEVICE_GUARD_ADMIN_TOKEN`);
+  const rawUrl = env[`NONGRATA_URL_${suffix}`] || env.NONGRATA_URL;
+  const token = env[`NONGRATA_ADMIN_TOKEN_${suffix}`] || env.NONGRATA_ADMIN_TOKEN;
+  if (!rawUrl) throw new UsageError(`falta NONGRATA_URL_${suffix} o NONGRATA_URL`);
+  if (!token) throw new UsageError(`falta NONGRATA_ADMIN_TOKEN_${suffix} o NONGRATA_ADMIN_TOKEN`);
 
   let url: URL;
   try {
@@ -171,7 +171,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
     request = buildRequest(command, params, io.env);
   } catch (e) {
     if (!(e instanceof UsageError)) throw e;
-    io.err(`device-guard: ${e.message}\n\n${USAGE}`);
+    io.err(`nongrata: ${e.message}\n\n${USAGE}`);
     return 2;
   }
 
@@ -179,7 +179,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
   try {
     response = await io.fetch(request, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (e) {
-    io.err(`device-guard: sin respuesta de ${new URL(request.url).origin}: ${(e as Error).message}`);
+    io.err(`nongrata: sin respuesta de ${new URL(request.url).origin}: ${(e as Error).message}`);
     return 1;
   }
 
@@ -191,7 +191,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
     body = text;
   }
   if (!response.ok) {
-    io.err(`device-guard: HTTP ${response.status}\n${body}`);
+    io.err(`nongrata: HTTP ${response.status}\n${body}`);
     return 1;
   }
   io.out(body);

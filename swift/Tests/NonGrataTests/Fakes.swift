@@ -1,4 +1,4 @@
-@testable import DeviceGuard
+@testable import NonGrata
 import Foundation
 
 @MainActor
@@ -129,7 +129,7 @@ final class TestClock {
     }
 }
 
-/// Un "dispositivo" de pruebas: sus almacenes sobreviven a crear otro `DeviceGuard` (relanzar la app).
+/// Un "dispositivo" de pruebas: sus almacenes sobreviven a crear otro `NonGrata` (relanzar la app).
 @MainActor
 final class TestDevice {
     let secureStore = MemorySecureStore()
@@ -145,8 +145,8 @@ final class TestDevice {
         useICloud: Bool = false,
         strictSignup: Bool = true,
         iCloudTimeout: Duration = .seconds(2)
-    ) -> DeviceGuardConfiguration {
-        DeviceGuardConfiguration(
+    ) -> NonGrataConfiguration {
+        NonGrataConfiguration(
             endpoint: Self.endpoint,
             appId: "myapp",
             hashPrefix: "myapp-ban-v1",
@@ -158,8 +158,8 @@ final class TestDevice {
         )
     }
 
-    func launch(_ configuration: DeviceGuardConfiguration? = nil) -> DeviceGuard {
-        DeviceGuard(
+    func launch(_ configuration: NonGrataConfiguration? = nil) -> NonGrata {
+        NonGrata(
             configuration: configuration ?? self.configuration(),
             dependencies: Dependencies(
                 secureStore: secureStore,

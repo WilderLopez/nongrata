@@ -10,25 +10,25 @@ import Observation
 /// - El SDK no presenta interfaz ni cierra la app: la app pinta su pantalla de bloqueo.
 @MainActor
 @Observable
-public final class DeviceGuard {
-    public private(set) var verdict: DeviceGuardVerdict
+public final class NonGrata {
+    public private(set) var verdict: NonGrataVerdict
     /// UUID propio guardado en el Keychain, para analítica y soporte. `nil` solo si el Keychain
     /// no estaba disponible (antes del primer desbloqueo); se reintenta en cada comprobación.
     public private(set) var installId: String?
     /// Hash del ID de iCloud, cuando ya se ha leído.
     public private(set) var iCloudIdHash: String?
 
-    @ObservationIgnored private let configuration: DeviceGuardConfiguration
+    @ObservationIgnored private let configuration: NonGrataConfiguration
     @ObservationIgnored private let hasher: IdentifierHasher
     @ObservationIgnored private let dependencies: Dependencies
     @ObservationIgnored private var lastAllowedAt: Date?
     @ObservationIgnored private var generation = 0
 
-    public convenience init(configuration: DeviceGuardConfiguration) {
+    public convenience init(configuration: NonGrataConfiguration) {
         self.init(configuration: configuration, dependencies: .system(configuration))
     }
 
-    init(configuration: DeviceGuardConfiguration, dependencies: Dependencies) {
+    init(configuration: NonGrataConfiguration, dependencies: Dependencies) {
         self.configuration = configuration
         self.hasher = IdentifierHasher(prefix: configuration.hashPrefix)
         self.dependencies = dependencies
@@ -49,7 +49,7 @@ public final class DeviceGuard {
     /// `.allowed` es de hace menos de `foregroundInterval`; si está bloqueado, comprueba siempre
     /// para detectar el desbaneo.
     @discardableResult
-    public func check(intent: CheckIntent, userId: String? = nil) async -> DeviceGuardVerdict {
+    public func check(intent: CheckIntent, userId: String? = nil) async -> NonGrataVerdict {
         if intent == .foreground, verdict == .allowed, let lastAllowedAt,
            dependencies.now().timeIntervalSince(lastAllowedAt) < configuration.foregroundInterval.timeInterval
         {
@@ -67,7 +67,7 @@ public final class DeviceGuard {
 
     /// Si la app puede seguir con `intent` dado un veredicto. `.unknown` deja seguir (fail-open)
     /// salvo `.signup` con `strictSignup`.
-    public func permits(_ verdict: DeviceGuardVerdict, for intent: CheckIntent) -> Bool {
+    public func permits(_ verdict: NonGrataVerdict, for intent: CheckIntent) -> Bool {
         switch verdict {
         case .allowed: true
         case .blocked: false
@@ -161,7 +161,7 @@ public final class DeviceGuard {
 
     private static let installIdKey = "installId"
     private static let blockedRefKey = "blockedRef"
-    private var cloudMarkKey: String { "deviceguard.\(configuration.appId).blockedRef" }
+    private var cloudMarkKey: String { "nongrata.\(configuration.appId).blockedRef" }
 
     /// Solo crea un `installId` nuevo si no existe; si el Keychain falla, lanza para no pisarlo.
     private static func loadOrCreateInstallId(in store: any SecureStore) throws(SecureStoreError) -> String {
@@ -189,7 +189,7 @@ public final class DeviceGuard {
     }
 
     /// Bloquea en caliente si otro dispositivo con la misma cuenta de Apple pone la marca.
-    /// El bucle termina en el siguiente cambio después de liberar `DeviceGuard`.
+    /// El bucle termina en el siguiente cambio después de liberar `NonGrata`.
     private func observeCloudMark() {
         guard configuration.useICloud, let cloud = dependencies.cloudStore else { return }
         let changes = cloud.externalChanges()
@@ -216,7 +216,7 @@ struct Dependencies {
     var now: @MainActor () -> Date
 
     @MainActor
-    static func system(_ configuration: DeviceGuardConfiguration) -> Dependencies {
+    static func system(_ configuration: NonGrataConfiguration) -> Dependencies {
         Dependencies(
             secureStore: KeychainStore(service: configuration.keychainService),
             cloudStore: configuration.useICloud ? UbiquitousFlagStore() : nil,

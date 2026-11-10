@@ -1,34 +1,34 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// En la raíz del repo para que SPM lo resuelva por URL (github.com/WilderLopez/device-guard).
+// En la raíz del repo para que SPM lo resuelva por URL (github.com/WilderLopez/nongrata).
 // El código vive en swift/; cada target lleva su ruta.
 let package = Package(
-    name: "DeviceGuard",
+    name: "NonGrata",
     defaultLocalization: "es",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "DeviceGuard", targets: ["DeviceGuard"]),
+        .library(name: "NonGrata", targets: ["NonGrata"]),
         // Opcional: pantalla de suspendido por defecto. El núcleo no depende de SwiftUI.
-        .library(name: "DeviceGuardUI", targets: ["DeviceGuardUI"]),
+        .library(name: "NonGrataUI", targets: ["NonGrataUI"]),
     ],
     targets: [
-        .target(name: "DeviceGuard", path: "swift/Sources/DeviceGuard"),
+        .target(name: "NonGrata", path: "swift/Sources/NonGrata"),
         .target(
-            name: "DeviceGuardUI",
-            dependencies: ["DeviceGuard"],
-            path: "swift/Sources/DeviceGuardUI",
+            name: "NonGrataUI",
+            dependencies: ["NonGrata"],
+            path: "swift/Sources/NonGrataUI",
             resources: [.process("Resources")]
         ),
         .testTarget(
-            name: "DeviceGuardTests",
-            dependencies: ["DeviceGuard"],
-            path: "swift/Tests/DeviceGuardTests"
+            name: "NonGrataTests",
+            dependencies: ["NonGrata"],
+            path: "swift/Tests/NonGrataTests"
         ),
         .testTarget(
-            name: "DeviceGuardUITests",
-            dependencies: ["DeviceGuardUI"],
-            path: "swift/Tests/DeviceGuardUITests"
+            name: "NonGrataUITests",
+            dependencies: ["NonGrataUI"],
+            path: "swift/Tests/NonGrataUITests"
         ),
     ]
 )

@@ -122,7 +122,7 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 - **Secreto** (`wrangler secret`): valor cifrado del Worker que no va en `wrangler.jsonc` ni en
   git. Se carga con `wrangler secret put` y se lee como `env.<NOMBRE>`. Aquí:
   `APPLE_DC_KEY_P8_<APP>` y `ADMIN_TOKEN`. Ver [Cloudflare Worker y D1](conceptos/cloudflare-worker-y-d1.md).
-- **SPM** (Swift Package Manager): las apps añaden `DeviceGuard` por SPM con la URL del repo
+- **SPM** (Swift Package Manager): las apps añaden `NonGrata` por SPM con la URL del repo
   privado, fijado a una etiqueta de versión.
 - **Stryker**: la herramienta de mutation testing de `worker/` y `cli/`. Ver
   [Mutation testing](conceptos/mutation-testing.md).

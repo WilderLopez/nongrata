@@ -1,12 +1,12 @@
-# Integrar DeviceGuard en una app iOS
+# Integrar NonGrata en una app iOS
 
 ## 1. Dependencia
 
 Swift Package Manager, fijado a una etiqueta de versión:
 
-- En Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/device-guard.git`,
+- En Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
   regla "Up to Next Minor Version" desde `0.1.0` (antes de 1.0, un cambio de minor puede romper).
-- Productos: `DeviceGuard` (obligatorio) y `DeviceGuardUI` (opcional, la pantalla de suspendido).
+- Productos: `NonGrata` (obligatorio) y `NonGrataUI` (opcional, la pantalla de suspendido).
 - Si usas un fork privado, Xcode necesita tu cuenta de GitHub en Settings → Accounts y, si la
   app compila en Xcode Cloud, hay que darle acceso a ese repo desde App Store Connect.
 
@@ -24,7 +24,7 @@ el código sigue en `swift/`.
 ## 3. Configuración
 
 ```swift
-let deviceGuard = DeviceGuard(configuration: .init(
+let nonGrata = NonGrata(configuration: .init(
     endpoint: URL(string: "https://<worker>/v1/device/check")!,
     appId: "myapp",
     hashPrefix: "myapp-ban-v1",   // igual que HASH_PREFIX_MYAPP del Worker
@@ -39,14 +39,14 @@ puede observar `verdict` directamente.
 
 | Momento | Llamada |
 |---|---|
-| Al arrancar | `await deviceGuard.check(intent: .launch)` |
-| Al volver a primer plano | `await deviceGuard.check(intent: .foreground)` (se limita sola a una cada `foregroundInterval` mientras no haya bloqueo) |
-| Tras un login correcto | `await deviceGuard.check(intent: .login, userId: user.id)` |
+| Al arrancar | `await nonGrata.check(intent: .launch)` |
+| Al volver a primer plano | `await nonGrata.check(intent: .foreground)` (se limita sola a una cada `foregroundInterval` mientras no haya bloqueo) |
+| Tras un login correcto | `await nonGrata.check(intent: .login, userId: user.id)` |
 | Antes de crear la cuenta | ver abajo |
 
 ```swift
-let verdict = await deviceGuard.check(intent: .signup)
-guard deviceGuard.permits(verdict, for: .signup) else {
+let verdict = await nonGrata.check(intent: .signup)
+guard nonGrata.permits(verdict, for: .signup) else {
     // .blocked: pantalla de suspendido.
     // .unknown en modo estricto: "No se pudo completar el registro, inténtalo de nuevo".
     return
@@ -68,14 +68,14 @@ createAccount()
 
 ### Pantalla por defecto (opcional)
 
-Si no quieres diseñar la tuya, añade también el producto `DeviceGuardUI`. Solo pinta: no cierra
+Si no quieres diseñar la tuya, añade también el producto `NonGrataUI`. Solo pinta: no cierra
 la sesión, no navega y no cierra la app.
 
 ```swift
-import DeviceGuardUI
+import NonGrataUI
 
 RootView()
-    .deviceGuardBlockingOverlay(deviceGuard) { ref in
+    .nonGrataBlockingOverlay(nonGrata) { ref in
         Button("Contactar con soporte") { openSupportMail(ref: ref) }
     }
 ```
@@ -87,20 +87,20 @@ RootView()
 - Textos por defecto en español e inglés. Para cambiarlos, pasa `title:` y `message:` como
   `LocalizedStringResource` de tu propio catálogo.
 - Si prefieres colocarla tú (por ejemplo en otra ventana o tras cerrar sesión), usa
-  `DeviceGuardSuspendedView(ref:)` directamente.
+  `NonGrataSuspendedView(ref:)` directamente.
 
 ## 6. Keychain
 
 El SDK guarda `installId` y la marca de bloqueo en el Keychain con el servicio
-`keychainService` (por defecto `device-guard`). **No los borres** en la limpieza de primera
+`keychainService` (por defecto `nongrata`). **No los borres** en la limpieza de primera
 ejecución que algunas apps hacen tras reinstalar. Si la app borra todo su Keychain, excluye ese
 servicio.
 
 ## 7. Analítica y soporte
 
-- `deviceGuard.installId`: UUID propio, estable entre reinstalaciones. Mándalo también al backend
+- `nonGrata.installId`: UUID propio, estable entre reinstalaciones. Mándalo también al backend
   de la app, aunque sea como texto libre, para cruzar cuentas.
-- `deviceGuard.supportCode`: el `ref` de 8 caracteres que hay que pedir al usuario en soporte.
+- `nonGrata.supportCode`: el `ref` de 8 caracteres que hay que pedir al usuario en soporte.
 
 ## 8. Privacidad
 

@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Pantalla de suspendido por defecto para `DeviceGuardVerdict.blocked(ref:)`.
+/// Pantalla de suspendido por defecto para `NonGrataVerdict.blocked(ref:)`.
 ///
 /// Es opcional: el SDK no impone interfaz. No navega ni cierra la app; la app la coloca donde
-/// quiera (o usa `deviceGuardBlockingOverlay(_:)`). `supportAction` es el hueco para la acción
+/// quiera (o usa `nonGrataBlockingOverlay(_:)`). `supportAction` es el hueco para la acción
 /// de contacto de la app, por ejemplo un botón que abre su correo de soporte con el `ref`.
-public struct DeviceGuardSuspendedView<SupportAction: View>: View {
+public struct NonGrataSuspendedView<SupportAction: View>: View {
     private let ref: String
     private let title: LocalizedStringResource
     private let message: LocalizedStringResource
@@ -13,8 +13,8 @@ public struct DeviceGuardSuspendedView<SupportAction: View>: View {
 
     public init(
         ref: String,
-        title: LocalizedStringResource = DeviceGuardUIStrings.suspendedTitle,
-        message: LocalizedStringResource = DeviceGuardUIStrings.suspendedMessage,
+        title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,
+        message: LocalizedStringResource = NonGrataUIStrings.suspendedMessage,
         @ViewBuilder supportAction: () -> SupportAction
     ) {
         self.ref = ref
@@ -35,22 +35,22 @@ public struct DeviceGuardSuspendedView<SupportAction: View>: View {
     }
 }
 
-extension DeviceGuardSuspendedView where SupportAction == EmptyView {
+extension NonGrataSuspendedView where SupportAction == EmptyView {
     public init(
         ref: String,
-        title: LocalizedStringResource = DeviceGuardUIStrings.suspendedTitle,
-        message: LocalizedStringResource = DeviceGuardUIStrings.suspendedMessage
+        title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,
+        message: LocalizedStringResource = NonGrataUIStrings.suspendedMessage
     ) {
         self.init(ref: ref, title: title, message: message) { EmptyView() }
     }
 }
 
 #Preview("Sin acción de soporte") {
-    DeviceGuardSuspendedView(ref: "A1B2C3D4")
+    NonGrataSuspendedView(ref: "A1B2C3D4")
 }
 
 #Preview("Con acción de soporte") {
-    DeviceGuardSuspendedView(ref: "A1B2C3D4") {
+    NonGrataSuspendedView(ref: "A1B2C3D4") {
         Button("Contactar con soporte") {}
             .buttonStyle(.borderedProminent)
     }

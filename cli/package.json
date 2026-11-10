@@ -1,10 +1,10 @@
 {
-  "name": "@device-guard/cli",
+  "name": "@nongrata/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "device-guard": "src/main.ts"
+    "nongrata": "src/main.ts"
   },
   "scripts": {
     "test": "node --test test/*.test.ts",

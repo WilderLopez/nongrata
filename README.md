@@ -1,9 +1,9 @@
-# device-guard
+# NonGrata
 
 Baneo por dispositivo y por cuenta de Apple para apps iOS, sin tocar el backend de la app.
 
 Cuando alguien crea cuentas en cadena (cierra sesión y abre otra, reinstala, borra el iPhone),
-banear la cuenta no basta. device-guard recuerda el dispositivo con varias capas que sobreviven a
+banear la cuenta no basta. NonGrata recuerda el dispositivo con varias capas que sobreviven a
 cosas distintas: el `identifierForVendor`, un identificador propio en el Keychain, el usuario de
 iCloud y los dos bits de [DeviceCheck](https://developer.apple.com/documentation/devicecheck) que
 Apple guarda en sus servidores, que sobreviven incluso a borrar el iPhone.
@@ -12,7 +12,7 @@ Tres piezas:
 
 | Pieza | Qué es |
 |---|---|
-| SDK Swift (`DeviceGuard`, `DeviceGuardUI`) | Paquete SPM para iOS 17+. Comprueba el dispositivo y devuelve `allowed`, `blocked(ref:)` o `unknown`. `DeviceGuardUI` es opcional: la pantalla de suspendido. |
+| SDK Swift (`NonGrata`, `NonGrataUI`) | Paquete SPM para iOS 17+. Comprueba el dispositivo y devuelve `allowed`, `blocked(ref:)` o `unknown`. `NonGrataUI` es opcional: la pantalla de suspendido. |
 | Worker (`worker/`) | Cloudflare Worker con D1. Decide con la lista de baneos y con DeviceCheck. Un despliegue por app. |
 | CLI (`cli/`) | Banear, desbanear y consultar desde la terminal. |
 
@@ -31,7 +31,7 @@ Keys).
 make install
 cp -r deployments/example deployments/<tu-app>      # git ignora esta carpeta
 cd worker
-pnpm exec wrangler d1 create device-guard-<tu-app>   # pon el database_id en tu wrangler.jsonc
+pnpm exec wrangler d1 create nongrata-<tu-app>   # pon el database_id en tu wrangler.jsonc
 ```
 
 Edita `deployments/<tu-app>/wrangler.jsonc` (nombre, `HASH_PREFIX_<APP>`, Team ID y Key ID) y,
@@ -52,15 +52,15 @@ entrar a todo el mundo. Detalle en [Cloudflare Worker y D1](docs/conceptos/cloud
 En Xcode, File → Add Package Dependencies… con la URL de este repo, desde la versión `0.1.0`.
 
 ```swift
-import DeviceGuard
+import NonGrata
 
-let deviceGuard = DeviceGuard(configuration: .init(
-    endpoint: URL(string: "https://device-guard-myapp.<tu-subdominio>.workers.dev/v1/device/check")!,
+let nonGrata = NonGrata(configuration: .init(
+    endpoint: URL(string: "https://nongrata-myapp.<tu-subdominio>.workers.dev/v1/device/check")!,
     appId: "myapp",
     hashPrefix: "myapp-ban-v1"   // igual que HASH_PREFIX_MYAPP del Worker
 ))
 
-let verdict = await deviceGuard.check(intent: .launch)
+let verdict = await nonGrata.check(intent: .launch)
 ```
 
 Cuándo comprobar, qué hacer con cada veredicto, capacidades y privacidad:
@@ -69,11 +69,11 @@ Cuándo comprobar, qué hacer con cada veredicto, capacidades y privacidad:
 ### 3. Banear y desbanear
 
 ```sh
-export DEVICE_GUARD_URL_MYAPP=https://device-guard-myapp.<tu-subdominio>.workers.dev
-export DEVICE_GUARD_ADMIN_TOKEN_MYAPP=<tu ADMIN_TOKEN>
-pnpm dg ban    app=myapp kind=idfv value=<IDFV> note="spam"
-pnpm dg unban  app=myapp ref=A1B2C3D4      # el código de soporte que ve el usuario
-pnpm dg help
+export NONGRATA_URL_MYAPP=https://nongrata-myapp.<tu-subdominio>.workers.dev
+export NONGRATA_ADMIN_TOKEN_MYAPP=<tu ADMIN_TOKEN>
+pnpm ng ban    app=myapp kind=idfv value=<IDFV> note="spam"
+pnpm ng unban  app=myapp ref=A1B2C3D4      # el código de soporte que ve el usuario
+pnpm ng help
 ```
 
 ## Documentación

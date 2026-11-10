@@ -22,14 +22,14 @@ Ejemplo: `myapp-ban-v1:idfv:5F3A…`.
 - Cambiar la fórmula invalida todas las listas. Por eso la normalización se decidió **antes**
   del primer baneo real.
 
-Para calcular un hash sin red: `pnpm dg hash prefix=myapp-ban-v1 kind=idfv value=…`.
+Para calcular un hash sin red: `pnpm ng hash prefix=myapp-ban-v1 kind=idfv value=…`.
 
 ## El ref
 
 Los 8 primeros caracteres, en mayúsculas, del hash de `install`. Ejemplo: `A1B2C3D4`.
 
 - Es el **código de soporte**: la pantalla de suspendido lo muestra y el usuario lo manda.
-- Soporte desbanea con `pnpm dg unban app=myapp ref=A1B2C3D4`.
+- Soporte desbanea con `pnpm ng unban app=myapp ref=A1B2C3D4`.
 - El desbaneo es completo: en la siguiente comprobación de ese iPhone, el Worker pone `bit0` a
   false y borra de la lista todos los hashes que trae.
 - El Worker calcula el `ref` él mismo; nunca se fía del que manda el cliente.

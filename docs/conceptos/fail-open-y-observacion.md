@@ -22,7 +22,7 @@ local**, la app deja entrar. El veredicto es `unknown`.
 Con `strictSignup`, crear una cuenta exige un `ok`. Si falla, la app dice "no se pudo completar
 el registro" y no crea la cuenta. Cierra el truco de bloquear el dominio del Worker para
 registrarse, sin molestar a quien ya tiene cuenta. En código: `permits(_:for:)` en
-`DeviceGuard.swift`.
+`NonGrata.swift`.
 
 ## Modo observación
 
