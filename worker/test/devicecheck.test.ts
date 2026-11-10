@@ -12,7 +12,7 @@ interface Sent {
   signal: AbortSignal | null | undefined;
 }
 
-/** `fetch` falso: guarda cada petición y responde con `reply()`, que puede lanzar. */
+/** Fake `fetch`: records each request and responds with `reply()`, which may throw. */
 function fakeApple(reply: () => Response) {
   const sent: Sent[] = [];
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -30,11 +30,11 @@ function fakeApple(reply: () => Response) {
 
 const text = (body: string, status = 200) => new Response(body, { status });
 
-describe("cliente HTTP de DeviceCheck", () => {
+describe("DeviceCheck HTTP client", () => {
   it.each([
     ["development", "https://api.development.devicecheck.apple.com/v1/query_two_bits"],
     ["production", "https://api.devicecheck.apple.com/v1/query_two_bits"],
-  ] as const)("query en %s: endpoint, JWT y cuerpo", async (appleEnv, url) => {
+  ] as const)("query in %s: endpoint, JWT and body", async (appleEnv, url) => {
     const { client, sent } = fakeApple(() => Response.json({ bit0: true, bit1: false }));
     const before = Date.now();
     await client.query(appleEnv, "tok-q");
@@ -50,12 +50,12 @@ describe("cliente HTTP de DeviceCheck", () => {
       transaction_id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/),
       timestamp: expect.any(Number),
     });
-    // Milisegundos, no segundos.
+    // Milliseconds, not seconds.
     expect(req!.body.timestamp).toBeGreaterThanOrEqual(before);
     expect(req!.body.timestamp).toBeLessThanOrEqual(Date.now());
   });
 
-  it("cada llamada lleva un transaction_id nuevo", async () => {
+  it("each call carries a new transaction_id", async () => {
     const { client, sent } = fakeApple(() => Response.json({ bit0: false, bit1: false }));
     await client.query("production", "a");
     await client.query("production", "b");
@@ -63,35 +63,35 @@ describe("cliente HTTP de DeviceCheck", () => {
   });
 
   it.each([
-    ["bits leídos", Response.json({ bit0: true, bit1: true }), { bit0: true, bit1: true }],
-    ["solo bit0", Response.json({ bit0: true, bit1: false }), { bit0: true, bit1: false }],
-    ["solo bit1", Response.json({ bit0: false, bit1: true }), { bit0: false, bit1: true }],
-    ["JSON precedido de espacios", text('  \n{"bit0":true,"bit1":false}'), { bit0: true, bit1: false }],
-    ["bits ausentes en el JSON", Response.json({ last_update_time: "2026-10" }), { bit0: false, bit1: false }],
-    ["valores no booleanos", Response.json({ bit0: 1, bit1: "true" }), { bit0: false, bit1: false }],
-    ["Bit State Not Found (nunca se escribieron)", text("Bit State Not Found"), { bit0: false, bit1: false }],
-  ])("query con 200: %s", async (_name, response, expected) => {
+    ["bits read", Response.json({ bit0: true, bit1: true }), { bit0: true, bit1: true }],
+    ["only bit0", Response.json({ bit0: true, bit1: false }), { bit0: true, bit1: false }],
+    ["only bit1", Response.json({ bit0: false, bit1: true }), { bit0: false, bit1: true }],
+    ["JSON preceded by whitespace", text('  \n{"bit0":true,"bit1":false}'), { bit0: true, bit1: false }],
+    ["bits missing from the JSON", Response.json({ last_update_time: "2026-10" }), { bit0: false, bit1: false }],
+    ["non-boolean values", Response.json({ bit0: 1, bit1: "true" }), { bit0: false, bit1: false }],
+    ["Bit State Not Found (never written)", text("Bit State Not Found"), { bit0: false, bit1: false }],
+  ])("query with 200: %s", async (_name, response, expected) => {
     const { client } = fakeApple(() => response.clone());
     expect(await client.query("production", "tok")).toEqual(expected);
   });
 
   it.each([
-    ["token rechazado (400)", () => text("Missing or badly formatted authorization token", 400)],
-    ["JWT rechazado (401)", () => text("Unable to verify authorization token", 401)],
-    ["Apple caída (500)", () => text("", 500)],
-    ["200 con JSON roto", () => text("{bit0:")],
+    ["token rejected (400)", () => text("Missing or badly formatted authorization token", 400)],
+    ["JWT rejected (401)", () => text("Unable to verify authorization token", 401)],
+    ["Apple down (500)", () => text("", 500)],
+    ["200 with broken JSON", () => text("{bit0:")],
     [
-      "sin respuesta (timeout o red)",
+      "no response (timeout or network)",
       () => {
         throw new DOMException("The operation was aborted", "TimeoutError");
       },
     ],
-  ])("query devuelve null: %s", async (_name, reply) => {
+  ])("query returns null: %s", async (_name, reply) => {
     const { client } = fakeApple(reply);
     expect(await client.query("production", "tok")).toBeNull();
   });
 
-  it.each([true, false])("setBit0(%s): manda solo bit0, sin tocar bit1", async (bit0) => {
+  it.each([true, false])("setBit0(%s): sends only bit0, leaving bit1 untouched", async (bit0) => {
     const { client, sent } = fakeApple(() => text(""));
     expect(await client.setBit0("development", "tok-u", bit0)).toBe(true);
 
@@ -108,7 +108,7 @@ describe("cliente HTTP de DeviceCheck", () => {
     expect(req!.body).not.toHaveProperty("bit1");
   });
 
-  it("setBit0 con 200 sin cuerpo: confirmado", async () => {
+  it("setBit0 with a 200 and no body: confirmed", async () => {
     const { client } = fakeApple(() => new Response(null, { status: 200 }));
     expect(await client.setBit0("production", "tok", true)).toBe(true);
   });
@@ -117,12 +117,12 @@ describe("cliente HTTP de DeviceCheck", () => {
     ["400", () => text("Missing or incorrectly formatted device token payload", 400)],
     ["500", () => text("", 500)],
     [
-      "sin respuesta",
+      "no response",
       () => {
         throw new TypeError("fetch failed");
       },
     ],
-  ])("setBit0 no confirmado (%s): false", async (_name, reply) => {
+  ])("setBit0 not confirmed (%s): false", async (_name, reply) => {
     const { client } = fakeApple(reply);
     expect(await client.setBit0("production", "tok", true)).toBe(false);
   });

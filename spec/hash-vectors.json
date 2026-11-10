@@ -1,5 +1,5 @@
 {
-  "_comment": "Vectores de SHA256(prefix + ':' + kind + ':' + valor normalizado) en hex minúsculas (UTF-8). Normalizar: quitar espacio, \\t, \\n y \\r de los extremos; en idfv e install, a-z a mayúsculas (solo ASCII). Generados con shasum -a 256 sobre el valor ya normalizado. Los consumen los tests del Worker, del SDK Swift y de la CLI; si cambian, cambian todas las listas existentes.",
+  "_comment": "Vectors of SHA256(prefix + ':' + kind + ':' + normalized value) in lowercase hex (UTF-8). Normalize: strip space, \\t, \\n and \\r from both ends; for idfv and install, uppercase a-z (ASCII only). Generated with shasum -a 256 over the already normalized value. Used by the Worker, Swift SDK and CLI tests; if they change, every existing list changes.",
   "vectors": [
     {
       "prefix": "myapp-ban-v1",

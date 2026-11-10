@@ -10,7 +10,7 @@ const ban = (app: string, kind: string, hash: string) =>
   adminCall("POST", "/v1/admin/ban", { app, kind, hash, note: "test" });
 
 describe("POST /v1/device/check", () => {
-  it("dispositivo limpio: ok, con el ref derivado del hash de install", async () => {
+  it("clean device: ok, with the ref derived from the install hash", async () => {
     const ids = randomIds();
     const dc = new FakeDeviceCheck();
     const res = await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc);
@@ -18,13 +18,13 @@ describe("POST /v1/device/check", () => {
     expect(dc.writes()).toEqual([]);
   });
 
-  it("ignora el ref que manda el cliente", async () => {
+  it("ignores the ref sent by the client", async () => {
     const ids = randomIds();
     const res = await check({ ids, ref: "AAAAAAAA" } as never);
     expect(res.body.ref).toBe(refFromInstallHash(ids.install));
   });
 
-  it("hash baneado con bit0 falso: escribe bit0 con el segundo token y bloquea", async () => {
+  it("banned hash with bit0 false: writes bit0 with the second token and blocks", async () => {
     const ids = randomIds();
     await ban("demo", "idfv", ids.idfv);
     const dc = new FakeDeviceCheck();
@@ -36,9 +36,9 @@ describe("POST /v1/device/check", () => {
     expect(dc.bits?.bit0).toBe(true);
   });
 
-  // Apple pide no reutilizar un token: con uno solo se consulta, y bit0 se escribe en la siguiente
-  // comprobación que traiga los dos.
-  it("sin dc_token_update: bloquea por D1 pero no escribe bit0 hasta tener los dos tokens", async () => {
+  // Apple asks not to reuse a token: with only one, the Worker queries, and bit0 is written on the
+  // next check that carries both.
+  it("no dc_token_update: blocks via D1 but does not write bit0 until it has both tokens", async () => {
     const ids = randomIds();
     await ban("demo", "install", ids.install);
     const dc = new FakeDeviceCheck();
@@ -50,7 +50,7 @@ describe("POST /v1/device/check", () => {
     expect(dc.writes()).toEqual([{ op: "setBit0", env: "development", token: TOKEN_UPDATE, bit0: true }]);
   });
 
-  it("desbaneo sin dc_token_update: deja entrar sin escribir ni consumir el ref", async () => {
+  it("unban without dc_token_update: lets the device in without writing or consuming the ref", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await ban("demo", "idfv", ids.idfv);
@@ -66,7 +66,7 @@ describe("POST /v1/device/check", () => {
     expect(await logRows("demo", ref)).toEqual([{ blocked: 0, matched: 1, bit0: 1, intent: "launch" }]);
   });
 
-  it("bit0 ya activo: no reescribe", async () => {
+  it("bit0 already set: does not write it again", async () => {
     const ids = randomIds();
     await ban("demo", "idfv", ids.idfv);
     const dc = new FakeDeviceCheck({ bit0: true });
@@ -75,13 +75,13 @@ describe("POST /v1/device/check", () => {
     expect(dc.writes()).toEqual([]);
   });
 
-  it("bit0 activo con identificadores nuevos: bloquea y los propaga a D1", async () => {
-    const ids = randomIds(); // reinstalación tras borrar el iPhone, con otra cuenta de Apple
+  it("bit0 set with new identifiers: blocks and propagates them to D1", async () => {
+    const ids = randomIds(); // reinstall after wiping the iPhone, with another Apple account
     const dc = new FakeDeviceCheck({ bit0: true });
 
     expect((await check({ dc_token: TOKEN, ids }, dc)).body.status).toBe("blocked");
 
-    // Otro dispositivo con la misma cuenta de iCloud cae solo por D1.
+    // Another device with the same iCloud account is blocked by D1 alone.
     const other = { ...randomIds(), icloud: ids.icloud };
     expect((await check({ ids: other })).body.status).toBe("blocked");
 
@@ -89,7 +89,7 @@ describe("POST /v1/device/check", () => {
     expect(row.body.banned).toMatchObject({ reason: "propagated", kind: "icloud" });
   });
 
-  it("bloqueo por un hash: propaga el resto y cae el otro iPhone con la misma cuenta de iCloud", async () => {
+  it("block by one hash: propagates the rest and blocks the other iPhone with the same iCloud account", async () => {
     const ids = randomIds();
     await ban("demo", "idfv", ids.idfv);
     expect((await check({ dc_token: TOKEN, ids }, new FakeDeviceCheck())).body.status).toBe("blocked");
@@ -103,29 +103,29 @@ describe("POST /v1/device/check", () => {
     }
   });
 
-  it("dispositivo no bloqueado: no propaga nada", async () => {
+  it("device not blocked: propagates nothing", async () => {
     const ids = randomIds();
     await check({ dc_token: TOKEN, ids }, new FakeDeviceCheck());
     const row = await adminCall("GET", "/v1/admin/lookup", { app: "demo", kind: "icloud", hash: ids.icloud });
     expect(row.body.banned).toBeNull();
   });
 
-  it("la propagación no pisa una marca manual", async () => {
+  it("propagation does not overwrite a manual mark", async () => {
     const ids = randomIds();
     await ban("demo", "icloud", ids.icloud);
-    // Bloqueado por el hash manual: la propagación inserta el resto sin tocar ese.
+    // Blocked by the manual hash: propagation inserts the rest without touching that one.
     await check({ dc_token: TOKEN, ids }, new FakeDeviceCheck({ bit0: true }));
     const row = await adminCall("GET", "/v1/admin/lookup", { app: "demo", kind: "icloud", hash: ids.icloud });
     expect(row.body.banned).toMatchObject({ reason: "manual", note: "test" });
   });
 
-  it("desbaneo por ref: limpia bit0, consume el ref y responde ok", async () => {
+  it("unban by ref: clears bit0, consumes the ref and responds ok", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     const dc = new FakeDeviceCheck({ bit0: true });
     expect((await check({ dc_token: TOKEN, ids }, dc)).body.status).toBe("blocked");
 
-    // Basta con el ref: el Worker borra los hashes que trae el propio dispositivo.
+    // The ref is enough: the Worker deletes the hashes the device itself sends.
     await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
 
     const res = await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc);
@@ -142,11 +142,11 @@ describe("POST /v1/device/check", () => {
       expect(row.body.banned).toBeNull();
     }
 
-    // Siguiente comprobación: limpio de verdad.
+    // Next check: truly clean.
     expect((await check({ dc_token: TOKEN, ids }, dc)).body.status).toBe("ok");
   });
 
-  it("desbaneo con Apple caída: deja entrar pero no consume el ref", async () => {
+  it("unban with Apple down: lets the device in but does not consume the ref", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
@@ -159,7 +159,7 @@ describe("POST /v1/device/check", () => {
     expect((lookup.body.unban as { consumed_at: number | null }).consumed_at).toBeNull();
   });
 
-  it("Apple caída: decide solo con D1", async () => {
+  it("Apple down: decides with D1 alone", async () => {
     const banned = randomIds();
     await ban("demo", "idfv", banned.idfv);
     const dc = new FakeDeviceCheck({ bit0: true });
@@ -169,7 +169,7 @@ describe("POST /v1/device/check", () => {
     expect((await check({ dc_token: TOKEN, ids: randomIds() }, dc)).body.status).toBe("ok");
   });
 
-  it("sin dc_token (simulador): no llama a Apple", async () => {
+  it("no dc_token (simulator): does not call Apple", async () => {
     const ids = randomIds();
     await ban("demo", "idfv", ids.idfv);
     const dc = new FakeDeviceCheck();
@@ -177,7 +177,7 @@ describe("POST /v1/device/check", () => {
     expect(dc.calls).toEqual([]);
   });
 
-  it("modo observación: responde ok pero registra blocked", async () => {
+  it("observation mode: responds ok but logs blocked", async () => {
     const ids = randomIds();
     await ban("other", "idfv", ids.idfv);
     const res = await check({ app: "other", ids, intent: "login" });
@@ -187,9 +187,9 @@ describe("POST /v1/device/check", () => {
     ]);
   });
 
-  // Observación pura: mira D1 y Apple pero no cambia nada fuera de check_log. Al activar
-  // ENFORCE, la primera comprobación de cada baneado escribe bit0 y propaga.
-  it("modo observación con Apple: consulta bit0 pero no lo escribe ni propaga", async () => {
+  // Pure observation: reads D1 and Apple but changes nothing outside check_log. Once ENFORCE is
+  // on, the first check of each banned device writes bit0 and propagates.
+  it("observation mode with Apple: queries bit0 but neither writes it nor propagates", async () => {
     const ids = randomIds();
     await ban("other", "idfv", ids.idfv);
     const dc = new FakeDeviceCheck();
@@ -205,7 +205,7 @@ describe("POST /v1/device/check", () => {
     ]);
   });
 
-  it("modo observación con bit0 activo: registra blocked sin propagar", async () => {
+  it("observation mode with bit0 set: logs blocked without propagating", async () => {
     const ids = randomIds();
     const dc = new FakeDeviceCheck({ bit0: true });
 
@@ -218,7 +218,7 @@ describe("POST /v1/device/check", () => {
     ]);
   });
 
-  it("aislamiento por app: un baneo en demo no afecta a other", async () => {
+  it("per-app isolation: a ban in demo does not affect other", async () => {
     const ids = randomIds();
     await ban("demo", "idfv", ids.idfv);
     await check({ app: "other", ids });
@@ -228,16 +228,16 @@ describe("POST /v1/device/check", () => {
   });
 
   it.each([
-    ["sin install", { ids: { idfv: null, install: null } }, 400],
-    ["hash con mayúsculas", { ids: { install: "A".repeat(64) } }, 400],
-    ["intent desconocido", { ids: { install: "a".repeat(64) }, intent: "hack" }, 400],
-    ["token con saltos de línea", { ids: { install: "a".repeat(64) }, dc_token: "abc\ndefghijklmnopqrs" }, 400],
-    ["app sin configurar", { app: "nope", ids: { install: "a".repeat(64) } }, 404],
-  ])("rechaza peticiones inválidas: %s", async (_name, body, status) => {
+    ["no install", { ids: { idfv: null, install: null } }, 400],
+    ["uppercase hash", { ids: { install: "A".repeat(64) } }, 400],
+    ["unknown intent", { ids: { install: "a".repeat(64) }, intent: "hack" }, 400],
+    ["token with line breaks", { ids: { install: "a".repeat(64) }, dc_token: "abc\ndefghijklmnopqrs" }, 400],
+    ["app not configured", { app: "nope", ids: { install: "a".repeat(64) } }, 404],
+  ])("rejects invalid requests: %s", async (_name, body, status) => {
     expect((await check(body as never)).status).toBe(status);
   });
 
-  it("no guarda identificadores en bruto ni IPs en check_log", async () => {
+  it("stores no raw identifiers or IPs in check_log", async () => {
     const { results } = await guardEnv.DB.prepare("PRAGMA table_info(check_log)").all<{ name: string }>();
     expect(results.map((c) => c.name).sort()).toEqual(
       ["app", "bit0", "blocked", "created_at", "intent", "matched", "ref"].sort(),
@@ -249,7 +249,7 @@ describe("parseCheckRequest", () => {
   const install = "a".repeat(64);
   const valid = { app: "demo", ids: { install } };
 
-  it("petición mínima: valores por defecto y ref derivado", () => {
+  it("minimal request: defaults and derived ref", () => {
     expect(parseCheckRequest(valid)).toEqual({
       app: "demo",
       env: "production",
@@ -261,37 +261,37 @@ describe("parseCheckRequest", () => {
     });
   });
 
-  it("lee los cuatro tipos de identificador de iOS", () => {
+  it("reads the four iOS identifier kinds", () => {
     const ids = { idfv: "1".repeat(64), install, icloud: "2".repeat(64), user: "3".repeat(64) };
     expect(parseCheckRequest({ ...valid, ids })?.ids.map((id) => id.kind)).toEqual(["idfv", "install", "icloud", "user"]);
   });
 
   it.each([
-    ["cuerpo null", null],
-    ["cuerpo string", "demo"],
-    ["app inválida", { ...valid, app: "Demo!" }],
-    ["env desconocido", { ...valid, env: "staging" }],
-    ["ids null", { app: "demo", ids: null }],
-    ["ids ausente", { app: "demo" }],
-    ["dc_token numérico", { ...valid, dc_token: 1234567890123456 }],
-    ["dc_token con basura al final", { ...valid, dc_token: "dGVzdC10b2tlbi1xdWVyeQ==!" }],
-    ["dc_token demasiado largo", { ...valid, dc_token: "a".repeat(8193) }],
-    ["dc_token demasiado corto", { ...valid, dc_token: "a".repeat(15) }],
-    ["dc_token_update inválido", { ...valid, dc_token: TOKEN, dc_token_update: "corto" }],
-    ["hash de idfv inválido", { app: "demo", ids: { install, idfv: "x" } }],
-  ])("rechaza: %s", (_name, body) => {
+    ["null body", null],
+    ["string body", "demo"],
+    ["invalid app", { ...valid, app: "Demo!" }],
+    ["unknown env", { ...valid, env: "staging" }],
+    ["null ids", { app: "demo", ids: null }],
+    ["missing ids", { app: "demo" }],
+    ["numeric dc_token", { ...valid, dc_token: 1234567890123456 }],
+    ["dc_token with trailing garbage", { ...valid, dc_token: "dGVzdC10b2tlbi1xdWVyeQ==!" }],
+    ["dc_token too long", { ...valid, dc_token: "a".repeat(8193) }],
+    ["dc_token too short", { ...valid, dc_token: "a".repeat(15) }],
+    ["invalid dc_token_update", { ...valid, dc_token: TOKEN, dc_token_update: "short" }],
+    ["invalid idfv hash", { app: "demo", ids: { install, idfv: "x" } }],
+  ])("rejects: %s", (_name, body) => {
     expect(parseCheckRequest(body)).toBeNull();
   });
 });
 
-describe("check: casos adicionales", () => {
-  it("un baneo por user bloquea", async () => {
+describe("check: additional cases", () => {
+  it("a ban by user blocks", async () => {
     const ids = { ...randomIds(), user: randomHash() };
     await ban("demo", "user", ids.user);
     expect((await check({ ids })).body.status).toBe("blocked");
   });
 
-  it("app sin clave de Apple: el desbaneo por ref se consume solo con D1", async () => {
+  it("app without an Apple key: the unban by ref is consumed with D1 alone", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await ban("demo", "idfv", ids.idfv);
@@ -304,10 +304,10 @@ describe("check: casos adicionales", () => {
     expect((await check({ ids })).body.status).toBe("ok");
   });
 
-  // Con clave de Apple, un desbaneo solo se consume cuando Apple confirma bit0 = false. Si la
-  // comprobación llega sin dc_token (generateToken falló), deja entrar y espera a una con token;
-  // si se consumiera, bit0 seguiría activo y el dispositivo volvería a quedar bloqueado.
-  it("app con Apple y comprobación sin dc_token: deja entrar pero no consume ni borra hashes", async () => {
+  // With an Apple key, an unban is only consumed once Apple confirms bit0 = false. If the check
+  // arrives without dc_token (generateToken failed), it lets the device in and waits for one with a
+  // token; if it were consumed, bit0 would stay set and the device would be blocked again.
+  it("app with Apple and a check without dc_token: lets the device in but neither consumes nor deletes hashes", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     const dc = new FakeDeviceCheck({ bit0: true });
@@ -322,7 +322,7 @@ describe("check: casos adicionales", () => {
     expect(row.body.banned).not.toBeNull();
     expect(await logRows("demo", ref)).toEqual([{ blocked: 0, matched: 1, bit0: null, intent: "launch" }]);
 
-    // La siguiente, con token: limpia bit0, borra los hashes y consume el desbaneo.
+    // The next one, with a token: clears bit0, deletes the hashes and consumes the unban.
     const res = await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc);
     expect(res.body.status).toBe("ok");
     expect(dc.bits?.bit0).toBe(false);
@@ -335,7 +335,7 @@ describe("check: casos adicionales", () => {
     expect((await check({ dc_token: TOKEN, ids }, dc)).body.status).toBe("ok");
   });
 
-  it("check_log del desbaneo: bit0 = 0 si Apple lo limpió", async () => {
+  it("check_log for the unban: bit0 = 0 if Apple cleared it", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
@@ -343,7 +343,7 @@ describe("check: casos adicionales", () => {
     expect(await logRows("demo", ref)).toEqual([{ blocked: 0, matched: 0, bit0: 0, intent: "launch" }]);
   });
 
-  it("check_log del desbaneo con Apple caída: bit0 desconocido", async () => {
+  it("check_log for the unban with Apple down: bit0 unknown", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
@@ -356,7 +356,7 @@ describe("check: casos adicionales", () => {
   it.each([
     [true, 1, "blocked"],
     [false, 0, "ok"],
-  ] as const)("check_log registra el bit0 leído de Apple (%s)", async (bit0, logged, status) => {
+  ] as const)("check_log records the bit0 read from Apple (%s)", async (bit0, logged, status) => {
     const ids = randomIds();
     const res = await check({ dc_token: TOKEN, ids, intent: "foreground" }, new FakeDeviceCheck({ bit0 }));
     expect(res.body.status).toBe(status);
@@ -365,7 +365,7 @@ describe("check: casos adicionales", () => {
     ]);
   });
 
-  it("lookup por ref devuelve las comprobaciones, la más reciente primero", async () => {
+  it("lookup by ref returns the checks, most recent first", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     await check({ ids, intent: "launch" });

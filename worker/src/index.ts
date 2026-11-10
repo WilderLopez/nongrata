@@ -7,10 +7,10 @@ import { Store } from "./store";
 
 const CHECK_LOG_RETENTION_MS = 30 * 24 * 3600 * 1000;
 
-/** Punto de inyección para los tests: sustituye el cliente HTTP de Apple. */
+/** Injection point for the tests: replaces the Apple HTTP client. */
 export type DeviceCheckFactory = (config: AppConfig) => DeviceCheckClient | null;
 
-// Stryker disable next-line ArrowFunction: solo se ejercita contra Apple de verdad.
+// Stryker disable next-line ArrowFunction: only exercised against the real Apple service.
 const defaultDeviceCheck: DeviceCheckFactory = (config) =>
   config.apple ? httpDeviceCheck(config.apple) : null;
 
@@ -32,7 +32,7 @@ export async function handle(
     }
 
     let body: unknown;
-    // Stryker disable BlockStatement: vaciar el catch deja body undefined y parseCheckRequest da el mismo 400.
+    // Stryker disable BlockStatement: emptying the catch leaves body undefined and parseCheckRequest returns the same 400.
     try {
       body = await request.json();
     } catch {

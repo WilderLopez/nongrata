@@ -1,6 +1,6 @@
-// Fórmula compartida con el SDK Swift y la CLI: SHA256(prefix + ":" + kind + ":" + valor
-// normalizado). Los vectores de spec/hash-vectors.json fijan el resultado: si cambias algo aquí,
-// cambian todas las listas existentes.
+// Formula shared with the Swift SDK and the CLI: SHA256(prefix + ":" + kind + ":" + normalized
+// value). The vectors in spec/hash-vectors.json pin the result: if you change anything here,
+// every existing list changes.
 
 export const KINDS = ["idfv", "install", "icloud", "user", "android_id"] as const;
 export type Kind = (typeof KINDS)[number];
@@ -17,9 +17,9 @@ export const isHash = (value: unknown): value is string =>
 export const isRef = (value: unknown): value is string =>
   typeof value === "string" && REF_RE.test(value);
 
-// Normalización previa al hash, idéntica en el SDK: quita espacios, tabuladores y saltos de línea
-// ASCII de los extremos, y pasa a mayúsculas (solo a-z) los UUID, que iOS da en mayúsculas.
-// `icloud`, `user` y `android_id` son opacos y conservan las mayúsculas y minúsculas.
+// Normalization before hashing, identical in the SDK: strips ASCII spaces, tabs and line breaks
+// from both ends, and uppercases (a-z only) the UUIDs, which iOS returns in uppercase.
+// `icloud`, `user` and `android_id` are opaque and keep their case.
 const EDGE_WHITESPACE_RE = /^[ \t\n\r]+|[ \t\n\r]+$/g;
 const UUID_KINDS: readonly Kind[] = ["idfv", "install"];
 
@@ -34,6 +34,6 @@ export async function hashId(prefix: string, kind: Kind, value: string): Promise
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Código de soporte: primeros 8 caracteres, en mayúsculas, del hash de `installId`. */
+/** Support code: the first 8 characters, uppercased, of the `installId` hash. */
 export const refFromInstallHash = (installHash: string): string =>
   installHash.slice(0, 8).toUpperCase();

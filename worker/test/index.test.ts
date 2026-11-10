@@ -14,7 +14,7 @@ const checkRequest = (body: string, headers: Record<string, string> = {}) =>
 
 const validBody = () => JSON.stringify({ app: "demo", ids: randomIds() });
 
-/** Rate limiter falso: guarda las claves y responde lo que se le diga. */
+/** Fake rate limiter: records the keys and returns whatever it is told to. */
 function limiter(success: boolean) {
   const keys: string[] = [];
   const binding = {
@@ -26,8 +26,8 @@ function limiter(success: boolean) {
   return { keys, env: { ...guardEnv, RATE_LIMITER: binding } as GuardEnv };
 }
 
-describe("enrutado y respuestas", () => {
-  it("todas las respuestas son JSON y no se cachean", async () => {
+describe("routing and responses", () => {
+  it("every response is JSON and is not cached", async () => {
     const responses = await Promise.all([
       handle(checkRequest(validBody()), guardEnv, () => null),
       handle(checkRequest("{"), guardEnv, () => null),
@@ -40,19 +40,19 @@ describe("enrutado y respuestas", () => {
     }
   });
 
-  it("cuerpo que no es JSON: 400 bad_request", async () => {
-    const res = await handle(checkRequest("no es json"), guardEnv, () => null);
+  it("body that is not JSON: 400 bad_request", async () => {
+    const res = await handle(checkRequest("not json"), guardEnv, () => null);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "bad_request" });
   });
 
-  it("JSON que no cumple el contrato: 400 bad_request", async () => {
+  it("JSON that does not meet the contract: 400 bad_request", async () => {
     const res = await handle(checkRequest(JSON.stringify({ app: "demo", ids: {} })), guardEnv, () => null);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "bad_request" });
   });
 
-  it("app sin HASH_PREFIX: 404 unknown_app", async () => {
+  it("app without HASH_PREFIX: 404 unknown_app", async () => {
     const body = JSON.stringify({ app: "nope", ids: randomIds() });
     const res = await handle(checkRequest(body), guardEnv, () => null);
     expect(res.status).toBe(404);
@@ -60,55 +60,55 @@ describe("enrutado y respuestas", () => {
   });
 
   it.each([
-    ["ruta desconocida", "GET", "https://guard.test/nope"],
-    ["check con GET", "GET", "https://guard.test/v1/device/check"],
-    ["prefijo parecido al de admin", "GET", "https://guard.test/v1/adminx/lookup"],
-  ])("%s, sin token: 404 not_found (no 401)", async (_name, method, url) => {
+    ["unknown route", "GET", "https://guard.test/nope"],
+    ["check with GET", "GET", "https://guard.test/v1/device/check"],
+    ["prefix similar to the admin one", "GET", "https://guard.test/v1/adminx/lookup"],
+  ])("%s, no token: 404 not_found (not 401)", async (_name, method, url) => {
     const res = await handle(new Request(url, { method }), guardEnv);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not_found" });
   });
 
-  it("ruta de admin sin token: 401 unauthorized", async () => {
+  it("admin route without a token: 401 unauthorized", async () => {
     const res = await handle(new Request("https://guard.test/v1/admin/nope"), guardEnv);
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized" });
   });
 
-  it("el export por defecto atiende fetch con el mismo enrutado", async () => {
+  it("the default export serves fetch with the same routing", async () => {
     const res = await worker.fetch!(new Request("https://guard.test/nope") as never, guardEnv);
     expect(res.status).toBe(404);
   });
 });
 
-describe("rate limit de check", () => {
-  it("por encima del límite: 429 antes de leer el cuerpo", async () => {
+describe("check rate limit", () => {
+  it("over the limit: 429 before reading the body", async () => {
     const { env, keys } = limiter(false);
-    const res = await handle(checkRequest("no es json", { "cf-connecting-ip": "203.0.113.7" }), env, () => null);
+    const res = await handle(checkRequest("not json", { "cf-connecting-ip": "203.0.113.7" }), env, () => null);
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({ error: "rate_limited" });
     expect(keys).toEqual(["203.0.113.7"]);
   });
 
-  it("dentro del límite: sigue con la comprobación", async () => {
+  it("within the limit: goes on with the check", async () => {
     const { env, keys } = limiter(true);
     const res = await handle(checkRequest(validBody(), { "cf-connecting-ip": "203.0.113.8" }), env, () => null);
     expect(res.status).toBe(200);
     expect(keys).toEqual(["203.0.113.8"]);
   });
 
-  it('sin cf-connecting-ip, la clave es "unknown"', async () => {
+  it('without cf-connecting-ip, the key is "unknown"', async () => {
     const { env, keys } = limiter(true);
     await handle(checkRequest(validBody()), env, () => null);
     expect(keys).toEqual(["unknown"]);
   });
 
-  it("sin binding RATE_LIMITER: no limita", async () => {
+  it("without the RATE_LIMITER binding: no limit", async () => {
     const env = { ...guardEnv, RATE_LIMITER: undefined } as GuardEnv;
     expect((await handle(checkRequest(validBody()), env, () => null)).status).toBe(200);
   });
 
-  it("no se aplica a las rutas de admin", async () => {
+  it("does not apply to admin routes", async () => {
     const { env, keys } = limiter(false);
     const res = await handle(new Request("https://guard.test/v1/admin/lookup?app=demo&ref=AAAAAAAA"), env);
     expect(res.status).toBe(401);
@@ -116,8 +116,8 @@ describe("rate limit de check", () => {
   });
 });
 
-describe("cron de purga de check_log", () => {
-  it("borra lo de más de 30 días y conserva lo reciente", async () => {
+describe("check_log purge cron", () => {
+  it("deletes rows older than 30 days and keeps recent ones", async () => {
     const ref = randomHash().slice(0, 8).toUpperCase();
     const now = Date.now();
     const insert = guardEnv.DB.prepare(

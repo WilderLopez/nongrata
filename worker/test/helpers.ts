@@ -15,7 +15,7 @@ export const randomIds = () => ({
   user: null as string | null,
 });
 
-/** Un dispositivo con sus two bits en "Apple". `failing` simula 5xx/timeout. */
+/** A device with its two bits in "Apple". `failing` simulates a 5xx or timeout. */
 export class FakeDeviceCheck implements DeviceCheckClient {
   bits: TwoBits | null = null; // null = Bit State Not Found
   failing = false;

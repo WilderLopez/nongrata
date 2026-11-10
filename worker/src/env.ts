@@ -1,5 +1,5 @@
-// Las claves por app (`<NOMBRE>_<APP>`) son dinámicas, así que no se tipan desde
-// wrangler.jsonc: se leen con `appConfig`.
+// Per-app keys (`<NAME>_<APP>`) are dynamic, so they are not typed from wrangler.jsonc:
+// they are read with `appConfig`.
 export interface GuardEnv {
   DB: D1Database;
   RATE_LIMITER?: RateLimit;
@@ -11,7 +11,7 @@ export interface AppConfig {
   app: string;
   hashPrefix: string;
   enforce: boolean;
-  /** Ausente si la app no tiene clave de DeviceCheck: se decide solo con D1. */
+  /** Absent if the app has no DeviceCheck key: decisions use D1 alone. */
   apple?: { teamId: string; keyId: string; p8: string };
 }
 
@@ -20,12 +20,12 @@ const APP_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 export const isAppId = (value: unknown): value is string =>
   typeof value === "string" && APP_RE.test(value);
 
-/** `null` si la app no está configurada (sin `HASH_PREFIX_<APP>`). */
+/** `null` if the app is not configured (no `HASH_PREFIX_<APP>`). */
 export function appConfig(env: GuardEnv, app: string): AppConfig | null {
   const suffix = app.toUpperCase().replace(/-/g, "_");
   const str = (name: string): string | undefined => {
     const v = env[`${name}_${suffix}`];
-    // Stryker disable next-line EqualityOperator: un "" se descarta igual después (prefijo ausente, enforce falso, sin Apple).
+    // Stryker disable next-line EqualityOperator: a "" is discarded later anyway (missing prefix, enforce false, no Apple).
     return typeof v === "string" && v.length > 0 ? v : undefined;
   };
 

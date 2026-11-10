@@ -1,5 +1,5 @@
-// Configuración de desarrollo local y tests. Los despliegues reales viven en
-// ../deployments/<app>/wrangler.jsonc y apuntan a este mismo código.
+// Configuration for local development and tests. Real deployments live in
+// ../deployments/<app>/wrangler.jsonc and point to this same code.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "nongrata-dev",
@@ -20,7 +20,7 @@
       "simple": { "limit": 20, "period": 60 }
     }
   ],
-  // App de pruebas. El secreto APPLE_DC_KEY_P8_DEMO va en .dev.vars (fuera de git).
+  // Test app. The APPLE_DC_KEY_P8_DEMO secret goes in .dev.vars (outside git).
   "vars": {
     "HASH_PREFIX_DEMO": "demo-ban-v1",
     "ENFORCE_DEMO": "true",

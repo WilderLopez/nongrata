@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "pnpm",
-  "plugins_comment": "pnpm enlaza node_modules/@stryker-mutator/* con symlinks y el auto-descubrimiento no los sigue: hay que listarlos a mano.",
+  "plugins_comment": "pnpm links node_modules/@stryker-mutator/* with symlinks and auto-discovery does not follow them: they have to be listed by hand.",
   "plugins": [
     "@stryker-mutator/vitest-runner"
   ],
@@ -10,7 +10,7 @@
     "configFile": "vitest.config.ts"
   },
   "coverageAnalysis": "perTest",
-  "inPlace_comment": "Sin sandbox: los tests leen ../spec/hash-vectors.json, que quedaría fuera de él. Stryker restaura src/ al terminar; no edites src/ mientras corre. `make check` falla si quedan restos de instrumentación.",
+  "inPlace_comment": "No sandbox: the tests read ../spec/hash-vectors.json, which would be outside it. Stryker restores src/ when it finishes; do not edit src/ while it runs. `make check` fails if instrumentation leftovers remain.",
   "inPlace": true,
   "mutate": [
     "src/**/*.ts",
@@ -28,7 +28,7 @@
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
   },
-  "thresholds_comment": "Sin umbral que rompa: el que vigila es scripts/mutation-score.mjs, contra mutation-baseline.json.",
+  "thresholds_comment": "No breaking threshold: scripts/mutation-score.mjs is the guard, against mutation-baseline.json.",
   "thresholds": {
     "high": 80,
     "low": 60,

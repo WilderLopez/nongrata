@@ -1,6 +1,6 @@
-// JWT ES256 para la API de DeviceCheck (mismo procedimiento que el token de proveedor de APNs).
+// ES256 JWT for the DeviceCheck API (same procedure as the APNs provider token).
 
-const REFRESH_AFTER_S = 30 * 60; // Apple rechaza un `iat` de más de una hora.
+const REFRESH_AFTER_S = 30 * 60; // Apple rejects an `iat` older than one hour.
 
 export const b64url = (input: ArrayBuffer | Uint8Array | string): string => {
   const bytes =
@@ -11,7 +11,7 @@ export const b64url = (input: ArrayBuffer | Uint8Array | string): string => {
         : new Uint8Array(input);
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
-  // Stryker disable next-line Regex: quitar el "$" es equivalente, en base64 el "=" solo va al final.
+  // Stryker disable next-line Regex: dropping the "$" is equivalent; in base64 "=" only appears at the end.
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 };
 
@@ -31,7 +31,7 @@ export async function signAppleJWT(
 ): Promise<string> {
   const header = b64url(JSON.stringify({ alg: "ES256", kid: keyId }));
   const claims = b64url(JSON.stringify({ iss: teamId, iat: nowS }));
-  // Web Crypto devuelve la firma ECDSA como r || s (64 bytes), el formato que pide JWS.
+  // Web Crypto returns the ECDSA signature as r || s (64 bytes), the format JWS requires.
   const sig = await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
     key,
@@ -40,7 +40,7 @@ export async function signAppleJWT(
   return `${header}.${claims}.${b64url(sig)}`;
 }
 
-// Caché por isolate, por clave de Apple.
+// Per-isolate cache, keyed by Apple key.
 const cache = new Map<string, { jwt: string; iat: number }>();
 
 export async function appleJWT(

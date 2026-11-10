@@ -1,4 +1,4 @@
-// POST /v1/device/check (docs/HANDOFF.md, sección 6.1).
+// POST /v1/device/check (docs/HANDOFF.md, section 6.1).
 
 import type { AppleEnv, DeviceCheckClient, TwoBits } from "./apple/devicecheck";
 import type { AppConfig } from "./env";
@@ -12,11 +12,11 @@ export type Intent = (typeof INTENTS)[number];
 export interface CheckRequest {
   app: string;
   env: AppleEnv;
-  /** Token para query_two_bits. */
+  /** Token for query_two_bits. */
   dcToken: string | null;
   /**
-   * Segundo token para update_two_bits. Apple pide no reutilizar un token, así que el SDK
-   * genera dos. Si falta, no se escribe en Apple: se reintenta en la siguiente comprobación.
+   * Second token, for update_two_bits. Apple asks not to reuse a token, so the SDK generates
+   * two. If it is missing, nothing is written to Apple: it is retried on the next check.
    */
   dcTokenUpdate: string | null;
   ids: IdHash[];
@@ -35,7 +35,7 @@ const ID_KINDS: readonly Kind[] = ["idfv", "install", "icloud", "user"];
 const optionalToken = (v: unknown): string | null | undefined =>
   v === undefined || v === null ? null : typeof v === "string" && TOKEN_RE.test(v) ? v : undefined;
 
-/** Valida el cuerpo. Devuelve `null` si no es válido. El `ref` se deriva aquí, no se confía en el cliente. */
+/** Validates the body. Returns `null` if it is invalid. The `ref` is derived here; the client's is never trusted. */
 export function parseCheckRequest(body: unknown): CheckRequest | null {
   if (typeof body !== "object" || body === null) return null;
   const b = body as Record<string, unknown>;
@@ -75,7 +75,7 @@ export function parseCheckRequest(body: unknown): CheckRequest | null {
 
 export interface CheckDeps {
   store: Store;
-  /** `null` si la app no tiene clave de DeviceCheck. */
+  /** `null` if the app has no DeviceCheck key. */
   deviceCheck: DeviceCheckClient | null;
   now: number;
 }
@@ -87,7 +87,7 @@ export async function runCheck(
 ): Promise<CheckResult> {
   const { app, ref } = req;
   const dc = deviceCheck && req.dcToken ? deviceCheck : null;
-  // Sin segundo token no se escribe: reutilizar el de la consulta va contra lo que pide Apple.
+  // No second token, no write: reusing the query token goes against what Apple asks.
   const updateToken = req.dcTokenUpdate;
 
   const [matched, unban, bits] = await Promise.all([
@@ -100,11 +100,11 @@ export async function runCheck(
     store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent }, now);
 
   if (unban) {
-    // Desbaneo completo: bit0 a false y fuera los hashes que trae este dispositivo, que el
-    // administrador no puede deducir del ref. Solo se consume si el bit quedó limpio; si Apple
-    // falla o la petición llega sin alguno de los dos tokens, deja entrar y se reintenta en la
-    // siguiente comprobación (consumirlo dejaría bit0 activo y el dispositivo volvería a quedar
-    // bloqueado). Sin clave de Apple no hay bit que limpiar: se consume solo con D1.
+    // Full unban: bit0 set to false and the hashes this device sends removed, since the admin
+    // cannot work them out from the ref. It is only consumed once the bit is clear; if Apple
+    // fails or the request lacks either of the two tokens, let the device in and retry on the
+    // next check (consuming it would leave bit0 set and the device would be blocked again).
+    // Without an Apple key there is no bit to clear: it is consumed with D1 alone.
     const cleared = deviceCheck ? (dc && updateToken ? await dc.setBit0(req.env, updateToken, false) : false) : true;
     if (cleared) {
       await store.removeHashes(app, req.ids.map((id) => id.hash));
@@ -116,15 +116,15 @@ export async function runCheck(
 
   const blocked = matched || bits?.bit0 === true;
 
-  // Modo observación (sin ENFORCE): solo se registra el veredicto. Ni se escribe en Apple ni se
-  // propaga, para que un baneo erróneo durante la observación no deje huella. Al activar
-  // ENFORCE, la primera comprobación de cada dispositivo bloqueado hace las dos cosas.
+  // Observation mode (no ENFORCE): only the verdict is logged. Nothing is written to Apple and
+  // nothing is propagated, so a wrong ban during observation leaves no trace. Once ENFORCE is
+  // on, the first check of each blocked device does both.
   if (config.enforce) {
     if (matched && dc && updateToken && bits && !bits.bit0) {
       await dc.setBit0(req.env, updateToken, true);
     }
-    // Propagación: un dispositivo bloqueado marca todos sus identificadores, así el bloqueo
-    // salta a otros dispositivos con la misma cuenta de iCloud. No pisa las filas existentes.
+    // Propagation: a blocked device marks all of its identifiers, so the block jumps to other
+    // devices with the same iCloud account. Existing rows are not overwritten.
     if (blocked) {
       await store.insertPropagated(app, req.ids, now);
     }

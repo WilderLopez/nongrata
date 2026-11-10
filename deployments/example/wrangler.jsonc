@@ -1,10 +1,10 @@
-// Plantilla de despliegue para una app. Cópiala a deployments/<tu-app>/ (git ignora esas
-// carpetas, porque llevan IDs de tu cuenta) y cambia `myapp` y los valores entre <>.
-// Código y migraciones compartidos en ../../worker.
+// Deployment template for one app. Copy it to deployments/<your-app>/ (git ignores those
+// folders, because they hold your account's IDs) and change `myapp` and the values in <>.
+// Code and migrations are shared from ../../worker.
 //
-// Secretos (no van aquí), desde worker/:
-//   pnpm exec wrangler secret put ADMIN_TOKEN --config ../deployments/<tu-app>/wrangler.jsonc
-//   pnpm exec wrangler secret put APPLE_DC_KEY_P8_MYAPP --config ../deployments/<tu-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
+// Secrets (they do not go here), from worker/:
+//   pnpm exec wrangler secret put ADMIN_TOKEN --config ../deployments/<your-app>/wrangler.jsonc
+//   pnpm exec wrangler secret put APPLE_DC_KEY_P8_MYAPP --config ../deployments/<your-app>/wrangler.jsonc < AuthKey_<KEY_ID>.p8
 {
   "$schema": "../../worker/node_modules/wrangler/config-schema.json",
   "name": "nongrata-myapp",
@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "nongrata-myapp",
-      // Lo devuelve `wrangler d1 create nongrata-myapp`.
+      // Returned by `wrangler d1 create nongrata-myapp`.
       "database_id": "<DATABASE_ID>",
       "migrations_dir": "../../worker/migrations"
     }
@@ -22,22 +22,22 @@
   "ratelimits": [
     {
       "name": "RATE_LIMITER",
-      // Un número distinto por cada rate limiter de tu cuenta de Cloudflare.
+      // A different number for each rate limiter in your Cloudflare account.
       "namespace_id": "<NAMESPACE_ID>",
       "simple": { "limit": 20, "period": 60 }
     }
   ],
-  // Purga diaria de check_log (retención de 30 días).
+  // Daily check_log purge (30-day retention).
   "triggers": { "crons": ["17 3 * * *"] },
   "vars": {
-    // El sufijo de cada variable es el `app` del SDK en mayúsculas, con "-" como "_".
+    // Each variable's suffix is the SDK's `app` uppercased, with "-" as "_".
     "HASH_PREFIX_MYAPP": "myapp-ban-v1",
-    // Modo observación: registra el veredicto pero deja entrar a todos. "true" para bloquear.
+    // Observation mode: logs the verdict but lets everyone in. "true" to block.
     "ENFORCE_MYAPP": "false",
-    // Sin las tres piezas de Apple (estas dos y el secreto), el Worker decide solo con D1.
+    // Without all three Apple pieces (these two and the secret), the Worker decides with D1 alone.
     "APPLE_TEAM_ID_MYAPP": "<TEAM_ID>",
     "APPLE_KEY_ID_MYAPP": "<KEY_ID>"
   },
-  // Sin registrar cuerpos de petición (docs/HANDOFF.md, sección 11).
+  // No request bodies logged (docs/HANDOFF.md, section 11).
   "observability": { "enabled": true, "logs": { "invocation_logs": false } }
 }

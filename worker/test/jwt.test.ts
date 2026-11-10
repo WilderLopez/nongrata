@@ -6,7 +6,7 @@ const fromB64url = (s: string) =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 
 describe("b64url", () => {
-  // RFC 4648, sección 10, sin relleno: cubre 0, 1 y 2 caracteres "=" en base64.
+  // RFC 4648, section 10, without padding: covers 0, 1 and 2 "=" characters in base64.
   it.each([
     ["", ""],
     ["f", "Zg"],
@@ -15,11 +15,11 @@ describe("b64url", () => {
     ["foob", "Zm9vYg"],
     ["fooba", "Zm9vYmE"],
     ["foobar", "Zm9vYmFy"],
-  ])("texto %j → %j", (input, expected) => {
+  ])("text %j → %j", (input, expected) => {
     expect(b64url(input)).toBe(expected);
   });
 
-  // En base64 estándar dan "++++", "////" y "+/8=": aquí, el alfabeto URL y sin relleno.
+  // In standard base64 these give "++++", "////" and "+/8=": here, the URL alphabet without padding.
   it.each([
     [[0xfb, 0xef, 0xbe], "----"],
     [[0xff, 0xff, 0xff], "____"],
@@ -29,14 +29,15 @@ describe("b64url", () => {
     expect(b64url(new Uint8Array(bytes).buffer)).toBe(expected);
   });
 
-  it("codifica el texto como UTF-8", () => {
-    expect(b64url("ñ")).toBe("w7E");
+  it("encodes the text as UTF-8", () => {
+    // U+00F1 (LATIN SMALL LETTER N WITH TILDE), two bytes in UTF-8: C3 B1.
+    expect(b64url("\u00f1")).toBe("w7E");
   });
 });
 
-describe("JWT ES256 para Apple", () => {
-  // Sección 16, punto 1: importación pkcs8 de una clave P-256 en el runtime de Workers.
-  it("importa un .p8 (PKCS#8, P-256) y firma un JWT verificable", async () => {
+describe("ES256 JWT for Apple", () => {
+  // docs/HANDOFF.md, section 16, item 1: pkcs8 import of a P-256 key in the Workers runtime.
+  it("imports a .p8 (PKCS#8, P-256) and signs a verifiable JWT", async () => {
     const key = await importP8(env.APPLE_DC_KEY_P8_DEMO);
     const jwt = await signAppleJWT(key, "KEY0000000", "TEAM000000", 1_800_000_000);
     const [h, c, s] = jwt.split(".");
@@ -45,7 +46,7 @@ describe("JWT ES256 para Apple", () => {
     expect(JSON.parse(new TextDecoder().decode(fromB64url(c)))).toEqual({ iss: "TEAM000000", iat: 1_800_000_000 });
 
     const sig = fromB64url(s);
-    expect(sig.byteLength).toBe(64); // r || s, sin DER
+    expect(sig.byteLength).toBe(64); // r || s, not DER
 
     const pub = await crypto.subtle.importKey(
       "jwk",
@@ -63,11 +64,11 @@ describe("JWT ES256 para Apple", () => {
     expect(ok).toBe(true);
   });
 
-  it("la clave privada importada no es extraíble", async () => {
+  it("the imported private key is not extractable", async () => {
     expect((await importP8(env.APPLE_DC_KEY_P8_DEMO)).extractable).toBe(false);
   });
 
-  it("por defecto, iat es la hora actual en segundos", async () => {
+  it("by default, iat is the current time in seconds", async () => {
     const apple = { p8: env.APPLE_DC_KEY_P8_DEMO, keyId: "KEYNOW0000", teamId: "TEAM000000" };
     const before = Math.floor(Date.now() / 1000);
     const [, claims] = (await appleJWT(apple)).split(".");
@@ -76,7 +77,7 @@ describe("JWT ES256 para Apple", () => {
     expect(iat).toBeLessThanOrEqual(Math.floor(Date.now() / 1000));
   });
 
-  it("la caché distingue claves: otro kid u otro equipo no reutilizan el JWT", async () => {
+  it("the cache tells keys apart: another kid or another team does not reuse the JWT", async () => {
     const t0 = 1_950_000_000;
     const base = { p8: env.APPLE_DC_KEY_P8_DEMO, keyId: "KEYA000000", teamId: "TEAMA00000" };
     const a = await appleJWT(base, t0);
@@ -85,7 +86,7 @@ describe("JWT ES256 para Apple", () => {
     expect(new Set([a, otherKey, otherTeam]).size).toBe(3);
   });
 
-  it("reutiliza el JWT durante 30 minutos y luego lo regenera", async () => {
+  it("reuses the JWT for 30 minutes and then regenerates it", async () => {
     const apple = { p8: env.APPLE_DC_KEY_P8_DEMO, keyId: "KEYCACHE00", teamId: "TEAM000000" };
     const t0 = 1_900_000_000;
     const first = await appleJWT(apple, t0);

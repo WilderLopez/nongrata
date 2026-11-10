@@ -1,5 +1,5 @@
--- Esquema inicial (docs/HANDOFF.md, sección 7.1). Solo hashes con prefijo por app:
--- nunca identificadores en bruto ni IPs. Las marcas de tiempo van en milisegundos Unix.
+-- Initial schema (docs/HANDOFF.md, section 7.1). Only hashes with a per-app prefix:
+-- never raw identifiers or IPs. Timestamps are Unix milliseconds.
 
 CREATE TABLE banned_ids (
   app         TEXT NOT NULL,

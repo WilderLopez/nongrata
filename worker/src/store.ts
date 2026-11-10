@@ -26,7 +26,7 @@ export class Store {
   constructor(private readonly db: D1Database) {}
 
   async anyBanned(app: string, hashes: string[]): Promise<boolean> {
-    // Stryker disable next-line ConditionalExpression: SQLite acepta `IN ()` y no encuentra nada; la guarda solo ahorra la consulta.
+    // Stryker disable next-line ConditionalExpression: SQLite accepts `IN ()` and finds nothing; the guard only saves the query.
     if (hashes.length === 0) return false;
     const marks = hashes.map(() => "?").join(", ");
     const row = await this.db
@@ -61,7 +61,7 @@ export class Store {
       .run();
   }
 
-  /** Inserta sin pisar las filas existentes (una marca manual no pasa a `propagated`). */
+  /** Inserts without overwriting existing rows (a manual mark does not become `propagated`). */
   async insertPropagated(app: string, ids: IdHash[], now: number): Promise<void> {
     if (ids.length === 0) return;
     const stmt = this.db.prepare(
@@ -84,7 +84,7 @@ export class Store {
   }
 
   async removeHashes(app: string, hashes: string[]): Promise<void> {
-    // Stryker disable next-line ConditionalExpression: SQLite acepta `IN ()` y no borra nada; la guarda solo ahorra la consulta.
+    // Stryker disable next-line ConditionalExpression: SQLite accepts `IN ()` and deletes nothing; the guard only saves the query.
     if (hashes.length === 0) return;
     const marks = hashes.map(() => "?").join(", ");
     await this.db
