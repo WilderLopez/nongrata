@@ -30,6 +30,8 @@ targets:
       properties:
         CFBundleDisplayName: NonGrata Demo
         UILaunchScreen: {}
+        # Only HTTPS through URLSession: exempt from export compliance (no prompt in App Store Connect).
+        ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NonGrataDemoEndpoint: $(NONGRATA_DEMO_ENDPOINT)
         NonGrataDemoAppId: $(NONGRATA_DEMO_APP_ID)

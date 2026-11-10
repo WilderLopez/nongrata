@@ -20,6 +20,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NonGrataDemoAppId</key>
 	<string>$(NONGRATA_DEMO_APP_ID)</string>
 	<key>NonGrataDemoEndpoint</key>
