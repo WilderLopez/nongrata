@@ -1,8 +1,8 @@
 import NonGrata
 import SwiftUI
 
-/// Cubre el contenido con `NonGrataSuspendedView` mientras el veredicto sea `.blocked`.
-/// Con `.allowed` o `.unknown` no hace nada: `.unknown` es el fail-open del SDK.
+/// Covers the content with `NonGrataSuspendedView` while the verdict is `.blocked`.
+/// With `.allowed` or `.unknown` it does nothing: `.unknown` is the SDK's fail-open.
 struct NonGrataBlockingOverlay<SupportAction: View>: ViewModifier {
     let nonGrata: NonGrata
     let title: LocalizedStringResource
@@ -13,7 +13,7 @@ struct NonGrataBlockingOverlay<SupportAction: View>: ViewModifier {
         let ref = nonGrata.verdict.blockedRef
 
         content
-            // Debajo del bloqueo no se debe poder usar nada, tampoco con VoiceOver o teclado.
+            // Nothing underneath the block may be usable, not even with VoiceOver or a keyboard.
             .disabled(ref != nil)
             .accessibilityHidden(ref != nil)
             .overlay {
@@ -29,9 +29,9 @@ struct NonGrataBlockingOverlay<SupportAction: View>: ViewModifier {
 }
 
 extension View {
-    /// Cubre esta vista con la pantalla de suspendido mientras `nonGrata.verdict` sea
-    /// `.blocked`, y la retira sola cuando el Worker responde `ok`. Opcional: la app puede pintar
-    /// su propia pantalla leyendo `verdict`. No cierra la sesión de la app; eso lo hace la app.
+    /// Covers this view with the suspended screen while `nonGrata.verdict` is `.blocked`, and
+    /// removes it on its own when the Worker answers `ok`. Optional: the app can draw its own
+    /// screen by reading `verdict`. It doesn't sign the user out; that is up to the app.
     public func nonGrataBlockingOverlay<SupportAction: View>(
         _ nonGrata: NonGrata,
         title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,
@@ -46,7 +46,7 @@ extension View {
         ))
     }
 
-    /// Igual, sin acción de contacto con soporte.
+    /// Same, without a contact-support action.
     public func nonGrataBlockingOverlay(
         _ nonGrata: NonGrata,
         title: LocalizedStringResource = NonGrataUIStrings.suspendedTitle,

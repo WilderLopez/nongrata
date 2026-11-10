@@ -16,24 +16,24 @@ private struct VectorFile: Decodable {
     let vectors: [Vector]
 }
 
-/// Vectores compartidos con el Worker (`spec/hash-vectors.json`, en la raíz del repo).
+/// Vectors shared with the Worker (`spec/hash-vectors.json`, at the repo root).
 private let vectors: [Vector] = {
     let url = URL(filePath: #filePath)
         .deletingLastPathComponent() // NonGrataTests
         .deletingLastPathComponent() // Tests
         .deletingLastPathComponent() // swift
-        .deletingLastPathComponent() // raíz del repo
+        .deletingLastPathComponent() // repo root
         .appending(path: "spec/hash-vectors.json")
     do {
         return try JSONDecoder().decode(VectorFile.self, from: Data(contentsOf: url)).vectors
     } catch {
-        fatalError("No se pudieron leer los vectores en \(url.path()): \(error)")
+        fatalError("Couldn't read the vectors at \(url.path()): \(error)")
     }
 }()
 
 @Suite("IdentifierHasher")
 struct IdentifierHasherTests {
-    @Test("Coincide con los vectores compartidos", arguments: vectors)
+    @Test("Matches the shared vectors", arguments: vectors)
     fileprivate func matchesSharedVectors(_ vector: Vector) throws {
         let kind = try #require(IdentifierKind(rawValue: vector.kind))
         let hash = IdentifierHasher(prefix: vector.prefix).hash(kind, vector.value)
@@ -41,7 +41,7 @@ struct IdentifierHasherTests {
         #expect(IdentifierHasher.ref(installHash: hash) == vector.ref)
     }
 
-    @Test("Tipos distintos dan hashes distintos con el mismo valor")
+    @Test("Different kinds give different hashes for the same value")
     func kindsAreSeparated() {
         let hasher = IdentifierHasher(prefix: "p")
         #expect(hasher.hash(.idfv, "X") != hasher.hash(.install, "X"))

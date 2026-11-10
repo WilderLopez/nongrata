@@ -6,7 +6,7 @@ import Security
     import UIKit
 #endif
 
-// Implementaciones reales de los protocolos de Dependencies.swift.
+// Real implementations of the protocols in Dependencies.swift.
 
 struct KeychainStore: SecureStore {
     let service: String
@@ -38,7 +38,7 @@ struct KeychainStore: SecureStore {
 
         var add = baseQuery(key)
         add[kSecValueData as String] = data
-        // Tras el primer desbloqueo y sin migrar a otro dispositivo por copia de seguridad.
+        // Readable after first unlock, and never migrated to another device through a backup.
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else { throw .unavailable(status) }
@@ -58,7 +58,7 @@ struct KeychainStore: SecureStore {
     }
 }
 
-/// Requiere el entitlement `com.apple.developer.ubiquity-kvstore-identifier`.
+/// Requires the `com.apple.developer.ubiquity-kvstore-identifier` entitlement.
 struct UbiquitousFlagStore: CloudFlagStore {
     func string(forKey key: String) -> String? {
         NSUbiquitousKeyValueStore.default.string(forKey: key)
@@ -75,7 +75,7 @@ struct UbiquitousFlagStore: CloudFlagStore {
     }
 
     func externalChanges() -> AsyncStream<Void> {
-        // Pide a iCloud los cambios pendientes desde el último arranque.
+        // Asks iCloud for the changes pending since the last launch.
         NSUbiquitousKeyValueStore.default.synchronize()
         let name = NSUbiquitousKeyValueStore.didChangeExternallyNotification
         return AsyncStream { continuation in
@@ -107,7 +107,7 @@ struct SystemDeviceIdentity: DeviceIdentity {
         #endif
     }
 
-    /// Solo se llama con `useICloud`: `CKContainer.default()` falla si la app no tiene CloudKit.
+    /// Only called with `useICloud`: `CKContainer.default()` fails if the app lacks CloudKit.
     func iCloudRecordName() async -> String? {
         try? await CKContainer.default().userRecordID().recordName
     }
@@ -135,7 +135,7 @@ struct URLSessionCheckTransport: CheckTransport {
         request.httpBody = try JSONEncoder().encode(payload)
 
         let (data, response) = try await Self.session.data(for: request)
-        // Contrato: solo un 200 con { status, ref } es una respuesta válida.
+        // Contract: only a 200 with { status, ref } is a valid response.
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else { throw TransportError.status(status) }
         return try JSONDecoder().decode(CheckResponse.self, from: data)

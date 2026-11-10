@@ -1,15 +1,15 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// En la raíz del repo para que SPM lo resuelva por URL (github.com/WilderLopez/nongrata).
-// El código vive en swift/; cada target lleva su ruta.
+// At the repo root so SPM can resolve it by URL (github.com/WilderLopez/nongrata).
+// The code lives in swift/; each target sets its own path.
 let package = Package(
     name: "NonGrata",
-    defaultLocalization: "es",
+    defaultLocalization: "en",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "NonGrata", targets: ["NonGrata"]),
-        // Opcional: pantalla de suspendido por defecto. El núcleo no depende de SwiftUI.
+        // Optional: default suspended screen. The core doesn't depend on SwiftUI.
         .library(name: "NonGrataUI", targets: ["NonGrataUI"]),
     ],
     targets: [

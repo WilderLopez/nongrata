@@ -1,29 +1,29 @@
 import Foundation
 
-// Todo lo que toca el sistema queda detrás de estos protocolos para poder probar
-// `NonGrata` sin Keychain, iCloud, DeviceCheck ni red. Se usan siempre desde el
-// main actor, igual que `NonGrata`.
+// Everything that touches the system sits behind these protocols so `NonGrata` can be
+// tested without Keychain, iCloud, DeviceCheck or network. They are always used from the
+// main actor, like `NonGrata`.
 
 enum SecureStoreError: Error, Equatable {
-    /// El Keychain no está disponible (por ejemplo, tras reiniciar y antes del primer desbloqueo).
+    /// The Keychain is unavailable (for example, after a reboot and before first unlock).
     case unavailable(OSStatus)
 }
 
-/// Keychain: sobrevive a reinstalar (comportamiento observado, no garantizado por Apple).
+/// Keychain: survives reinstalling the app (observed behavior, not guaranteed by Apple).
 @MainActor
 protocol SecureStore: Sendable {
-    /// `nil` si no existe. Lanza si el Keychain no se pudo leer.
+    /// `nil` if it doesn't exist. Throws if the Keychain couldn't be read.
     func string(forKey key: String) throws(SecureStoreError) -> String?
     func set(_ value: String, forKey key: String) throws(SecureStoreError)
     func removeValue(forKey key: String) throws(SecureStoreError)
 }
 
-/// `NSUbiquitousKeyValueStore`: salta a los dispositivos con la misma cuenta de Apple.
+/// `NSUbiquitousKeyValueStore`: syncs to other devices signed in to the same Apple account.
 @MainActor
 protocol CloudFlagStore: Sendable {
     func string(forKey key: String) -> String?
     func set(_ value: String?, forKey key: String)
-    /// Emite cuando otro dispositivo cambia el almacén.
+    /// Emits when another device changes the store.
     func externalChanges() -> AsyncStream<Void>
 }
 
@@ -36,9 +36,9 @@ protocol DeviceTokenProvider: Sendable {
 
 @MainActor
 protocol DeviceIdentity: Sendable {
-    /// `identifierForVendor`; `nil` tras reiniciar y antes de desbloquear.
+    /// `identifierForVendor`; `nil` after a reboot and before unlock.
     func vendorIdentifier() -> String?
-    /// `recordName` del usuario de iCloud en el contenedor por defecto; `nil` sin cuenta.
+    /// `recordName` of the iCloud user in the default container; `nil` without an account.
     func iCloudRecordName() async -> String?
     func appVersion() -> String?
 }
@@ -55,7 +55,7 @@ struct CheckPayload: Encodable, Equatable, Sendable {
         var icloud: String?
         var user: String?
 
-        // Las claves nulas se mandan como `null` explícito, como en el contrato.
+        // Nil keys are sent as an explicit `null`, as the contract specifies.
         func encode(to encoder: any Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
             try c.encode(idfv, forKey: .idfv)

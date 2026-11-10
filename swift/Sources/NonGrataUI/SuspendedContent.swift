@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Contenido de `NonGrataSuspendedView`, que lo coloca centrado o dentro de un scroll.
+/// Content of `NonGrataSuspendedView`, which places it centered or inside a scroll view.
 struct SuspendedContent<SupportAction: View>: View {
     let ref: String
     let title: LocalizedStringResource

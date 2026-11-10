@@ -4,7 +4,7 @@ import Testing
 
 struct BlockedRefTests {
     @Test(
-        "El overlay solo cubre con .blocked; .unknown es fail-open",
+        "The overlay only covers with .blocked; .unknown is fail-open",
         arguments: [
             (NonGrataVerdict.allowed, String?.none),
             (.unknown, nil),

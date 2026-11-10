@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Tipos de identificador que manda el SDK de iOS. `android_id` solo existe en el Worker.
+/// Identifier kinds the iOS SDK sends. `android_id` only exists in the Worker.
 public enum IdentifierKind: String, Sendable, CaseIterable {
     case idfv
     case install
@@ -9,8 +9,8 @@ public enum IdentifierKind: String, Sendable, CaseIterable {
     case user
 }
 
-/// Misma fórmula que el Worker y la CLI: `SHA256(prefix + ":" + kind + ":" + valor normalizado)`
-/// en hex minúsculas. `spec/hash-vectors.json` fija el resultado.
+/// Same formula as the Worker and the CLI: `SHA256(prefix + ":" + kind + ":" + normalized value)`
+/// in lowercase hex. `spec/hash-vectors.json` pins the result.
 public struct IdentifierHasher: Sendable {
     public let prefix: String
 
@@ -24,9 +24,9 @@ public struct IdentifierHasher: Sendable {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Igual que `normalizeValue` del Worker: quita espacio, `\t`, `\n` y `\r` de los extremos y,
-    /// en los UUID (`idfv`, `install`), pasa a mayúsculas solo a-z. Va por escalares Unicode
-    /// porque en Swift `"\r\n"` es un único `Character`.
+    /// Same as the Worker's `normalizeValue`: trims space, `\t`, `\n` and `\r` from both ends
+    /// and, for UUIDs (`idfv`, `install`), uppercases only a-z. Works on Unicode scalars because
+    /// in Swift `"\r\n"` is a single `Character`.
     static func normalize(_ kind: IdentifierKind, _ value: String) -> String {
         let edge: Set<Unicode.Scalar> = [" ", "\t", "\n", "\r"]
         var scalars = Array(value.unicodeScalars)[...]
@@ -42,7 +42,7 @@ public struct IdentifierHasher: Sendable {
         return String(result)
     }
 
-    /// Código de soporte: primeros 8 caracteres, en mayúsculas, del hash de `installId`.
+    /// Support code: the first 8 characters, uppercased, of the `installId` hash.
     public static func ref(installHash: String) -> String {
         String(installHash.prefix(8)).uppercased()
     }

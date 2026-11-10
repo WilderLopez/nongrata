@@ -1,21 +1,21 @@
 import Foundation
 import Observation
 
-/// Comprueba con el Worker si este dispositivo está bloqueado y recuerda el veredicto.
+/// Asks the Worker whether this device is blocked and remembers the verdict.
 ///
-/// - Fail-open: si la comprobación falla y no hay marca local, el veredicto es `.unknown` y la
-///   app sigue, salvo el registro en modo estricto (`permits(_:for:)`).
-/// - La marca local (Keychain y, con `useICloud`, `NSUbiquitousKeyValueStore`) solo la pone un
-///   `blocked` del Worker y solo la quita un `ok`. Un error no la toca.
-/// - El SDK no presenta interfaz ni cierra la app: la app pinta su pantalla de bloqueo.
+/// - Fail-open: if the check fails and there is no local mark, the verdict is `.unknown` and the
+///   app carries on, except for signup in strict mode (`permits(_:for:)`).
+/// - The local mark (Keychain and, with `useICloud`, `NSUbiquitousKeyValueStore`) is only set by
+///   a `blocked` from the Worker and only cleared by an `ok`. An error leaves it untouched.
+/// - The SDK shows no UI and never closes the app: the app draws its own blocking screen.
 @MainActor
 @Observable
 public final class NonGrata {
     public private(set) var verdict: NonGrataVerdict
-    /// UUID propio guardado en el Keychain, para analítica y soporte. `nil` solo si el Keychain
-    /// no estaba disponible (antes del primer desbloqueo); se reintenta en cada comprobación.
+    /// The SDK's own UUID, stored in the Keychain, for analytics and support. `nil` only if the
+    /// Keychain was unavailable (before first unlock); it is retried on every check.
     public private(set) var installId: String?
-    /// Hash del ID de iCloud, cuando ya se ha leído.
+    /// Hash of the iCloud ID, once it has been read.
     public private(set) var iCloudIdHash: String?
 
     @ObservationIgnored private let configuration: NonGrataConfiguration
@@ -40,14 +40,14 @@ public final class NonGrata {
         observeCloudMark()
     }
 
-    /// Código de soporte (`ref`) de este dispositivo.
+    /// This device's support code (`ref`).
     public var supportCode: String? {
         installId.map { IdentifierHasher.ref(installHash: hasher.hash(.install, $0)) }
     }
 
-    /// Comprueba con el Worker. Con `.foreground` no hace nada si la última comprobación con
-    /// `.allowed` es de hace menos de `foregroundInterval`; si está bloqueado, comprueba siempre
-    /// para detectar el desbaneo.
+    /// Checks with the Worker. With `.foreground` it does nothing if the last check that returned
+    /// `.allowed` was less than `foregroundInterval` ago; while blocked it always checks, so it
+    /// can detect an unban.
     @discardableResult
     public func check(intent: CheckIntent, userId: String? = nil) async -> NonGrataVerdict {
         if intent == .foreground, verdict == .allowed, let lastAllowedAt,
@@ -59,14 +59,14 @@ public final class NonGrata {
         generation += 1
         let current = generation
         let response = await performCheck(intent: intent, userId: userId)
-        // Si empezó otra comprobación mientras tanto, esa es la que manda.
+        // If another check started in the meantime, that one wins.
         guard current == generation else { return verdict }
         apply(response)
         return verdict
     }
 
-    /// Si la app puede seguir con `intent` dado un veredicto. `.unknown` deja seguir (fail-open)
-    /// salvo `.signup` con `strictSignup`.
+    /// Whether the app may proceed with `intent` given a verdict. `.unknown` lets it proceed
+    /// (fail-open), except `.signup` with `strictSignup`.
     public func permits(_ verdict: NonGrataVerdict, for intent: CheckIntent) -> Bool {
         switch verdict {
         case .allowed: true
@@ -75,7 +75,7 @@ public final class NonGrata {
         }
     }
 
-    // MARK: - Comprobación
+    // MARK: - Check
 
     private func performCheck(intent: CheckIntent, userId: String?) async -> CheckResponse? {
         if installId == nil {
@@ -113,7 +113,7 @@ public final class NonGrata {
         }
     }
 
-    /// Dos tokens: uno para consultar los bits y otro para escribirlos (Apple pide no reutilizarlos).
+    /// Two tokens: one to query the bits and one to update them (Apple asks not to reuse tokens).
     private func deviceTokens() async -> (query: String?, update: String?) {
         guard dependencies.tokens.isSupported else { return (nil, nil) }
         async let query = deviceToken()
@@ -133,7 +133,7 @@ public final class NonGrata {
     private func iCloudHash() async -> String? {
         guard configuration.useICloud else { return nil }
         if let iCloudIdHash { return iCloudIdHash }
-        // Si vence el plazo, la lectura sigue y deja el hash listo para la siguiente comprobación.
+        // If the timeout expires, the read keeps going and leaves the hash ready for the next check.
         return await withTimeout(configuration.iCloudTimeout) { [weak self] () -> String? in
             guard let self, let name = await dependencies.identity.iCloudRecordName() else { return nil }
             let hash = hasher.hash(.icloud, name)
@@ -157,13 +157,14 @@ public final class NonGrata {
         }
     }
 
-    // MARK: - Marca local
+    // MARK: - Local mark
 
     private static let installIdKey = "installId"
     private static let blockedRefKey = "blockedRef"
     private var cloudMarkKey: String { "nongrata.\(configuration.appId).blockedRef" }
 
-    /// Solo crea un `installId` nuevo si no existe; si el Keychain falla, lanza para no pisarlo.
+    /// Only creates a new `installId` if none exists; if the Keychain fails, it throws so the
+    /// existing one is never overwritten.
     private static func loadOrCreateInstallId(in store: any SecureStore) throws(SecureStoreError) -> String {
         if let existing = try store.string(forKey: installIdKey) { return existing }
         let created = UUID().uuidString
@@ -188,8 +189,8 @@ public final class NonGrata {
         }
     }
 
-    /// Bloquea en caliente si otro dispositivo con la misma cuenta de Apple pone la marca.
-    /// El bucle termina en el siguiente cambio después de liberar `NonGrata`.
+    /// Blocks live if another device signed in to the same Apple account sets the mark.
+    /// The loop ends on the first change after `NonGrata` is deallocated.
     private func observeCloudMark() {
         guard configuration.useICloud, let cloud = dependencies.cloudStore else { return }
         let changes = cloud.externalChanges()
@@ -205,7 +206,7 @@ public final class NonGrata {
     }
 }
 
-// MARK: - Dependencias
+// MARK: - Dependencies
 
 struct Dependencies {
     var secureStore: any SecureStore
@@ -228,7 +229,7 @@ struct Dependencies {
     }
 }
 
-// MARK: - Utilidades
+// MARK: - Utilities
 
 extension Duration {
     var timeInterval: TimeInterval {
@@ -237,8 +238,9 @@ extension Duration {
     }
 }
 
-/// Devuelve el resultado de `operation` o `nil` si vence `timeout`. La operación no se cancela:
-/// sigue en segundo plano (por ejemplo, CloudKit no siempre atiende la cancelación).
+/// Returns the result of `operation`, or `nil` if `timeout` expires first. The operation is not
+/// cancelled: it keeps running in the background (CloudKit, for example, doesn't always honor
+/// cancellation).
 @MainActor
 func withTimeout<T: Sendable>(
     _ timeout: Duration,

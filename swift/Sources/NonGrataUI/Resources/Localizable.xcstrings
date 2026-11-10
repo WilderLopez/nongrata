@@ -1,8 +1,8 @@
 {
-  "sourceLanguage" : "es",
+  "sourceLanguage" : "en",
   "strings" : {
     "nongrata.suspended.message" : {
-      "comment" : "Explicación bajo el título de la pantalla de bloqueo. «El código de abajo» es el código de soporte.",
+      "comment" : "Explanation under the title of the blocking screen. \"The code below\" is the support code.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -20,7 +20,7 @@
       }
     },
     "nongrata.suspended.supportCode" : {
-      "comment" : "Etiqueta sobre el código de 8 caracteres que el usuario dicta a soporte.",
+      "comment" : "Label above the 8-character code the user reads out to support.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -38,7 +38,7 @@
       }
     },
     "nongrata.suspended.title" : {
-      "comment" : "Título de la pantalla que se muestra cuando este dispositivo está bloqueado.",
+      "comment" : "Title of the screen shown when this device is blocked.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

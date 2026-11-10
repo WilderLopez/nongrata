@@ -37,7 +37,7 @@ final class MemoryCloudStore: CloudFlagStore {
         return stream
     }
 
-    /// Otro dispositivo con la misma cuenta de Apple cambia el almacén.
+    /// Another device signed in to the same Apple account changes the store.
     func simulateExternalChange(_ value: String?, forKey key: String) {
         values[key] = value
         continuation?.yield()
@@ -57,7 +57,7 @@ final class FakeTokens: DeviceTokenProvider {
     }
 }
 
-/// Puerta que el test abre cuando quiere que una operación asíncrona termine.
+/// A gate the test opens when it wants an async operation to finish.
 @MainActor
 final class Gate {
     private var waiters: [CheckedContinuation<Void, Never>] = []
@@ -101,13 +101,13 @@ final class FakeTransport: CheckTransport {
     }
 
     var mode: Mode = .ok
-    /// Si existe, la siguiente petición espera a que se abra antes de responder.
+    /// If set, the next request waits for it to open before responding.
     var nextGate: Gate?
     private(set) var payloads: [CheckPayload] = []
 
     func send(_ payload: CheckPayload, to endpoint: URL, timeout: Duration) async throws -> CheckResponse {
         payloads.append(payload)
-        let mode = mode // el modo de cuando llegó la petición
+        let mode = mode // the mode at the time the request arrived
         if let gate = nextGate {
             nextGate = nil
             await gate.wait()
@@ -129,7 +129,7 @@ final class TestClock {
     }
 }
 
-/// Un "dispositivo" de pruebas: sus almacenes sobreviven a crear otro `NonGrata` (relanzar la app).
+/// A test "device": its stores survive creating another `NonGrata` (relaunching the app).
 @MainActor
 final class TestDevice {
     let secureStore = MemorySecureStore()
@@ -173,7 +173,7 @@ final class TestDevice {
     }
 }
 
-/// Cede el turno hasta que se cumpla `condition` (para tareas que el SDK lanza por su cuenta).
+/// Yields until `condition` holds (for tasks the SDK launches on its own).
 @MainActor
 func settle(until condition: () -> Bool) async {
     for _ in 0..<1000 where !condition() {

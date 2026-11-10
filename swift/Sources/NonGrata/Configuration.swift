@@ -6,28 +6,28 @@ public struct NonGrataConfiguration: Sendable {
         case production
     }
 
-    /// URL completa de `POST /v1/device/check`.
+    /// Full URL of `POST /v1/device/check`.
     public var endpoint: URL
-    /// Identificador de la app en el Worker, por ejemplo `"myapp"`.
+    /// The app's identifier in the Worker, for example `"myapp"`.
     public var appId: String
-    /// Igual que `HASH_PREFIX_<APP>` del Worker, por ejemplo `"myapp-ban-v1"`.
+    /// Same as the Worker's `HASH_PREFIX_<APP>`, for example `"myapp-ban-v1"`.
     public var hashPrefix: String
-    /// Usa el ID de iCloud y la marca en `NSUbiquitousKeyValueStore`. Requiere CloudKit y el
-    /// entitlement de key-value storage en el App ID.
+    /// Uses the iCloud ID and the mark in `NSUbiquitousKeyValueStore`. Requires CloudKit and the
+    /// key-value storage entitlement on the App ID.
     public var useICloud: Bool
-    /// Con `intent = .signup`, crear la cuenta exige que la comprobación termine en `.allowed`.
+    /// With `intent = .signup`, creating the account requires the check to end in `.allowed`.
     public var strictSignup: Bool
-    /// Intervalo mínimo entre comprobaciones al volver a primer plano mientras no hay bloqueo.
+    /// Minimum interval between checks on returning to the foreground while not blocked.
     public var foregroundInterval: Duration
-    /// Tiempo máximo de la petición al Worker y de la generación de tokens.
+    /// Maximum time for the Worker request and for token generation.
     public var timeout: Duration
-    /// Tiempo máximo para leer el ID de iCloud; la primera consulta puede tardar.
+    /// Maximum time to read the iCloud ID; the first lookup can be slow.
     public var iCloudTimeout: Duration
-    /// `kSecAttrService` de los ítems del SDK. La app no debe borrarlos en su limpieza de
-    /// primera ejecución.
+    /// `kSecAttrService` of the SDK's Keychain items. The app must not delete them in its
+    /// first-run cleanup.
     public var keychainService: String
-    /// Endpoint de DeviceCheck que usa el Worker. TestFlight y App Store usan producción
-    /// (por verificar, docs/HANDOFF.md sección 16).
+    /// DeviceCheck endpoint the Worker uses. TestFlight and the App Store use production
+    /// (to be verified, docs/HANDOFF.md section 16).
     public var deviceCheckEnvironment: DeviceCheckEnvironment
 
     public init(
@@ -73,6 +73,6 @@ public enum CheckIntent: String, Sendable, CaseIterable {
 public enum NonGrataVerdict: Sendable, Equatable {
     case allowed
     case blocked(ref: String)
-    /// No se pudo comprobar y no hay marca local.
+    /// The check couldn't complete and there is no local mark.
     case unknown
 }

@@ -2,14 +2,14 @@ import NonGrataUI
 import Foundation
 import Testing
 
-/// Resuelven desde el bundle del paquete, no desde el de la app: si el bundle fuera el
-/// equivocado, saldría siempre el `defaultValue` en español y el caso en inglés fallaría.
+/// They resolve from the package's bundle, not the app's: if the bundle were the wrong one,
+/// the English `defaultValue` would always come out and the Spanish case would fail.
 struct DefaultStringsTests {
     @Test(
-        "Textos por defecto en español e inglés",
+        "Default texts in English and Spanish",
         arguments: [
-            ("es", "Acceso suspendido", "Código de soporte"),
             ("en", "Access suspended", "Support code"),
+            ("es", "Acceso suspendido", "Código de soporte"),
         ]
     )
     func defaults(language: String, title: String, supportCode: String) {
@@ -17,7 +17,7 @@ struct DefaultStringsTests {
         #expect(resolve(NonGrataUIStrings.supportCodeLabel, in: language) == supportCode)
     }
 
-    @Test("El mensaje existe en los dos idiomas y menciona el código", arguments: ["es", "en"])
+    @Test("The message exists in both languages and mentions the code", arguments: ["en", "es"])
     func message(language: String) {
         let message = resolve(NonGrataUIStrings.suspendedMessage, in: language)
         #expect(message.contains("nongrata.") == false)
