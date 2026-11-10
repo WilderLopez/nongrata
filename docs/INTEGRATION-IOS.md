@@ -107,5 +107,5 @@ apps do after a reinstall. If the app wipes its whole Keychain, exclude that ser
 
 - App Store privacy label: "Device ID" and "User ID" for fraud prevention.
 - Privacy policy: mention device identifiers used for fraud prevention.
-- To verify: that this use does not count as tracking for ATT purposes ([design](DESIGN.md),
-  section 16).
+- This use is not tracking, so no App Tracking Transparency prompt is needed (verified on
+  2026-11-02; [design](DESIGN.md), section 16, item 5).

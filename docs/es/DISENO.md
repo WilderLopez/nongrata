@@ -454,7 +454,7 @@ Sin `isSupported` (simulador), se manda sin `dc_token` y el Worker decide solo c
 - DeviceCheck no necesita entitlement.
 - Etiqueta de privacidad de App Store: "Device ID" y "User ID" con fin de prevención de fraude.
 - Política de privacidad: mencionar identificadores de dispositivo con fin antifraude.
-- **Por verificar**: que el uso exclusivo antifraude no se considera tracking a efectos de ATT.
+- **Verificado** (2026-11-02): el uso exclusivo antifraude no es tracking, así que no hace falta pedir ATT (sección 16, punto 5).
 
 ## 9. CLI de administración
 

@@ -39,7 +39,9 @@ for (const f of docs) {
   // Drop code blocks and inline code: a "[x](y)" there is text, not a link.
   const text = readFileSync(path, "utf8").replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]*`/g, "");
   const targets = new Set();
-  for (const [, link] of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+  // Markdown links, plus href/src of the HTML that READMEs use for centred headers and images.
+  const found = [...text.matchAll(/\]\(([^)\s]+)\)/g), ...text.matchAll(/\b(?:href|src)="([^"]+)"/g)];
+  for (const [, link] of found) {
     if (/^(https?:|mailto:|#)/.test(link)) continue;
     const target = resolve(dirname(path), decodeURIComponent(link.split("#")[0]));
     const rel = relative(ROOT, target);

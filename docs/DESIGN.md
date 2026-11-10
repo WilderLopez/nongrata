@@ -458,7 +458,7 @@ with D1 alone.
 - DeviceCheck needs no entitlement.
 - App Store privacy label: "Device ID" and "User ID" for fraud prevention.
 - Privacy policy: mention device identifiers used for fraud prevention.
-- **To verify**: that fraud-prevention-only use is not considered tracking for ATT purposes.
+- **Verified** (2026-11-02): fraud-prevention-only use is not tracking, so no ATT prompt is needed (section 16, item 5).
 
 ## 9. Admin CLI
 

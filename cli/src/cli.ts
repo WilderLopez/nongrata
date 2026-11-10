@@ -1,4 +1,4 @@
-// Admin CLI (docs/HANDOFF.md, section 9). Wraps the Worker's /v1/admin/* endpoints; the Worker
+// Admin CLI (docs/DESIGN.md, section 9). Wraps the Worker's /v1/admin/* endpoints; the Worker
 // computes the hash with the app's prefix. The formula is imported from the Worker so there are
 // never two copies: `hash` uses it offline and the tests run the vectors through it.
 

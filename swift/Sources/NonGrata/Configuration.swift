@@ -27,7 +27,7 @@ public struct NonGrataConfiguration: Sendable {
     /// first-run cleanup.
     public var keychainService: String
     /// DeviceCheck endpoint the Worker uses. TestFlight and the App Store use production
-    /// (to be verified, docs/HANDOFF.md section 16).
+    /// (to be verified, docs/DESIGN.md section 16).
     public var deviceCheckEnvironment: DeviceCheckEnvironment
 
     public init(

@@ -108,5 +108,5 @@ servicio.
 
 - Etiqueta de privacidad de App Store: "Device ID" y "User ID" con fin de prevención de fraude.
 - Política de privacidad: mencionar identificadores de dispositivo con fin antifraude.
-- Por verificar: que este uso no cuenta como tracking a efectos de ATT ([diseño](DISENO.md),
-  sección 16).
+- Este uso no es tracking, así que no hace falta pedir el permiso de ATT (verificado el
+  2026-11-02; [diseño](DISENO.md), sección 16, punto 5).
