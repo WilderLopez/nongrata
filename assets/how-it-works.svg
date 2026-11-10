@@ -1,91 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 672" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
-  <defs>
-    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 Z" fill="#14203D"/>
-    </marker>
-    <marker id="flecha-roja" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 Z" fill="#E5483D"/>
-    </marker>
-    <filter id="sombra" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#14203D" flood-opacity=".10"/>
-    </filter>
-    <clipPath id="capa-56"><rect x="56" y="436" width="254" height="180" rx="18"/></clipPath>
-    <clipPath id="capa-334"><rect x="334" y="436" width="254" height="180" rx="18"/></clipPath>
-    <clipPath id="capa-612"><rect x="612" y="436" width="254" height="180" rx="18"/></clipPath>
-    <clipPath id="capa-890"><rect x="890" y="436" width="254" height="180" rx="18"/></clipPath>
-  </defs>
-  <rect width="1200" height="672" rx="28" fill="#F7F4EE"/>
-
-  <text x="56" y="70" font-size="30" font-weight="700" fill="#14203D">How it works</text>
-  <text x="56" y="102" font-size="17" fill="#5B6478">One check at launch, on return to the foreground, after login and before sign-up.</text>
-
-  <!-- Tu app -->
-  <g filter="url(#sombra)"><rect x="56" y="140" width="290" height="200" rx="20" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <rect x="80" y="166" width="34" height="58" rx="8" fill="none" stroke="#14203D" stroke-width="4"/>
-  <rect x="90" y="172" width="14" height="4" rx="2" fill="#14203D"/>
-  <text x="132" y="190" font-size="21" font-weight="700" fill="#14203D">Your app</text>
-  <text x="132" y="216" font-size="16" fill="#5B6478">with the NonGrata SDK</text>
-  <text x="80" y="262" font-size="15" fill="#5B6478">Hashes its identifiers and</text>
-  <text x="80" y="284" font-size="15" fill="#5B6478">gets two one-time tokens</text>
-  <text x="80" y="306" font-size="15" fill="#5B6478">from DeviceCheck.</text>
-
-  <!-- Worker -->
-  <g filter="url(#sombra)"><rect x="455" y="140" width="290" height="200" rx="20" fill="#14203D"/></g>
-  <text x="479" y="190" font-size="21" font-weight="700" fill="#F7F4EE">Cloudflare Worker</text>
-  <text x="479" y="216" font-size="16" fill="#AEB8D0">one deployment per app</text>
-  <text x="479" y="262" font-size="15" fill="#D5DBE8">Checks the list and bit0,</text>
-  <text x="479" y="284" font-size="15" fill="#D5DBE8">answers ok or blocked and, when</text>
-  <text x="479" y="306" font-size="15" fill="#D5DBE8">blocking, records new identifiers.</text>
-
-  <!-- D1 y Apple -->
-  <g filter="url(#sombra)"><rect x="854" y="140" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <text x="878" y="176" font-size="19" font-weight="700" fill="#14203D">D1</text>
-  <text x="914" y="176" font-size="16" fill="#5B6478">ban list</text>
-  <text x="878" y="204" font-size="15" fill="#5B6478">Hashes only. No raw values, no IPs.</text>
-  <g filter="url(#sombra)"><rect x="854" y="252" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <text x="878" y="288" font-size="19" font-weight="700" fill="#14203D">DeviceCheck</text>
-  <text x="1008" y="288" font-size="16" fill="#5B6478">by Apple</text>
-  <text x="878" y="316" font-size="15" fill="#5B6478">bit0 = banned, on Apple’s servers.</text>
-
-  <!-- Flechas -->
-  <line x1="350" y1="206" x2="449" y2="206" stroke="#14203D" stroke-width="2.5" marker-end="url(#flecha)"/>
-  <text x="399" y="194" font-size="13" text-anchor="middle" fill="#14203D">hashes + tokens</text>
-  <line x1="451" y1="276" x2="352" y2="276" stroke="#E5483D" stroke-width="2.5" marker-end="url(#flecha-roja)"/>
-  <text x="401" y="300" font-size="13" text-anchor="middle" fill="#E5483D">ok / blocked</text>
-  <line x1="749" y1="184" x2="848" y2="184" stroke="#14203D" stroke-width="2.5" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
-  <line x1="749" y1="296" x2="848" y2="296" stroke="#14203D" stroke-width="2.5" marker-start="url(#flecha)" marker-end="url(#flecha)"/>
-
-  <!-- Capas -->
-  <text x="56" y="410" font-size="22" font-weight="700" fill="#14203D">Four layers, each survives something different</text>
-
-  <g filter="url(#sombra)"><rect x="56" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <rect x="56" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-56)"/>
-  <text x="80" y="482" font-size="20" font-weight="700" fill="#14203D">idfv</text>
-  <text x="80" y="506" font-size="15" fill="#5B6478">identifierForVendor</text>
-  <text x="80" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SURVIVES</text>
-  <text x="80" y="574" font-size="15" fill="#14203D">signing out and creating</text>
-  <text x="80" y="594" font-size="15" fill="#14203D">another account</text>
-
-  <g filter="url(#sombra)"><rect x="334" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <rect x="334" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-334)"/>
-  <text x="358" y="482" font-size="20" font-weight="700" fill="#14203D">installId</text>
-  <text x="358" y="506" font-size="15" fill="#5B6478">UUID in the Keychain</text>
-  <text x="358" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SURVIVES</text>
-  <text x="358" y="574" font-size="15" fill="#14203D">reinstalling the app</text>
-
-  <g filter="url(#sombra)"><rect x="612" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <rect x="612" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-612)"/>
-  <text x="636" y="482" font-size="20" font-weight="700" fill="#14203D">iCloud</text>
-  <text x="636" y="506" font-size="15" fill="#5B6478">userRecordID (optional)</text>
-  <text x="636" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SURVIVES</text>
-  <text x="636" y="574" font-size="15" fill="#14203D">erasing the iPhone, or another</text>
-  <text x="636" y="594" font-size="15" fill="#14203D">iPhone with the same account</text>
-
-  <g filter="url(#sombra)"><rect x="890" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g>
-  <rect x="890" y="436" width="254" height="8" fill="#E5483D" clip-path="url(#capa-890)"/>
-  <text x="914" y="482" font-size="20" font-weight="700" fill="#14203D">bit0</text>
-  <text x="914" y="506" font-size="15" fill="#5B6478">Apple DeviceCheck</text>
-  <text x="914" y="550" font-size="13" font-weight="600" fill="#8A93A6" letter-spacing="1">SURVIVES</text>
-  <text x="914" y="574" font-size="15" fill="#14203D">erasing the iPhone and</text>
-  <text x="914" y="594" font-size="15" fill="#14203D">switching Apple Account</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<style>
+.a{animation:73.5s ease-in-out infinite}
+.app{animation-name:kapp}.appR{animation-name:kappR}.appHash{animation-name:kappHash}.appTok{animation-name:kappTok}.wk{animation-name:kwk}.wkR{animation-name:kwkR}.wk1{animation-name:kwk1}.wk2{animation-name:kwk2}.wk3{animation-name:kwk3}.a1{animation-name:ka1}.d1{animation-name:kd1}.d1R{animation-name:kd1R}.a3{animation-name:ka3}.dc{animation-name:kdc}.dcR{animation-name:kdcR}.a4{animation-name:ka4}.a2{animation-name:ka2}.tag{animation-name:ktag}.lh{animation-name:klh}.L1{animation-name:kL1}.L1R{animation-name:kL1R}.L2{animation-name:kL2}.L2R{animation-name:kL2R}.L3{animation-name:kL3}.L3R{animation-name:kL3R}.L4{animation-name:kL4}.L4R{animation-name:kL4R}.p1{animation-name:kp1}.p2{animation-name:kp2}.p3{animation-name:kp3}.p4{animation-name:kp4}.p5{animation-name:kp5}.p6{animation-name:kp6}.p7{animation-name:kp7}.p8{animation-name:kp8}.p9{animation-name:kp9}.a1l{animation-name:ka1l}.a1h{animation-name:ka1h}.a2l{animation-name:ka2l}.a2h{animation-name:ka2h}.a3l{animation-name:ka3l}.a3h{animation-name:ka3h}.a4l{animation-name:ka4l}.a4h{animation-name:ka4h}.cs1{animation-name:kcs1}.cs2{animation-name:kcs2}.cs3{animation-name:kcs3}.cs4{animation-name:kcs4}.cs5{animation-name:kcs5}.cs6{animation-name:kcs6}.cs7{animation-name:kcs7}.cs8{animation-name:kcs8}.cs9{animation-name:kcs9}.cF{animation-name:kcF}
+@keyframes kapp{0%{opacity:0}0%{opacity:0}0.68%{opacity:1}34.694%{opacity:1}35.374%{opacity:0.5}51.701%{opacity:0.5}52.381%{opacity:1}61.905%{opacity:1}62.585%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kappR{0%{opacity:0}0%{opacity:0}0.68%{opacity:1}26.531%{opacity:1}27.211%{opacity:0}51.701%{opacity:0}52.381%{opacity:1}61.905%{opacity:1}62.585%{opacity:0}100%{opacity:0}}
+@keyframes kappHash{0%{opacity:1}18.367%{opacity:1}19.048%{opacity:0.4}26.531%{opacity:0.4}27.211%{opacity:1}100%{opacity:1}}
+@keyframes kappTok{0%{opacity:1}8.163%{opacity:1}8.844%{opacity:0.4}18.367%{opacity:0.4}19.048%{opacity:1}100%{opacity:1}}
+@keyframes kwk{0%{opacity:0}26.531%{opacity:0}27.211%{opacity:1}72.109%{opacity:1}72.789%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kwkR{0%{opacity:0}26.531%{opacity:0}27.211%{opacity:1}34.694%{opacity:1}35.374%{opacity:0}100%{opacity:0}}
+@keyframes kwk1{0%{opacity:1}51.701%{opacity:1}52.381%{opacity:0.4}72.109%{opacity:0.4}72.789%{opacity:1}100%{opacity:1}}
+@keyframes kwk2{0%{opacity:1}34.694%{opacity:1}35.374%{opacity:0.4}51.701%{opacity:0.4}52.381%{opacity:1}61.905%{opacity:1}62.585%{opacity:0.4}72.109%{opacity:0.4}72.789%{opacity:1}100%{opacity:1}}
+@keyframes kwk3{0%{opacity:1}34.694%{opacity:1}35.374%{opacity:0.4}61.905%{opacity:0.4}62.585%{opacity:1}100%{opacity:1}}
+@keyframes ka1{0%{opacity:0}26.531%{opacity:0}27.211%{opacity:1}34.694%{opacity:1}35.374%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kd1{0%{opacity:0}34.694%{opacity:0}35.374%{opacity:1}42.857%{opacity:1}43.537%{opacity:0.5}61.905%{opacity:0.5}62.585%{opacity:1}72.109%{opacity:1}72.789%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kd1R{0%{opacity:0}34.694%{opacity:0}35.374%{opacity:1}42.857%{opacity:1}43.537%{opacity:0}61.905%{opacity:0}62.585%{opacity:1}72.109%{opacity:1}72.789%{opacity:0}100%{opacity:0}}
+@keyframes ka3{0%{opacity:0}34.694%{opacity:0}35.374%{opacity:1}42.857%{opacity:1}43.537%{opacity:0.5}61.905%{opacity:0.5}62.585%{opacity:1}72.109%{opacity:1}72.789%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kdc{0%{opacity:0}42.857%{opacity:0}43.537%{opacity:1}51.701%{opacity:1}52.381%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kdcR{0%{opacity:0}42.857%{opacity:0}43.537%{opacity:1}51.701%{opacity:1}52.381%{opacity:0}100%{opacity:0}}
+@keyframes ka4{0%{opacity:0}42.857%{opacity:0}43.537%{opacity:1}51.701%{opacity:1}52.381%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ka2{0%{opacity:0}51.701%{opacity:0}52.381%{opacity:1}61.905%{opacity:1}62.585%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ktag{0%{opacity:0}61.905%{opacity:0}62.585%{opacity:1}72.109%{opacity:1}72.789%{opacity:0}100%{opacity:0}}
+@keyframes klh{0%{opacity:0}72.109%{opacity:0}72.789%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kL1{0%{opacity:0}75.51%{opacity:0}76.19%{opacity:1}79.592%{opacity:1}80.272%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kL1R{0%{opacity:0}75.51%{opacity:0}76.19%{opacity:1}79.592%{opacity:1}80.272%{opacity:0}100%{opacity:0}}
+@keyframes kL2{0%{opacity:0}79.592%{opacity:0}80.272%{opacity:1}83.673%{opacity:1}84.354%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kL2R{0%{opacity:0}79.592%{opacity:0}80.272%{opacity:1}83.673%{opacity:1}84.354%{opacity:0}100%{opacity:0}}
+@keyframes kL3{0%{opacity:0}83.673%{opacity:0}84.354%{opacity:1}87.755%{opacity:1}88.435%{opacity:0.5}91.837%{opacity:0.5}92.517%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kL3R{0%{opacity:0}83.673%{opacity:0}84.354%{opacity:1}87.755%{opacity:1}88.435%{opacity:0}100%{opacity:0}}
+@keyframes kL4{0%{opacity:0}87.755%{opacity:0}88.435%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kL4R{0%{opacity:0}87.755%{opacity:0}88.435%{opacity:1}91.837%{opacity:1}92.517%{opacity:0}100%{opacity:0}}
+@keyframes kp1{0%{opacity:0}0.068%{opacity:0}0.748%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp2{0%{opacity:0}8.163%{opacity:0}8.844%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp3{0%{opacity:0}18.367%{opacity:0}19.048%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp4{0%{opacity:0}26.531%{opacity:0}27.211%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp5{0%{opacity:0}34.694%{opacity:0}35.374%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp6{0%{opacity:0}42.857%{opacity:0}43.537%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp7{0%{opacity:0}51.701%{opacity:0}52.381%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp8{0%{opacity:0}61.905%{opacity:0}62.585%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kp9{0%{opacity:0}72.109%{opacity:0}72.789%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ka1l{0%{stroke-dashoffset:99}26.735%{stroke-dashoffset:99}27.959%{stroke-dashoffset:0}99.946%{stroke-dashoffset:0}100%{stroke-dashoffset:99}}
+@keyframes ka1h{0%{opacity:0}27.687%{opacity:0}28.095%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ka2l{0%{stroke-dashoffset:99}51.905%{stroke-dashoffset:99}53.129%{stroke-dashoffset:0}99.946%{stroke-dashoffset:0}100%{stroke-dashoffset:99}}
+@keyframes ka2h{0%{opacity:0}52.857%{opacity:0}53.265%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ka3l{0%{stroke-dashoffset:99}34.898%{stroke-dashoffset:99}36.122%{stroke-dashoffset:0}99.946%{stroke-dashoffset:0}100%{stroke-dashoffset:99}}
+@keyframes ka3h{0%{opacity:0}35.85%{opacity:0}36.259%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes ka4l{0%{stroke-dashoffset:99}43.061%{stroke-dashoffset:99}44.286%{stroke-dashoffset:0}99.946%{stroke-dashoffset:0}100%{stroke-dashoffset:99}}
+@keyframes ka4h{0%{opacity:0}44.014%{opacity:0}44.422%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@keyframes kcs1{0%{opacity:0}0.136%{opacity:0}0.748%{opacity:1}7.551%{opacity:1}8.163%{opacity:0}100%{opacity:0}}
+@keyframes kcs2{0%{opacity:0}8.163%{opacity:0}8.776%{opacity:1}17.755%{opacity:1}18.367%{opacity:0}100%{opacity:0}}
+@keyframes kcs3{0%{opacity:0}18.367%{opacity:0}18.98%{opacity:1}25.918%{opacity:1}26.531%{opacity:0}100%{opacity:0}}
+@keyframes kcs4{0%{opacity:0}26.531%{opacity:0}27.143%{opacity:1}34.082%{opacity:1}34.694%{opacity:0}100%{opacity:0}}
+@keyframes kcs5{0%{opacity:0}34.694%{opacity:0}35.306%{opacity:1}42.245%{opacity:1}42.857%{opacity:0}100%{opacity:0}}
+@keyframes kcs6{0%{opacity:0}42.857%{opacity:0}43.469%{opacity:1}51.088%{opacity:1}51.701%{opacity:0}100%{opacity:0}}
+@keyframes kcs7{0%{opacity:0}51.701%{opacity:0}52.313%{opacity:1}61.293%{opacity:1}61.905%{opacity:0}100%{opacity:0}}
+@keyframes kcs8{0%{opacity:0}61.905%{opacity:0}62.517%{opacity:1}71.497%{opacity:1}72.109%{opacity:0}100%{opacity:0}}
+@keyframes kcs9{0%{opacity:0}72.109%{opacity:0}72.721%{opacity:1}91.224%{opacity:1}91.837%{opacity:0}100%{opacity:0}}
+@keyframes kcF{0%{opacity:0}91.837%{opacity:0}92.449%{opacity:1}98.912%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.a{animation:none!important}}
+</style>
+<defs>
+<filter id="sombra" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#14203D" flood-opacity=".10"/></filter>
+<clipPath id="capa-56"><rect x="56" y="436" width="254" height="180" rx="18"/></clipPath><clipPath id="capa-334"><rect x="334" y="436" width="254" height="180" rx="18"/></clipPath><clipPath id="capa-612"><rect x="612" y="436" width="254" height="180" rx="18"/></clipPath><clipPath id="capa-890"><rect x="890" y="436" width="254" height="180" rx="18"/></clipPath>
+</defs>
+<rect width="1200" height="732" rx="28" fill="#F7F4EE"/>
+<rect x="880" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p1" x="880" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="910" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p2" x="910" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="940" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p3" x="940" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="970" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p4" x="970" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="1000" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p5" x="1000" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="1030" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p6" x="1030" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="1060" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p7" x="1060" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="1090" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p8" x="1090" y="51" width="24" height="6" rx="3" fill="#E5483D"/><rect x="1120" y="51" width="24" height="6" rx="3" fill="#E4DDCF"/><rect class="a p9" x="1120" y="51" width="24" height="6" rx="3" fill="#E5483D"/>
+<g class="a cs1" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 1 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">Your app runs a check</text><text x="56" y="127" font-size="17" fill="#5B6478">At launch, on returning to the foreground, after login and before sign-up.</text><text x="56" y="151" font-size="17" fill="#5B6478">Each check asks one question: is this device or its Apple Account banned?</text></g>
+<g class="a cs2" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 2 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">It hashes the device’s identifiers</text><text x="56" y="127" font-size="17" fill="#5B6478">idfv, an installId kept in the Keychain and, with useICloud, the iCloud user ID; after login, your user ID too.</text><text x="56" y="151" font-size="17" fill="#5B6478">Only SHA-256 hashes leave the iPhone, never the raw values.</text></g>
+<g class="a cs3" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 3 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">It asks DeviceCheck for two one-time tokens</text><text x="56" y="127" font-size="17" fill="#5B6478">One token lets the Worker query the device’s bits at Apple, the other lets it update them.</text><text x="56" y="151" font-size="17" fill="#5B6478">Apple asks for each token to be used only once, so there is one for each job.</text></g>
+<g class="a cs4" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 4 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">It sends the hashes and tokens to your Worker</text><text x="56" y="127" font-size="17" fill="#5B6478">A Cloudflare Worker that you deploy yourself, one per app.</text><text x="56" y="151" font-size="17" fill="#5B6478">The Worker makes the decision; your app’s own backend isn’t involved.</text></g>
+<g class="a cs5" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 5 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">The Worker checks its ban list in D1</text><text x="56" y="127" font-size="17" fill="#5B6478">Is any of these hashes banned?</text><text x="56" y="151" font-size="17" fill="#5B6478">D1 stores hashes only: no raw identifiers and no IP addresses.</text></g>
+<g class="a cs6" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 6 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">…and asks Apple DeviceCheck for bit0</text><text x="56" y="127" font-size="17" fill="#5B6478">bit0 means banned. It lives on Apple’s servers, so it is still there after the iPhone is erased.</text><text x="56" y="151" font-size="17" fill="#5B6478">If the list bans the device and bit0 isn’t set yet, the Worker sets it.</text></g>
+<g class="a cs7" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 7 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">It answers ok or blocked</text><text x="56" y="127" font-size="17" fill="#5B6478">blocked comes with a support code (ref), and your app shows its suspended screen.</text><text x="56" y="151" font-size="17" fill="#5B6478">If the check fails and the device has no earlier block, the user gets in (fail-open).</text></g>
+<g class="a cs8" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 8 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">A blocked device spreads the ban</text><text x="56" y="127" font-size="17" fill="#5B6478">The Worker adds the device’s new hashes to the list, so the ban can follow its Apple Account to other iPhones.</text><text x="56" y="151" font-size="17" fill="#5B6478">In observation mode (ENFORCE off) it only records what it would block, and answers ok.</text></g>
+<g class="a cs9" opacity="0"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">STEP 9 OF 9</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">Four layers make the ban stick</text><text x="56" y="127" font-size="17" fill="#5B6478">Each layer survives a different way of starting over, so together they cover each other’s gaps.</text></g>
+<g class="a cF"><text x="56" y="60" font-size="13" fill="#E5483D" font-weight="700" letter-spacing="1.5">IN SHORT</text><text x="56" y="95" font-size="24" fill="#14203D" font-weight="700">One check, four layers</text><text x="56" y="127" font-size="17" fill="#5B6478">Only hashes leave the iPhone. Your Worker decides with its D1 list and Apple’s bit0,</text><text x="56" y="151" font-size="17" fill="#5B6478">and each layer survives a different way of starting over.</text></g>
+<g transform="translate(0 60)">
+<g class="a app"><g filter="url(#sombra)"><rect x="56" y="140" width="290" height="200" rx="20" fill="#FFFFFF" stroke="#E4DDCF"/></g><rect x="80" y="166" width="34" height="58" rx="8" fill="none" stroke="#14203D" stroke-width="4"/><rect x="90" y="172" width="14" height="4" rx="2" fill="#14203D"/><text x="132" y="190" font-size="21" fill="#14203D" font-weight="700">Your app</text><text x="132" y="216" font-size="16" fill="#5B6478">with the NonGrata SDK</text><g class="a appHash"><text x="80" y="262" font-size="15" fill="#5B6478">Hashes its identifiers.</text></g><g class="a appTok"><text x="80" y="284" font-size="15" fill="#5B6478">Gets two one-time tokens</text><text x="80" y="306" font-size="15" fill="#5B6478">from DeviceCheck.</text></g></g>
+<rect class="a appR" opacity="0" x="56" y="140" width="290" height="200" rx="20" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a wk"><g filter="url(#sombra)"><rect x="455" y="140" width="290" height="200" rx="20" fill="#14203D"/></g><text x="479" y="190" font-size="21" fill="#F7F4EE" font-weight="700">Cloudflare Worker</text><text x="479" y="216" font-size="16" fill="#AEB8D0">one deployment per app</text><g class="a wk1"><text x="479" y="262" font-size="15" fill="#D5DBE8">Checks its list and bit0,</text></g><g class="a wk2"><text x="479" y="284" font-size="15" fill="#D5DBE8">answers ok or blocked and,</text></g><g class="a wk3"><text x="479" y="306" font-size="15" fill="#D5DBE8">records new hashes if it blocks.</text></g></g>
+<rect class="a wkR" opacity="0" x="455" y="140" width="290" height="200" rx="20" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a d1"><g filter="url(#sombra)"><rect x="854" y="140" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><text x="878" y="176" font-size="19" fill="#14203D" font-weight="700">D1</text><text x="914" y="176" font-size="16" fill="#5B6478">ban list</text><text x="878" y="204" font-size="15" fill="#5B6478">Hashes only. No raw values, no IPs.</text></g>
+<rect class="a d1R" opacity="0" x="854" y="140" width="290" height="88" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a dc"><g filter="url(#sombra)"><rect x="854" y="252" width="290" height="88" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><text x="878" y="288" font-size="19" fill="#14203D" font-weight="700">DeviceCheck</text><text x="1008" y="288" font-size="16" fill="#5B6478">by Apple</text><text x="878" y="316" font-size="15" fill="#5B6478">bit0 = banned, on Apple’s servers.</text></g>
+<rect class="a dcR" opacity="0" x="854" y="252" width="290" height="88" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a a1"><line class="a a1l" x1="350" y1="206" x2="449" y2="206" stroke="#14203D" stroke-width="2.5" stroke-dasharray="99 99"/><g class="a a1h"><path d="M428.75 194.75L451.25 206L428.75 217.25Z" fill="#14203D"/></g><text x="399" y="194" font-size="13" text-anchor="middle" fill="#14203D">hashes + tokens</text></g>
+<g class="a a2"><line class="a a2l" x1="451" y1="276" x2="352" y2="276" stroke="#E5483D" stroke-width="2.5" stroke-dasharray="99 99"/><g class="a a2h"><path d="M372.25 264.75L349.75 276L372.25 287.25Z" fill="#E5483D"/></g><text x="401" y="300" font-size="13" text-anchor="middle" fill="#E5483D">ok / blocked</text></g>
+<g class="a a3"><line class="a a3l" x1="749" y1="184" x2="848" y2="184" stroke="#14203D" stroke-width="2.5" stroke-dasharray="99 99"/><g class="a a3h"><path d="M769.25 172.75L746.75 184L769.25 195.25Z" fill="#14203D"/><path d="M827.75 172.75L850.25 184L827.75 195.25Z" fill="#14203D"/></g></g>
+<g class="a a4"><line class="a a4l" x1="749" y1="296" x2="848" y2="296" stroke="#14203D" stroke-width="2.5" stroke-dasharray="99 99"/><g class="a a4h"><path d="M769.25 284.75L746.75 296L769.25 307.25Z" fill="#14203D"/><path d="M827.75 284.75L850.25 296L827.75 307.25Z" fill="#14203D"/></g></g>
+<text class="a tag" opacity="0" x="798.5" y="166" font-size="12" font-weight="600" text-anchor="middle" fill="#E5483D">+ new hashes</text>
+<g class="a lh"><text x="56" y="410" font-size="22" font-weight="700" fill="#14203D">Four layers, each survives something different</text></g>
+<g class="a L1"><g filter="url(#sombra)"><rect x="56" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><rect x="56" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-56)"/><text x="80" y="482" font-size="20" fill="#14203D" font-weight="700">idfv</text><text x="80" y="506" font-size="15" fill="#5B6478">identifierForVendor</text><text x="80" y="550" font-size="13" fill="#8A93A6" font-weight="600" letter-spacing="1">SURVIVES</text><text x="80" y="574" font-size="15" fill="#14203D">signing out and creating</text><text x="80" y="594" font-size="15" fill="#14203D">another account</text></g><rect class="a L1R" opacity="0" x="56" y="436" width="254" height="180" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a L2"><g filter="url(#sombra)"><rect x="334" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><rect x="334" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-334)"/><text x="358" y="482" font-size="20" fill="#14203D" font-weight="700">installId</text><text x="358" y="506" font-size="15" fill="#5B6478">UUID in the Keychain</text><text x="358" y="550" font-size="13" fill="#8A93A6" font-weight="600" letter-spacing="1">SURVIVES</text><text x="358" y="574" font-size="15" fill="#14203D">reinstalling the app</text></g><rect class="a L2R" opacity="0" x="334" y="436" width="254" height="180" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a L3"><g filter="url(#sombra)"><rect x="612" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><rect x="612" y="436" width="254" height="8" fill="#3E63B8" clip-path="url(#capa-612)"/><text x="636" y="482" font-size="20" fill="#14203D" font-weight="700">iCloud</text><text x="636" y="506" font-size="15" fill="#5B6478">userRecordID (optional)</text><text x="636" y="550" font-size="13" fill="#8A93A6" font-weight="600" letter-spacing="1">SURVIVES</text><text x="636" y="574" font-size="15" fill="#14203D">erasing the iPhone, or another</text><text x="636" y="594" font-size="15" fill="#14203D">iPhone with the same account</text></g><rect class="a L3R" opacity="0" x="612" y="436" width="254" height="180" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+<g class="a L4"><g filter="url(#sombra)"><rect x="890" y="436" width="254" height="180" rx="18" fill="#FFFFFF" stroke="#E4DDCF"/></g><rect x="890" y="436" width="254" height="8" fill="#E5483D" clip-path="url(#capa-890)"/><text x="914" y="482" font-size="20" fill="#14203D" font-weight="700">bit0</text><text x="914" y="506" font-size="15" fill="#5B6478">Apple DeviceCheck</text><text x="914" y="550" font-size="13" fill="#8A93A6" font-weight="600" letter-spacing="1">SURVIVES</text><text x="914" y="574" font-size="15" fill="#14203D">erasing the iPhone and</text><text x="914" y="594" font-size="15" fill="#14203D">switching Apple Account</text></g><rect class="a L4R" opacity="0" x="890" y="436" width="254" height="180" rx="18" fill="none" stroke="#E5483D" stroke-width="3"/>
+</g>
 </svg>

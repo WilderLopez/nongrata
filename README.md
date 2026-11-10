@@ -45,7 +45,7 @@ servers for every device, which are still there after the iPhone is erased.
 ## How it works
 
 <p align="center">
-  <img src="assets/how-it-works.svg" alt="The app sends hashes and tokens to the Worker, which checks its D1 list and the DeviceCheck bit0 and answers ok or blocked. Four layers: idfv survives signing out, installId survives reinstalling, iCloud survives erasing the iPhone, and bit0 survives erasing the iPhone and switching Apple Account.">
+  <img src="assets/how-it-works.svg" alt="Animated diagram in nine steps. 1: your app runs a check at launch, on returning to the foreground, after login and before sign-up. 2: it hashes the idfv, the installId and, optionally, the iCloud user ID; only hashes leave the iPhone. 3: it gets two one-time DeviceCheck tokens. 4: it sends hashes and tokens to your Cloudflare Worker. 5: the Worker checks its ban list in D1. 6: it asks Apple DeviceCheck for bit0. 7: it answers ok or blocked, with a support code. 8: a blocked device adds its new hashes to the list. 9: four layers: idfv survives signing out, installId survives reinstalling, iCloud survives erasing the iPhone, and bit0 survives erasing the iPhone and switching Apple Account.">
 </p>
 
 Four pieces in one repo:

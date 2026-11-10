@@ -45,7 +45,7 @@ servidores para cada dispositivo, y que siguen ahí incluso después de borrar e
 ## Cómo funciona
 
 <p align="center">
-  <img src="assets/how-it-works.es.svg" alt="La app manda hashes y tokens al Worker, que consulta su lista en D1 y el bit0 de DeviceCheck y responde ok o blocked. Cuatro capas: idfv sobrevive a cerrar sesión, installId a reinstalar, iCloud a borrar el iPhone y bit0 a borrar el iPhone y cambiar de cuenta de Apple.">
+  <img src="assets/how-it-works.es.svg" alt="Diagrama animado en nueve pasos. 1: tu app hace una comprobación al abrirse, al volver a primer plano, tras el login y antes del registro. 2: calcula los hashes del idfv, el installId y, si se activa, el ID de usuario de iCloud; del iPhone solo salen hashes. 3: pide dos tokens de un solo uso a DeviceCheck. 4: manda hashes y tokens a tu Worker de Cloudflare. 5: el Worker mira su lista de baneos en D1. 6: pregunta a DeviceCheck de Apple por el bit0. 7: responde ok o blocked, con un código de soporte. 8: un dispositivo bloqueado añade sus hashes nuevos a la lista. 9: cuatro capas: idfv sobrevive a cerrar sesión, installId a reinstalar, iCloud a borrar el iPhone y bit0 a borrar el iPhone y cambiar de cuenta de Apple.">
 </p>
 
 Son cuatro piezas en un mismo repo:
