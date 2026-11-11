@@ -29,6 +29,9 @@ targets:
       path: NonGrataDemo/Info.plist
       properties:
         CFBundleDisplayName: NonGrata Demo
+        # From the build settings below; otherwise XcodeGen writes a fixed 1.0 (1).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         # Only HTTPS through URLSession: exempt from export compliance (no prompt in App Store Connect).
         ITSAppUsesNonExemptEncryption: false
@@ -45,4 +48,4 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"   # raise it for every TestFlight upload

@@ -76,7 +76,7 @@ struct ContentView: View {
         } header: {
             Text("Run a check")
         } footer: {
-            Text("Sign-up is strict by default: if the Worker can't be reached, the check doesn't permit it.")
+            Text("Foreground skips the network for 30 s after an allowed verdict (6 h by default in a real app); launch, login and sign-up always ask the Worker. Sign-up is strict by default: if the Worker can't be reached, the check doesn't permit it.")
         }
         .disabled(!model.isConfigured || model.isChecking)
     }
@@ -84,11 +84,12 @@ struct ContentView: View {
     private var diagnosticsSection: some View {
         Section {
             LabeledContent("DeviceCheck", value: model.deviceCheckStatus)
+            LabeledContent("Environment", value: model.deviceCheckEnvironment.rawValue)
             Button("Test DeviceCheck") { Task { await model.testDeviceCheck() } }
         } header: {
             Text("Diagnostics")
         } footer: {
-            Text("If no token can be generated, checks reach the Worker without DeviceCheck and it decides with its list only.")
+            Text("If no token can be generated, checks reach the Worker without DeviceCheck and it decides with its list only. Apple keeps a separate bit0 per environment: Debug builds use development, TestFlight and the App Store production.")
         }
     }
 
@@ -136,6 +137,7 @@ struct ContentView: View {
                     .autocorrectionDisabled()
             }
             Button("Apply") { model.apply() }
+            Button("Reset to this build's values") { model.resetSettings() }
         } header: {
             Text("Settings")
         } footer: {

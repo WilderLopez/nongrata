@@ -20,7 +20,9 @@ final class DemoModel {
     var endpoint: String
     var appId: String
     var hashPrefix: String
-    var userId = "user_12345"
+    /// Different on each device. A shared value would spread a ban to every tester: a blocked
+    /// device propagates the hash of the `userId` it logged in with.
+    var userId: String
 
     private(set) var nonGrata: NonGrata?
     private(set) var history: [Entry] = []
@@ -31,7 +33,13 @@ final class DemoModel {
     /// The device's `identifierForVendor`, the value to ban with `kind=idfv`.
     let idfv = UIDevice.current.identifierForVendor?.uuidString
 
+    /// DeviceCheck keeps a separate `bit0` per environment: a Debug build from Xcode uses
+    /// development and a TestFlight build production, even with the same support code.
+    let deviceCheckEnvironment = NonGrataConfiguration.defaultDeviceCheckEnvironment
+
     private let defaults = UserDefaults.standard
+    /// The values this build was made with (Info.plist).
+    private let built: [String: String]
 
     init() {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -39,23 +47,47 @@ final class DemoModel {
             // An unset build setting reaches Info.plist as an empty string.
             (info[key] as? String).flatMap { $0.isEmpty ? nil : $0 }
         }
-        endpoint = defaults.string(forKey: "endpoint") ?? value("NonGrataDemoEndpoint") ?? ""
-        appId = defaults.string(forKey: "appId") ?? value("NonGrataDemoAppId") ?? "demo"
-        hashPrefix = defaults.string(forKey: "hashPrefix") ?? value("NonGrataDemoHashPrefix") ?? "demo-ban-v1"
+        built = [
+            "endpoint": value("NonGrataDemoEndpoint") ?? "",
+            "appId": value("NonGrataDemoAppId") ?? "demo",
+            "hashPrefix": value("NonGrataDemoHashPrefix") ?? "demo-ban-v1",
+        ]
+        endpoint = defaults.string(forKey: "endpoint") ?? built["endpoint"]!
+        appId = defaults.string(forKey: "appId") ?? built["appId"]!
+        hashPrefix = defaults.string(forKey: "hashPrefix") ?? built["hashPrefix"]!
+        userId = "user-" + (idfv ?? UUID().uuidString).prefix(8).lowercased()
         apply()
     }
 
     /// Rebuilds `NonGrata` from the current settings. Its state (installId, local block flag)
     /// lives in the Keychain, so it survives this and app restarts.
     func apply() {
-        defaults.set(endpoint, forKey: "endpoint")
-        defaults.set(appId, forKey: "appId")
-        defaults.set(hashPrefix, forKey: "hashPrefix")
+        // Only what differs from the build is kept, so a new build (say, TestFlight over a
+        // Debug build) brings its own values instead of the old ones.
+        for (key, value) in ["endpoint": endpoint, "appId": appId, "hashPrefix": hashPrefix] {
+            if value == built[key] {
+                defaults.removeObject(forKey: key)
+            } else {
+                defaults.set(value, forKey: key)
+            }
+        }
         guard let url = URL(string: endpoint), url.scheme == "https" else {
             nonGrata = nil
             return
         }
-        nonGrata = NonGrata(configuration: .init(endpoint: url, appId: appId, hashPrefix: hashPrefix))
+        // A short foreground interval so a ban shows up when you come back to the app, not 6 h
+        // later. A real app keeps the default.
+        nonGrata = NonGrata(configuration: .init(
+            endpoint: url, appId: appId, hashPrefix: hashPrefix, foregroundInterval: .seconds(30)
+        ))
+    }
+
+    /// Back to the values this build was made with.
+    func resetSettings() {
+        endpoint = built["endpoint"]!
+        appId = built["appId"]!
+        hashPrefix = built["hashPrefix"]!
+        apply()
     }
 
     var isConfigured: Bool { nonGrata != nil }
