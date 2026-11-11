@@ -32,7 +32,7 @@ A SQLite database managed by Cloudflare. The Worker sees it as `env.DB`.
 
 | Table | What it stores |
 |---|---|
-| `banned_ids` | The banned hashes, with `reason` = `manual` or `propagated`. Key `(app, hash)`. |
+| `banned_ids` | The banned hashes, with `reason` = `manual` or `propagated` and, on propagated ones, the `ref` of the device that added them. Key `(app, hash)`. |
 | `unban_refs` | The unbans by `ref`: pending or already consumed. |
 | `check_log` | The result of each check. Never identifiers or IPs. |
 

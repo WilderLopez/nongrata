@@ -228,7 +228,7 @@ si ENFORCE de la app está apagado:      // modo observación pura (decidido el 
 si matched y bits y bits.bit0 != true:
     update_two_bits(bit0 = true)
 si blocked:
-    insertar los hashes nuevos en banned_ids con reason = propagated (sin pisar los existentes)
+    insertar los hashes nuevos en banned_ids con reason = propagated y el ref de este dispositivo (sin pisar los existentes)
 responder { status, ref }
 ```
 
@@ -276,9 +276,17 @@ Worker), de modo que el bloqueo deje de depender del cliente.
 Todas con `Authorization: Bearer <ADMIN_TOKEN>`. Todas exigen que la app esté configurada en ese Worker
 (`HASH_PREFIX_<APP>`); si no, 400 `app not configured`, también con `hash` o `ref`, para que una
 errata en `app` no dé un 200 sin efecto. Desbanear por `ref` basta para un desbaneo
-completo: en la siguiente comprobación de ese dispositivo, el Worker pone `bit0` a false y borra
-los hashes que trae la petición. Desbanear un hash suelto sirve para retirar un identificador
-concreto (por ejemplo, el `icloud` de una pareja que comparte cuenta).
+completo: en el momento, el Worker borra los baneos automáticos (`propagated`) que añadió ese
+dispositivo; en su siguiente comprobación, pone `bit0` a false y borra los hashes que trae la
+petición, salvo los baneos manuales hechos después de programar el desbaneo (son decisiones
+posteriores). Desbanear un hash suelto sirve para retirar un identificador concreto (por ejemplo,
+el `icloud` de una pareja que comparte cuenta).
+
+> Implementación (2026-11-11, migración `0004`): `banned_ids` guarda el `ref` del dispositivo que
+> propagó cada baneo automático, así que un desbaneo por `ref` los borra en el momento y no en la
+> siguiente comprobación del dispositivo. Antes, quien desbaneaba un dispositivo seguía viendo sus
+> baneos automáticos en la lista hasta que el dispositivo abría la app. Las filas anteriores a la
+> migración no tienen `ref` y se siguen borrando en esa siguiente comprobación.
 
 > Implementación (2026-11-10): la API de administración pasa a ser una API de verdad para
 > cualquier cliente (un panel web, un bot, el backend de una app), no solo para la CLI. Tres
@@ -310,6 +318,7 @@ CREATE TABLE banned_ids (
   reason      TEXT NOT NULL CHECK (reason IN ('manual', 'propagated')),
   note        TEXT,
   created_at  INTEGER NOT NULL,
+  ref         TEXT,             -- migración 0004: el dispositivo que lo propagó; NULL si es manual
   PRIMARY KEY (app, hash)
 );
 
@@ -383,8 +392,7 @@ async function appleJWT(p8: string, keyId: string, teamId: string): Promise<stri
   para ES256: no hay que convertir desde DER.
 - Cachear el JWT en memoria del isolate y regenerarlo a los 30 minutos.
 - Cada llamada a Apple lleva `transaction_id` (UUID nuevo) y `timestamp` (ms UTC).
-- **Por verificar**: si el entorno de TestFlight usa el endpoint de producción de DeviceCheck
-  (es lo esperado).
+- TestFlight usa el endpoint de producción de DeviceCheck: verificado el 2026-11-11 (sección 16).
 
 ### 7.3 Configuración y secretos
 
@@ -620,7 +628,10 @@ el Worker más adelante.
 ## 16. Pendientes de verificar
 
 1. ~~Importación `pkcs8` de una clave P-256 en Workers.~~ **Verificado** el 2026-10-15 con un test en `workerd` (`worker/test/jwt.test.ts`).
-2. Endpoint de DeviceCheck que corresponde a TestFlight. **La documentación no lo dice**
+2. ~~Endpoint de DeviceCheck que corresponde a TestFlight.~~ **Verificado** el 2026-11-11 con una
+   build de TestFlight en un iPhone: con `env = production`, Apple respondió la consulta (`bit0`
+   false, no un error) y aceptó la escritura que limpió `bit0`, así que el desbaneo por `ref` se
+   consumió. **La documentación no lo dice**
    (consultado el 2026-11-02): solo que `api.development` es "only for testing during
    development". Para App Attest, Apple sí dice que TestFlight usa producción
    (`com.apple.developer.devicecheck.appattest-environment`). El SDK manda `development` solo en

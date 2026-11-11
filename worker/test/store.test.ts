@@ -9,7 +9,7 @@ describe("Store", () => {
 
   // D1 rejects an empty batch ("No SQL statements detected"): the guard is required.
   it("insertPropagated with no identifiers does not call D1", async () => {
-    await expect(new Store(guardEnv.DB).insertPropagated("demo", [], Date.now())).resolves.toBeUndefined();
+    await expect(new Store(guardEnv.DB).insertPropagated("demo", "ABCDEF12", [], Date.now())).resolves.toBeUndefined();
   });
 
   // Only a hash can be "removed": scheduling a ref changes a row too, but that is not a removal.

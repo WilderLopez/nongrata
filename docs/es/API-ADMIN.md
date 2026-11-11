@@ -44,7 +44,7 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
 | Método y ruta | Qué hace |
 |---|---|
 | `POST /v1/admin/ban` | Banea `{ app, kind, value o hash, note? }` como `manual`. Devuelve `{ app, kind, hash }`. |
-| `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra ese hash (`removed` dice si estaba); `{ app, ref }` programa el desbaneo completo de ese dispositivo en su próxima comprobación (`unban_scheduled: true`). Se pueden mandar los dos a la vez. |
+| `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra ese hash (`removed` dice si estaba); `{ app, ref }` borra en el momento los baneos automáticos que propagó ese dispositivo y programa su desbaneo completo en su próxima comprobación (`unban_scheduled: true`). Se pueden mandar los dos a la vez. |
 | `GET /v1/admin/lookup` | `?app&ref`: el desbaneo pendiente o consumido del dispositivo y sus últimas 20 comprobaciones. `?app&kind&(value o hash)`: la fila del baneo, o `null`. |
 | `GET /v1/admin/bans` | La lista de hashes baneados, de más reciente a más antiguo. Filtros: `kind`, `reason` (`manual` o `propagated`). |
 | `GET /v1/admin/checks` | Las comprobaciones recientes (`check_log`), de más reciente a más antigua. Filtros: `ref`, `blocked` (`0` o `1`), `since` (ms Unix, inclusive). |

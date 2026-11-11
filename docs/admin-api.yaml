@@ -102,8 +102,9 @@ paths:
       description: |
         - `{ app, kind, value | hash }` deletes that hash from the list (`removed` says whether it
           was there).
-        - `{ app, ref }` schedules a full unban of that device: on its next check the Worker sets
-          `bit0` to false and deletes the hashes the check carries.
+        - `{ app, ref }` deletes at once the automatic (`propagated`) bans that device added and
+          schedules its full unban: on its next check the Worker sets `bit0` to false and deletes
+          the hashes the check carries, except manual bans made after the unban was scheduled.
 
         Both can go in one request. Every successful call is recorded in the admin log, also
         when `removed` is false.

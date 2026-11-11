@@ -27,7 +27,8 @@ Without propagation, you would have to find and manually ban every identifier of
 - It applies to any block, whether it comes from a hash or from `bit0`, but only with `ENFORCE`
   on: in [observation mode](fail-open-and-observation.md) there is no propagation.
 - It never overwrites a `manual` entry.
-- An unban by `ref` deletes that device's hashes, including the propagated ones.
+- Each propagated row keeps the `ref` of the device that added it, so an unban by `ref` deletes
+  that device's propagated hashes at once; the rest of its hashes go on its next check.
 - Tricky case: a couple who share an Apple account. It is fixed by removing only the `icloud`
   hash with `pnpm ng unban app=myapp kind=icloud hash=…`.
 

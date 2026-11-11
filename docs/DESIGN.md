@@ -230,7 +230,7 @@ if the app's ENFORCE is off:           // pure observation mode (decided on 2026
 if matched and bits and bits.bit0 != true:
     update_two_bits(bit0 = true)
 if blocked:
-    insert the new hashes into banned_ids with reason = propagated (without overwriting existing ones)
+    insert the new hashes into banned_ids with reason = propagated and this device's ref (without overwriting existing ones)
 respond { status, ref }
 ```
 
@@ -278,9 +278,17 @@ longer depends on the client.
 All of them with `Authorization: Bearer <ADMIN_TOKEN>`. All of them require the app to be
 configured in that Worker (`HASH_PREFIX_<APP>`); otherwise, 400 `app not configured`, also with
 `hash` or `ref`, so that a typo in `app` does not give a 200 with no effect. Unbanning by `ref`
-is enough for a complete unban: on that device's next check, the Worker sets `bit0` to false and
-deletes the hashes the request carries. Unbanning a single hash is for removing a specific
-identifier (for example, the `icloud` of a couple who share an account).
+is enough for a complete unban: at once, the Worker deletes the automatic (`propagated`) bans that
+device added; on its next check, it sets `bit0` to false and deletes the hashes the request
+carries, except manual bans made after the unban was scheduled (they are newer decisions).
+Unbanning a single hash is for removing a specific identifier (for example, the `icloud` of a
+couple who share an account).
+
+> Implementation (2026-11-11, migration `0004`): `banned_ids` keeps the `ref` of the device that
+> propagated each automatic ban, so an unban by `ref` removes them at once instead of on the
+> device's next check. Before, an administrator who unbanned a device still saw its automatic
+> bans in the list until the device opened the app. The rows from before the migration have no
+> `ref` and still go on that next check.
 
 > Implementation (2026-11-10): the admin API became a proper API for any client (a web panel, a
 > bot, an app backend), not only the CLI. Three listings (`bans`, `checks`, `log`) with keyset
@@ -311,6 +319,7 @@ CREATE TABLE banned_ids (
   reason      TEXT NOT NULL CHECK (reason IN ('manual', 'propagated')),
   note        TEXT,
   created_at  INTEGER NOT NULL,
+  ref         TEXT,             -- migration 0004: the device that propagated it; NULL if manual
   PRIMARY KEY (app, hash)
 );
 
@@ -383,8 +392,7 @@ async function appleJWT(p8: string, keyId: string, teamId: string): Promise<stri
   requires for ES256: no conversion from DER is needed.
 - Cache the JWT in the isolate's memory and regenerate it after 30 minutes.
 - Every call to Apple carries a `transaction_id` (new UUID) and a `timestamp` (ms UTC).
-- **To verify**: whether the TestFlight environment uses the DeviceCheck production endpoint
-  (that is expected).
+- TestFlight uses the DeviceCheck production endpoint: verified on 2026-11-11 (section 16).
 
 ### 7.3 Configuration and secrets
 
@@ -626,7 +634,10 @@ later on.
 
 1. ~~`pkcs8` import of a P-256 key in Workers.~~ **Verified** on 2026-10-15 with a test in
    `workerd` (`worker/test/jwt.test.ts`).
-2. DeviceCheck endpoint that corresponds to TestFlight. **The documentation doesn't say**
+2. ~~DeviceCheck endpoint that corresponds to TestFlight.~~ **Verified** on 2026-11-11 with a
+   TestFlight build on an iPhone: with `env = production`, Apple answered the query (`bit0`
+   false, not an error) and accepted the write that cleared `bit0`, so the unban by `ref` was
+   consumed. **The documentation doesn't say**
    (checked on 2026-11-02): only that `api.development` is "only for testing during
    development". For App Attest, Apple does say that TestFlight uses production
    (`com.apple.developer.devicecheck.appattest-environment`). The SDK sends `development` only in

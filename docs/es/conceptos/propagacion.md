@@ -27,7 +27,9 @@ Sin propagación habría que encontrar y banear a mano cada identificador de cad
 - Se aplica a cualquier bloqueo, venga de un hash o de `bit0`, pero solo con `ENFORCE` activo:
   en [modo observación](fail-open-y-observacion.md) no se propaga.
 - Nunca pisa una marca `manual`.
-- El desbaneo por `ref` borra los hashes de ese dispositivo, incluidos los propagados.
+- Cada fila propagada guarda el `ref` del dispositivo que la añadió, así que un desbaneo por
+  `ref` borra en el momento los hashes propagados de ese dispositivo; el resto de sus hashes, en
+  su siguiente comprobación.
 - Caso delicado: una pareja que comparte cuenta de Apple. Se arregla retirando solo el hash
   `icloud` con `pnpm ng unban app=myapp kind=icloud hash=…`.
 

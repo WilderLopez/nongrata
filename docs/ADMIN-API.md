@@ -42,7 +42,7 @@ of the design document.
 | Method and route | What it does |
 |---|---|
 | `POST /v1/admin/ban` | Bans `{ app, kind, value or hash, note? }` as `manual`. Returns `{ app, kind, hash }`. |
-| `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes that hash (`removed` says whether it was there); `{ app, ref }` schedules a full unban of that device on its next check (`unban_scheduled: true`). Both can go together. |
+| `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes that hash (`removed` says whether it was there); `{ app, ref }` deletes at once the automatic bans that device propagated and schedules its full unban on its next check (`unban_scheduled: true`). Both can go together. |
 | `GET /v1/admin/lookup` | `?app&ref`: the device's pending or consumed unban and its last 20 checks. `?app&kind&(value or hash)`: the ban row, or `null`. |
 | `GET /v1/admin/bans` | The list of banned hashes, newest first. Filters: `kind`, `reason` (`manual` or `propagated`). |
 | `GET /v1/admin/checks` | The recent checks (`check_log`), newest first. Filters: `ref`, `blocked` (`0` or `1`), `since` (Unix ms, inclusive). |

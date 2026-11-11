@@ -33,7 +33,7 @@ Una base de datos SQLite gestionada por Cloudflare. El Worker la ve como `env.DB
 
 | Tabla | Qué guarda |
 |---|---|
-| `banned_ids` | Los hashes baneados, con `reason` = `manual` o `propagated`. Clave `(app, hash)`. |
+| `banned_ids` | Los hashes baneados, con `reason` = `manual` o `propagated` y, en los propagados, el `ref` del dispositivo que los añadió. Clave `(app, hash)`. |
 | `unban_refs` | Los desbaneos por `ref`: pendientes o ya consumidos. |
 | `check_log` | El resultado de cada comprobación. Nunca identificadores ni IPs. |
 

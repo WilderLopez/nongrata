@@ -123,12 +123,13 @@ export class Store {
     return row !== null;
   }
 
-  async pendingUnban(app: string, ref: string): Promise<boolean> {
+  /** When the pending unban of `ref` was scheduled, or `null` if there is none. */
+  async pendingUnban(app: string, ref: string): Promise<number | null> {
     const row = await this.db
-      .prepare("SELECT 1 FROM unban_refs WHERE app = ? AND ref = ? AND consumed_at IS NULL")
+      .prepare("SELECT created_at FROM unban_refs WHERE app = ? AND ref = ? AND consumed_at IS NULL")
       .bind(app, ref)
-      .first();
-    return row !== null;
+      .first<{ created_at: number }>();
+    return row?.created_at ?? null;
   }
 
   async consumeUnban(app: string, ref: string, now: number): Promise<void> {
@@ -138,14 +139,17 @@ export class Store {
       .run();
   }
 
-  /** Inserts without overwriting existing rows (a manual mark does not become `propagated`). */
-  async insertPropagated(app: string, ids: IdHash[], now: number): Promise<void> {
+  /**
+   * Inserts without overwriting existing rows (a manual mark does not become `propagated`), with
+   * the `ref` of the device that carried them so an unban by that ref can remove them at once.
+   */
+  async insertPropagated(app: string, ref: string, ids: IdHash[], now: number): Promise<void> {
     if (ids.length === 0) return;
     const stmt = this.db.prepare(
-      `INSERT INTO banned_ids (app, hash, kind, reason, note, created_at)
-       VALUES (?, ?, ?, 'propagated', NULL, ?) ON CONFLICT (app, hash) DO NOTHING`,
+      `INSERT INTO banned_ids (app, hash, kind, reason, note, created_at, ref)
+       VALUES (?, ?, ?, 'propagated', NULL, ?, ?) ON CONFLICT (app, hash) DO NOTHING`,
     );
-    await this.db.batch(ids.map((id) => stmt.bind(app, id.hash, id.kind, now)));
+    await this.db.batch(ids.map((id) => stmt.bind(app, id.hash, id.kind, now, ref)));
   }
 
   /** Manual ban (overwrites a `propagated` mark) and its admin_log row, in one transaction. */
@@ -156,7 +160,7 @@ export class Store {
           `INSERT INTO banned_ids (app, hash, kind, reason, note, created_at)
            VALUES (?, ?, ?, 'manual', ?, ?)
            ON CONFLICT (app, hash) DO UPDATE SET kind = excluded.kind, reason = 'manual',
-             note = excluded.note, created_at = excluded.created_at`,
+             note = excluded.note, created_at = excluded.created_at, ref = NULL`,
         )
         .bind(app, id.hash, id.kind, note, now),
       this.adminLogInsert(app, { action: "ban", kind: id.kind, hash: id.hash, ref: null, note, device_id: null, actor }, now),
@@ -165,7 +169,8 @@ export class Store {
 
   /**
    * Deletes the hash, schedules the unban by `ref` (either or both) and writes the admin_log row,
-   * in one transaction. `true` if the hash was in the list.
+   * in one transaction. An unban by `ref` also removes the automatic bans that device
+   * propagated. `true` if the hash was in the list.
    */
   async unban(app: string, id: IdHash | null, ref: string | null, actor: Actor, now: number): Promise<boolean> {
     const statements: D1PreparedStatement[] = [];
@@ -180,6 +185,7 @@ export class Store {
              ON CONFLICT (app, ref) DO UPDATE SET created_at = excluded.created_at, consumed_at = NULL`,
           )
           .bind(app, ref, now),
+        this.db.prepare("DELETE FROM banned_ids WHERE app = ? AND ref = ? AND reason = 'propagated'").bind(app, ref),
       );
     }
     const entry = {
@@ -206,19 +212,26 @@ export class Store {
       .bind(app, e.action, e.kind, e.hash, e.ref, e.note, e.device_id, e.actor, now);
   }
 
-  async removeHashes(app: string, hashes: string[]): Promise<void> {
+  /**
+   * Removes the hashes of a device whose unban by ref was scheduled at `scheduledAt`, except the
+   * manual bans made after it: those are newer decisions and win.
+   */
+  async removeHashes(app: string, hashes: string[], scheduledAt: number): Promise<void> {
     // Stryker disable next-line ConditionalExpression: SQLite accepts `IN ()` and deletes nothing; the guard only saves the query.
     if (hashes.length === 0) return;
     const marks = hashes.map(() => "?").join(", ");
     await this.db
-      .prepare(`DELETE FROM banned_ids WHERE app = ? AND hash IN (${marks})`)
-      .bind(app, ...hashes)
+      .prepare(
+        `DELETE FROM banned_ids WHERE app = ? AND hash IN (${marks})
+         AND (reason = 'propagated' OR created_at <= ?)`,
+      )
+      .bind(app, ...hashes, scheduledAt)
       .run();
   }
 
   async getBanned(app: string, hash: string): Promise<BannedRow | null> {
     return this.db
-      .prepare("SELECT * FROM banned_ids WHERE app = ? AND hash = ?")
+      .prepare("SELECT app, hash, kind, reason, note, created_at FROM banned_ids WHERE app = ? AND hash = ?")
       .bind(app, hash)
       .first<BannedRow>();
   }

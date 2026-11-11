@@ -99,15 +99,16 @@ export async function runCheck(
   const log = (blocked: boolean, bit0: boolean | null) =>
     store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent }, now);
 
-  if (unban) {
-    // Full unban: bit0 set to false and the hashes this device sends removed, since the admin
-    // cannot work them out from the ref. It is only consumed once the bit is clear; if Apple
+  if (unban !== null) {
+    // Full unban: bit0 set to false and the hashes this device sends removed (its automatic
+    // bans went when the unban was scheduled; this also catches manual ones and older rows
+    // without a ref). Manual bans made after the unban was scheduled stay: they are newer. It is only consumed once the bit is clear; if Apple
     // fails or the request lacks either of the two tokens, let the device in and retry on the
     // next check (consuming it would leave bit0 set and the device would be blocked again).
     // Without an Apple key there is no bit to clear: it is consumed with D1 alone.
     const cleared = deviceCheck ? (dc && updateToken ? await dc.setBit0(req.env, updateToken, false) : false) : true;
     if (cleared) {
-      await store.removeHashes(app, req.ids.map((id) => id.hash));
+      await store.removeHashes(app, req.ids.map((id) => id.hash), unban);
       await store.consumeUnban(app, ref, now);
     }
     await log(false, cleared && dc ? false : (bits?.bit0 ?? null));
@@ -126,7 +127,7 @@ export async function runCheck(
     // Propagation: a blocked device marks all of its identifiers, so the block jumps to other
     // devices with the same iCloud account. Existing rows are not overwritten.
     if (blocked) {
-      await store.insertPropagated(app, req.ids, now);
+      await store.insertPropagated(app, ref, req.ids, now);
     }
   }
 

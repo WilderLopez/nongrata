@@ -146,6 +146,49 @@ describe("POST /v1/device/check", () => {
     expect((await check({ dc_token: TOKEN, ids }, dc)).body.status).toBe("ok");
   });
 
+  it("unban by ref removes that device's automatic bans at once, not someone else's", async () => {
+    const ids = randomIds();
+    const other = randomIds();
+    const ref = refFromInstallHash(ids.install);
+    await ban("demo", "install", ids.install);
+    await ban("demo", "install", other.install);
+    await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, new FakeDeviceCheck());
+    await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids: other }, new FakeDeviceCheck());
+    const banned = async (kind: string, hash: string) =>
+      (await adminCall("GET", "/v1/admin/lookup", { app: "demo", kind, hash })).body.banned as { reason: string } | null;
+    expect(await banned("idfv", ids.idfv)).toMatchObject({ reason: "propagated" });
+
+    await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
+
+    // Before the device checks in again: its automatic bans are gone, its manual one waits.
+    expect(await banned("idfv", ids.idfv)).toBeNull();
+    expect(await banned("icloud", ids.icloud)).toBeNull();
+    expect(await banned("install", ids.install)).toMatchObject({ reason: "manual" });
+    expect(await banned("idfv", other.idfv)).toMatchObject({ reason: "propagated" });
+    expect(await banned("icloud", other.icloud)).toMatchObject({ reason: "propagated" });
+  });
+
+  it("a manual ban made after the unban was scheduled survives it", async () => {
+    const ids = randomIds();
+    const ref = refFromInstallHash(ids.install);
+    const dc = new FakeDeviceCheck({ bit0: true });
+    await ban("demo", "install", ids.install);
+    await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
+    // Date.now() only moves between I/O in workerd: make sure the new ban is strictly later.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await ban("demo", "idfv", ids.idfv);
+
+    // The pending unban lets the device in, clears bit0 and removes the older ban only.
+    expect((await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc)).body.status).toBe("ok");
+    const lookup = async (kind: string, hash: string) =>
+      (await adminCall("GET", "/v1/admin/lookup", { app: "demo", kind, hash })).body.banned;
+    expect(await lookup("install", ids.install)).toBeNull();
+    expect(await lookup("idfv", ids.idfv)).toMatchObject({ reason: "manual" });
+
+    // The newer ban wins on the next check.
+    expect((await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc)).body.status).toBe("blocked");
+  });
+
   it("unban with Apple down: lets the device in but does not consume the ref", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
