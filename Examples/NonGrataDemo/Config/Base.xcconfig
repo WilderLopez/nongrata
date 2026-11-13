@@ -7,5 +7,10 @@ NONGRATA_DEMO_TEAM =
 NONGRATA_DEMO_ENDPOINT =
 NONGRATA_DEMO_APP_ID = demo
 NONGRATA_DEMO_HASH_PREFIX = demo-ban-v1
+// The iCloud layer: the block jumps to other devices with the same Apple Account. Off unless
+// Local.xcconfig turns it on together with the entitlements (see Local.example.xcconfig): an
+// app without CloudKit must not ask for the iCloud ID.
+NONGRATA_DEMO_USE_ICLOUD = NO
+CODE_SIGN_ENTITLEMENTS =
 
 #include? "Local.xcconfig"

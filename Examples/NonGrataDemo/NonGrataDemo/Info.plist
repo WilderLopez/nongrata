@@ -28,6 +28,8 @@
 	<string>$(NONGRATA_DEMO_ENDPOINT)</string>
 	<key>NonGrataDemoHashPrefix</key>
 	<string>$(NONGRATA_DEMO_HASH_PREFIX)</string>
+	<key>NonGrataDemoUseICloud</key>
+	<string>$(NONGRATA_DEMO_USE_ICLOUD)</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

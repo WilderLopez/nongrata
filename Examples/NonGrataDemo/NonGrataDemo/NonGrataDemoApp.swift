@@ -12,6 +12,7 @@ struct NonGrataDemoApp: App {
                 .task {
                     await model.check(.launch)
                     await model.testDeviceCheck()
+                    await model.testICloud()
                 }
         }
         // …and every time the app comes back to the foreground. While the device is not

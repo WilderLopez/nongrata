@@ -36,6 +36,18 @@ For the demo, deploy a separate Worker with app `demo`, `HASH_PREFIX_DEMO = "dem
 
 The DeviceCheck key must belong to the same team that signs the app.
 
+### Optional: the iCloud layer
+
+Off by default. With it on, the app also sends the hash of its iCloud ID (CloudKit's
+`userRecordID`, never the Apple ID itself), so a block jumps to your other devices with the same
+Apple Account. To turn it on, uncomment the two lines at the end of `Config/Local.xcconfig` and
+generate the project again. Your App ID needs the iCloud capability with CloudKit and key-value
+storage; with automatic signing Xcode adds it and creates the container `iCloud.<bundle ID>`
+(Apple does not let you delete a container afterwards).
+
+The second device can be an iPad or an Apple silicon Mac: run the scheme on "My Mac (Designed for
+iPhone)". The app then shows an "iCloud ID hash" row, the same on every device with that account.
+
 ## Try it
 
 From the repo root, with `NONGRATA_URL_DEMO` and `NONGRATA_ADMIN_TOKEN_DEMO` in your environment
@@ -49,6 +61,7 @@ From the repo root, with `NONGRATA_URL_DEMO` and `NONGRATA_ADMIN_TOKEN_DEMO` in 
 | 4 | `pnpm ng unban app=demo ref=<code>` and reopen | Allowed. `bit0` goes back to 0 and the identifiers leave the list. |
 | 5 | Airplane mode **and** Wi-Fi off, open | No local flag: `unknown`, the app opens (fail-open). "Check: sign-up" is refused (strict mode). |
 | 6 | Ban again with network, then go offline and reopen | Still blocked: the SDK keeps the block flag on the device. |
+| 7 | With the iCloud layer on: ban one device, open the app on it, then open it on another device with the same Apple Account | The second one is blocked without having been banned. Unban both, each by its own support code: one that stays blocked adds the iCloud ID back. |
 
 When you finish, unban the device: `bit0` is per device and per team, so it would also affect
 your other apps that use NonGrata with the same key.

@@ -1,3 +1,4 @@
+import CloudKit
 import DeviceCheck
 import Foundation
 import NonGrata
@@ -30,12 +31,20 @@ final class DemoModel {
     /// Result of generating a DeviceCheck token directly, to tell "no tokens" from "Apple failed".
     private(set) var deviceCheckStatus = "not tested"
 
+    /// Result of asking CloudKit for the iCloud ID directly, to tell "no account" from "CloudKit
+    /// failed" or "slower than the SDK waits". The SDK reads it silently and goes on without it.
+    private(set) var iCloudStatus = "not tested"
+
     /// The device's `identifierForVendor`, the value to ban with `kind=idfv`.
     let idfv = UIDevice.current.identifierForVendor?.uuidString
 
     /// DeviceCheck keeps a separate `bit0` per environment: a Debug build from Xcode uses
     /// development and a TestFlight build production, even with the same support code.
     let deviceCheckEnvironment = NonGrataConfiguration.defaultDeviceCheckEnvironment
+
+    /// The iCloud layer, chosen when building (`NONGRATA_DEMO_USE_ICLOUD`): it needs CloudKit and
+    /// key-value storage on the App ID, so it cannot be a switch in the app.
+    let useICloud: Bool
 
     private let defaults = UserDefaults.standard
     /// The values this build was made with (Info.plist).
@@ -56,6 +65,7 @@ final class DemoModel {
         appId = defaults.string(forKey: "appId") ?? built["appId"]!
         hashPrefix = defaults.string(forKey: "hashPrefix") ?? built["hashPrefix"]!
         userId = "user-" + (idfv ?? UUID().uuidString).prefix(8).lowercased()
+        useICloud = value("NonGrataDemoUseICloud") == "YES"
         apply()
     }
 
@@ -78,7 +88,8 @@ final class DemoModel {
         // A short foreground interval so a ban shows up when you come back to the app, not 6 h
         // later. A real app keeps the default.
         nonGrata = NonGrata(configuration: .init(
-            endpoint: url, appId: appId, hashPrefix: hashPrefix, foregroundInterval: .seconds(30)
+            endpoint: url, appId: appId, hashPrefix: hashPrefix, useICloud: useICloud,
+            foregroundInterval: .seconds(30)
         ))
     }
 
@@ -109,6 +120,32 @@ final class DemoModel {
         print("[NonGrataDemo] DeviceCheck: \(deviceCheckStatus)")
     }
 
+    /// Asks CloudKit for the account and the iCloud ID, as the SDK does, and says how it went.
+    func testICloud() async {
+        guard useICloud else { return }
+        let start = ContinuousClock.now
+        do {
+            let container = CKContainer.default()
+            let account = try await container.accountStatus()
+            guard account == .available else {
+                iCloudStatus = switch account {
+                case .noAccount: "no iCloud account on this device"
+                case .restricted: "iCloud is restricted on this device"
+                case .temporarilyUnavailable: "iCloud account temporarily unavailable"
+                default: "iCloud account status unknown"
+                }
+                print("[NonGrataDemo] iCloud: \(iCloudStatus)")
+                return
+            }
+            _ = try await container.userRecordID()
+            let seconds = (ContinuousClock.now - start) / .seconds(1)
+            iCloudStatus = "ID read in \(seconds.formatted(.number.precision(.fractionLength(1)))) s"
+        } catch {
+            iCloudStatus = "failed: \(error.localizedDescription)"
+        }
+        print("[NonGrataDemo] iCloud: \(iCloudStatus)")
+    }
+
     func check(_ intent: CheckIntent) async {
         guard let nonGrata, !isChecking else { return }
         isChecking = true
@@ -116,7 +153,8 @@ final class DemoModel {
         let verdict = await nonGrata.check(intent: intent, userId: intent == .login ? userId : nil)
         let permitted = intent == .signup ? nonGrata.permits(verdict, for: .signup) : nil
         history.insert(Entry(date: .now, intent: intent, verdict: verdict, permitted: permitted), at: 0)
-        print("[NonGrataDemo] check \(intent.rawValue): \(verdict) installId=\(nonGrata.installId ?? "-")")
+        let icloud = useICloud ? " icloudHash=\(nonGrata.iCloudIdHash?.prefix(8) ?? "-")" : ""
+        print("[NonGrataDemo] check \(intent.rawValue): \(verdict) installId=\(nonGrata.installId ?? "-")\(icloud)")
         if history.count > 20 { history.removeLast() }
     }
 

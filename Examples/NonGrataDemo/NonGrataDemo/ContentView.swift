@@ -6,18 +6,47 @@ import UIKit
 struct ContentView: View {
     @Bindable var model: DemoModel
 
+    /// One more for every copy: plays the haptic and restarts the toast's timer.
+    @State private var copies = 0
+    @State private var showsCopied = false
+
     var body: some View {
-        if let nonGrata = model.nonGrata {
-            content
-                // The SDK's optional screen: covers the app only while the verdict is
-                // `.blocked`, and goes away by itself once the Worker answers `ok`.
-                .nonGrataBlockingOverlay(nonGrata) { ref in
-                    Button("Copy support code") { UIPasteboard.general.string = ref }
-                        .buttonStyle(.borderedProminent)
-                }
-        } else {
-            content
+        Group {
+            if let nonGrata = model.nonGrata {
+                content
+                    // The SDK's optional screen: covers the app only while the verdict is
+                    // `.blocked`, and goes away by itself once the Worker answers `ok`.
+                    .nonGrataBlockingOverlay(nonGrata) { ref in
+                        Button("Copy support code") { copy(ref) }
+                            .buttonStyle(.borderedProminent)
+                    }
+            } else {
+                content
+            }
         }
+        // Outside the blocking overlay, so the toast also shows over the suspended screen.
+        .overlay(alignment: .bottom) {
+            if showsCopied {
+                CopiedToast()
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: showsCopied)
+        .sensoryFeedback(.success, trigger: copies)
+        .task(id: copies) {
+            guard copies > 0 else { return }
+            try? await Task.sleep(for: .seconds(2))
+            if !Task.isCancelled { showsCopied = false }
+        }
+    }
+
+    /// Copies and says so: a haptic, a toast and, with VoiceOver, an announcement.
+    private func copy(_ value: String) {
+        UIPasteboard.general.string = value
+        copies += 1
+        showsCopied = true
+        AccessibilityNotification.Announcement(String(localized: "Copied to clipboard")).post()
     }
 
     private var content: some View {
@@ -40,7 +69,7 @@ struct ContentView: View {
         Section("Verdict") {
             if let nonGrata = model.nonGrata {
                 VerdictRow(verdict: nonGrata.verdict)
-                CopyRow(label: "Support code", value: nonGrata.supportCode)
+                CopyRow(label: "Support code", value: nonGrata.supportCode, copy: copy)
             } else {
                 Label("Set your Worker URL in Settings below.", systemImage: "gearshape")
                     .foregroundStyle(.secondary)
@@ -50,14 +79,20 @@ struct ContentView: View {
 
     private var deviceSection: some View {
         Section {
-            CopyRow(label: "installId", value: model.nonGrata?.installId)
-            CopyRow(label: "idfv", value: model.idfv)
-            CopyRow(label: "Ban this device", value: model.banCommand, monospaced: true)
-            CopyRow(label: "Unban by support code", value: model.unbanCommand, monospaced: true)
+            CopyRow(label: "installId", value: model.nonGrata?.installId, copy: copy)
+            CopyRow(label: "idfv", value: model.idfv, copy: copy)
+            if model.useICloud {
+                // What the Worker gets for the Apple Account: never the Apple ID itself.
+                CopyRow(label: "iCloud ID hash", value: model.nonGrata?.iCloudIdHash, copy: copy)
+            }
+            CopyRow(label: "Ban this device", value: model.banCommand, monospaced: true, copy: copy)
+            CopyRow(label: "Unban by support code", value: model.unbanCommand, monospaced: true, copy: copy)
         } header: {
             Text("This device")
         } footer: {
-            Text("Tap a row to copy it. Run the commands from the repo root with the Worker's URL and ADMIN_TOKEN in your environment.")
+            Text(model.useICloud
+                ? "Tap a row to copy it. Run the commands from the repo root with the Worker's URL and ADMIN_TOKEN in your environment. The iCloud ID hash is the same on every device with this Apple Account; it is empty until the first check, or with no account."
+                : "Tap a row to copy it. Run the commands from the repo root with the Worker's URL and ADMIN_TOKEN in your environment.")
         }
     }
 
@@ -86,6 +121,10 @@ struct ContentView: View {
             LabeledContent("DeviceCheck", value: model.deviceCheckStatus)
             LabeledContent("Environment", value: model.deviceCheckEnvironment.rawValue)
             Button("Test DeviceCheck") { Task { await model.testDeviceCheck() } }
+            if model.useICloud {
+                LabeledContent("iCloud", value: model.iCloudStatus)
+                Button("Test iCloud") { Task { await model.testICloud() } }
+            }
         } header: {
             Text("Diagnostics")
         } footer: {
@@ -141,7 +180,9 @@ struct ContentView: View {
         } header: {
             Text("Settings")
         } footer: {
-            Text("appId and hashPrefix must match the Worker (HASH_PREFIX_<APP>). The iCloud layer is off in this demo: it needs CloudKit on the App ID.")
+            Text(model.useICloud
+                ? "appId and hashPrefix must match the Worker (HASH_PREFIX_<APP>). The iCloud layer is on in this build: a block jumps to other devices with the same Apple Account."
+                : "appId and hashPrefix must match the Worker (HASH_PREFIX_<APP>). The iCloud layer is off in this build: it needs CloudKit on the App ID (see Config/Local.example.xcconfig).")
         }
     }
 
@@ -172,10 +213,11 @@ private struct CopyRow: View {
     let label: String
     let value: String?
     var monospaced = false
+    let copy: (String) -> Void
 
     var body: some View {
         Button {
-            UIPasteboard.general.string = value
+            if let value { copy(value) }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).font(.caption).foregroundStyle(.secondary)
@@ -186,6 +228,19 @@ private struct CopyRow: View {
             }
         }
         .disabled(value == nil)
+    }
+}
+
+/// Says that a tap copied something: without it, nothing on screen changes.
+private struct CopiedToast: View {
+    var body: some View {
+        Label("Copied to clipboard", systemImage: "doc.on.doc.fill")
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: .capsule)
+            .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+            .accessibilityHidden(true) // announced when it is copied
     }
 }
 

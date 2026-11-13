@@ -39,6 +39,7 @@ targets:
         NonGrataDemoEndpoint: $(NONGRATA_DEMO_ENDPOINT)
         NonGrataDemoAppId: $(NONGRATA_DEMO_APP_ID)
         NonGrataDemoHashPrefix: $(NONGRATA_DEMO_HASH_PREFIX)
+        NonGrataDemoUseICloud: $(NONGRATA_DEMO_USE_ICLOUD)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(NONGRATA_DEMO_BUNDLE_ID)
@@ -48,4 +49,4 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "2"   # raise it for every TestFlight upload
+        CURRENT_PROJECT_VERSION: "3"   # raise it for every TestFlight upload

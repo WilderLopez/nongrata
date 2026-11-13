@@ -6,3 +6,9 @@ NONGRATA_DEMO_ENDPOINT = https:/$()/nongrata-demo.<your-subdomain>.workers.dev/v
 // Must match the Worker: app "demo" reads HASH_PREFIX_DEMO.
 NONGRATA_DEMO_APP_ID = demo
 NONGRATA_DEMO_HASH_PREFIX = demo-ban-v1
+// Optional: the iCloud layer, to see a ban jump to another device with the same Apple Account.
+// Uncomment both lines. Your App ID needs the iCloud capability with CloudKit and key-value
+// storage; with automatic signing Xcode adds it and creates the container
+// iCloud.<bundle ID> (Apple does not let you delete a container afterwards).
+// NONGRATA_DEMO_USE_ICLOUD = YES
+// CODE_SIGN_ENTITLEMENTS = Config/iCloud.entitlements
