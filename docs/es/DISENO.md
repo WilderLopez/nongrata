@@ -215,7 +215,9 @@ unban   = unban_refs (app, ref) no consumido
 
 bits = dc_token ? query_two_bits(env, dc_token) : null      // "Bit State Not Found" ⇒ bit0 = false
 
-si unban:
+si unban y alguno de los hashes tiene un baneo manual hecho después de programar el desbaneo:
+    cancelar unban                     // gana la última decisión; se sigue como si no lo hubiera
+si no, si unban:
     limpio = dc_token ? update_two_bits(bit0 = false) : true
     si limpio: borrar de banned_ids los hashes de la petición y consumir unban
     responder ok                       // si no quedó limpio, se reintenta en la siguiente
@@ -269,7 +271,7 @@ Worker), de modo que el bloqueo deje de depender del cliente.
 | `POST /v1/admin/ban` | `{ app, kind, value }` o `{ app, kind, hash }`, más `note` opcional. Con `value` en bruto, el Worker calcula el hash con el prefijo de la app y solo guarda el hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra el hash. `{ app, ref }` programa el desbaneo del bit para la próxima comprobación de ese dispositivo. |
 | `GET /v1/admin/lookup` | Por `hash` o `ref`. |
-| `GET /v1/admin/bans` | Los hashes baneados, de más reciente a más antiguo; filtros `kind` y `reason`. |
+| `GET /v1/admin/bans` | Los hashes baneados, de más reciente a más antiguo, cada uno con el `ref` de su dispositivo cuando el Worker lo conoce; filtros `kind` y `reason`. |
 | `GET /v1/admin/checks` | El `check_log` (últimos 30 días), de más reciente a más antiguo; filtros `ref`, `blocked` y `since`. |
 | `GET /v1/admin/log` | Cada `ban` y `unban` con éxito, de más reciente a más antiguo. |
 
@@ -278,15 +280,27 @@ Todas con `Authorization: Bearer <ADMIN_TOKEN>`. Todas exigen que la app esté c
 errata en `app` no dé un 200 sin efecto. Desbanear por `ref` basta para un desbaneo
 completo: en el momento, el Worker borra los baneos automáticos (`propagated`) que añadió ese
 dispositivo; en su siguiente comprobación, pone `bit0` a false y borra los hashes que trae la
-petición, salvo los baneos manuales hechos después de programar el desbaneo (son decisiones
-posteriores). Desbanear un hash suelto sirve para retirar un identificador concreto (por ejemplo,
+petición. Desbanear un hash suelto sirve para retirar un identificador concreto (por ejemplo,
 el `icloud` de una pareja que comparte cuenta).
+
+Gana la última decisión. Un baneo manual hecho después de programar un desbaneo por `ref`, y
+antes de que el dispositivo compruebe, cancela ese desbaneo: el dispositivo queda bloqueado en
+su siguiente comprobación y `bit0` no llega a limpiarse. Banear el `install` del dispositivo lo
+cancela en el momento (el `ref` es el principio de ese hash) y la respuesta lo dice con
+`unban_cancelled: true`; un baneo de otro tipo (`idfv`, `icloud`, `user`) lo cancela cuando el
+dispositivo aparece con ese identificador, porque solo entonces sabe el Worker de quién es. Un
+cliente puede avisar antes de banear: `lookup` por `ref` muestra un desbaneo pendiente con
+`consumed_at: null`.
 
 > Implementación (2026-11-11, migración `0004`): `banned_ids` guarda el `ref` del dispositivo que
 > propagó cada baneo automático, así que un desbaneo por `ref` los borra en el momento y no en la
 > siguiente comprobación del dispositivo. Antes, quien desbaneaba un dispositivo seguía viendo sus
 > baneos automáticos en la lista hasta que el dispositivo abría la app. Las filas anteriores a la
 > migración no tienen `ref` y se siguen borrando en esa siguiente comprobación.
+
+> Implementación (2026-11-11): antes, un baneo hecho con un desbaneo pendiente solo surtía
+> efecto en la segunda comprobación del dispositivo: la primera consumía el desbaneo y lo dejaba
+> entrar.
 
 > Implementación (2026-11-10): la API de administración pasa a ser una API de verdad para
 > cualquier cliente (un panel web, un bot, el backend de una app), no solo para la CLI. Tres
@@ -635,8 +649,9 @@ el Worker más adelante.
    (consultado el 2026-11-02): solo que `api.development` es "only for testing during
    development". Para App Attest, Apple sí dice que TestFlight usa producción
    (`com.apple.developer.devicecheck.appattest-environment`). El SDK manda `development` solo en
-   builds `DEBUG` (`Configuration.swift`), así que TestFlight va a producción. Se confirma en las
-   pruebas de extremo a extremo con una build de TestFlight.
+   builds `DEBUG` (`Configuration.swift`), así que TestFlight va a producción. El 2026-11-13 lo
+   cerró un segundo iPhone con una build de TestFlight: el Worker escribió `bit0` = true, lo leyó
+   en la siguiente comprobación y lo limpió con un desbaneo por `ref`.
 3. Disponibilidad del binding de rate limiting en el plan gratuito. **La documentación no lo
    dice** (consultado el 2026-11-02): ni la página del binding ni las de precios y límites hablan
    de planes. El 2026-11-02 Cloudflare aceptó el binding al desplegar un Worker de prueba en una

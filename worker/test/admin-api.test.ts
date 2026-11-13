@@ -69,13 +69,15 @@ interface Ban {
   reason: string;
   note: string | null;
   created_at: number;
+  /** As stored. The listing answers the start of the hash instead for an `install`. */
+  ref: string | null;
 }
 
 async function insertBans(app: string, rows: Ban[]) {
   const stmt = guardEnv.DB.prepare(
-    "INSERT INTO banned_ids (app, hash, kind, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO banned_ids (app, hash, kind, reason, note, created_at, ref) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
-  await guardEnv.DB.batch(rows.map((r) => stmt.bind(app, r.hash, r.kind, r.reason, r.note, r.created_at)));
+  await guardEnv.DB.batch(rows.map((r) => stmt.bind(app, r.hash, r.kind, r.reason, r.note, r.created_at, r.ref)));
 }
 
 const ban = (created_at: number, extra: Partial<Ban> = {}): Ban => ({
@@ -84,6 +86,7 @@ const ban = (created_at: number, extra: Partial<Ban> = {}): Ban => ({
   reason: "manual",
   note: null,
   created_at,
+  ref: null,
   ...extra,
 });
 
@@ -211,7 +214,7 @@ describe("admin listings: limit and cursor (common to all three)", () => {
 });
 
 describe("GET /v1/admin/bans", () => {
-  it("items with hash, kind, reason, note and created_at, newest first", async () => {
+  it("items with hash, kind, reason, note, created_at and ref, newest first", async () => {
     const { app, get } = freshApp();
     const rows = [
       ban(1000, { kind: "icloud", reason: "propagated" }),
@@ -221,6 +224,22 @@ describe("GET /v1/admin/bans", () => {
     await insertBans(app, rows);
     const res = await get("/v1/admin/bans");
     expect(res).toEqual({ status: 200, body: { app, items: newestFirst(rows), next_cursor: null } });
+  });
+
+  it("ref says whose each ban is: the start of an install hash, or the device that carried an automatic one", async () => {
+    const { app, get } = freshApp();
+    const install = ban(3000, { kind: "install" });
+    const carried = ban(2000, { kind: "idfv", reason: "propagated", ref: randomRef() });
+    // A manual ban of another kind may match several devices, and rows from before migration
+    // 0004 never got a ref: the Worker cannot tell whose they are.
+    const unknown = [ban(1000, { kind: "icloud" }), ban(500, { kind: "idfv", reason: "propagated" })];
+    await insertBans(app, [install, carried, ...unknown]);
+    const res = await get<Ban>("/v1/admin/bans");
+    expect(res.body.items).toEqual([
+      { ...install, ref: install.hash.slice(0, 8).toUpperCase() },
+      carried,
+      ...unknown,
+    ]);
   });
 
   it("pages of `limit` that add up to the whole list, ties broken by hash", async () => {
@@ -321,9 +340,10 @@ describe("GET /v1/admin/bans", () => {
 
     const items = (await get<Ban>("/v1/admin/bans")).body.items;
     expect(items.find((i) => i.reason === "manual")).toMatchObject({ kind: "user", note: "spam" });
-    expect(items.filter((i) => i.reason === "propagated").map((i) => i.hash).sort()).toEqual(
-      [ids.idfv, ids.install, ids.icloud].sort(),
-    );
+    const propagated = items.filter((i) => i.reason === "propagated");
+    expect(propagated.map((i) => i.hash).sort()).toEqual([ids.idfv, ids.install, ids.icloud].sort());
+    // All three are the same device's: they carry its support code.
+    expect(propagated.map((i) => i.ref)).toEqual(Array(3).fill(ids.install.slice(0, 8).toUpperCase()));
   });
 });
 

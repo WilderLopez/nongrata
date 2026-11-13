@@ -1,4 +1,4 @@
-import type { Kind } from "./hash";
+import { refFromInstallHash, type Kind } from "./hash";
 
 export interface IdHash {
   kind: Kind;
@@ -16,7 +16,8 @@ export interface BannedRow {
   created_at: number;
 }
 
-export type BanListRow = Omit<BannedRow, "app">;
+/** A row of `GET /v1/admin/bans`. `ref` as stored: only automatic bans have one. */
+export type BanListRow = Omit<BannedRow, "app"> & { ref: string | null };
 
 export interface CheckListRow {
   id: number;
@@ -152,9 +153,13 @@ export class Store {
     await this.db.batch(ids.map((id) => stmt.bind(app, id.hash, id.kind, now, ref)));
   }
 
-  /** Manual ban (overwrites a `propagated` mark) and its admin_log row, in one transaction. */
-  async banManual(app: string, id: IdHash, note: string | null, actor: Actor, now: number): Promise<void> {
-    await this.db.batch([
+  /**
+   * Manual ban (overwrites a `propagated` mark) and its admin_log row, in one transaction. The
+   * last decision wins: banning an `install` also cancels that device's pending unban by ref
+   * (the ref is the start of that hash). `true` if it cancelled one.
+   */
+  async banManual(app: string, id: IdHash, note: string | null, actor: Actor, now: number): Promise<boolean> {
+    const statements = [
       this.db
         .prepare(
           `INSERT INTO banned_ids (app, hash, kind, reason, note, created_at)
@@ -164,7 +169,35 @@ export class Store {
         )
         .bind(app, id.hash, id.kind, note, now),
       this.adminLogInsert(app, { action: "ban", kind: id.kind, hash: id.hash, ref: null, note, device_id: null, actor }, now),
-    ]);
+    ];
+    if (id.kind !== "install") {
+      await this.db.batch(statements);
+      return false;
+    }
+    const results = await this.db.batch([...statements, this.cancelUnbanStatement(app, refFromInstallHash(id.hash))]);
+    return results[2]!.meta.changes > 0;
+  }
+
+  private cancelUnbanStatement(app: string, ref: string): D1PreparedStatement {
+    return this.db.prepare("DELETE FROM unban_refs WHERE app = ? AND ref = ? AND consumed_at IS NULL").bind(app, ref);
+  }
+
+  /** Drops the pending unban of `ref`: a newer manual ban replaced it. */
+  async cancelUnban(app: string, ref: string): Promise<void> {
+    await this.cancelUnbanStatement(app, ref).run();
+  }
+
+  /** Whether any of these hashes has a manual ban made after `since` (Unix ms). */
+  async manualBanAfter(app: string, hashes: string[], since: number): Promise<boolean> {
+    const marks = hashes.map(() => "?").join(", ");
+    const row = await this.db
+      .prepare(
+        `SELECT 1 FROM banned_ids WHERE app = ? AND hash IN (${marks})
+         AND reason = 'manual' AND created_at > ? LIMIT 1`,
+      )
+      .bind(app, ...hashes, since)
+      .first();
+    return row !== null;
   }
 
   /**
@@ -214,7 +247,8 @@ export class Store {
 
   /**
    * Removes the hashes of a device whose unban by ref was scheduled at `scheduledAt`, except the
-   * manual bans made after it: those are newer decisions and win.
+   * manual bans made after it. `runCheck` cancels the unban when it sees one of those; this
+   * guard covers a ban that arrives between that look and this delete.
    */
   async removeHashes(app: string, hashes: string[], scheduledAt: number): Promise<void> {
     // Stryker disable next-line ConditionalExpression: SQLite accepts `IN ()` and deletes nothing; the guard only saves the query.
@@ -283,7 +317,7 @@ export class Store {
   /** `GET /v1/admin/bans`: newest first, keyset on (created_at, hash). */
   async listBans(app: string, f: { kind?: Kind; reason?: BanReason }, after: After | null, limit: number) {
     return this.page<BanListRow>(
-      "SELECT hash, kind, reason, note, created_at FROM banned_ids",
+      "SELECT hash, kind, reason, note, created_at, ref FROM banned_ids",
       "hash",
       [
         ["app = ?", app],

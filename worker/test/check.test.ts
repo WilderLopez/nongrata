@@ -168,25 +168,69 @@ describe("POST /v1/device/check", () => {
     expect(await banned("icloud", other.icloud)).toMatchObject({ reason: "propagated" });
   });
 
-  it("a manual ban made after the unban was scheduled survives it", async () => {
+  // The last decision wins: a manual ban made after an unban was scheduled replaces it.
+  it("banning the install cancels that device's pending unban at once", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);
     const dc = new FakeDeviceCheck({ bit0: true });
+    const pending = async () => (await adminCall("GET", "/v1/admin/lookup", { app: "demo", ref })).body.unban;
+    await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
+    expect(await pending()).toMatchObject({ consumed_at: null });
+
+    const banned = await ban("demo", "install", ids.install);
+    expect(banned.body).toEqual({ app: "demo", kind: "install", hash: ids.install, unban_cancelled: true });
+    expect(await pending()).toBeNull();
+
+    // Blocked on its very next check, and bit0 was never cleared.
+    expect((await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc)).body.status).toBe("blocked");
+    expect(dc.writes()).toHaveLength(0);
+  });
+
+  it("a ban says it cancelled an unban only when one was pending", async () => {
+    const ids = randomIds();
+    const ref = refFromInstallHash(ids.install);
+    const plain = { app: "demo", kind: "install", hash: ids.install };
+    expect((await ban("demo", "install", ids.install)).body).toEqual(plain);
+
+    // A consumed unban is history, not something to cancel.
+    await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
+    await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, new FakeDeviceCheck());
+    expect((await ban("demo", "install", ids.install)).body).toEqual(plain);
+    const { unban } = (await adminCall("GET", "/v1/admin/lookup", { app: "demo", ref })).body;
+    expect(unban).toMatchObject({ consumed_at: expect.any(Number) });
+  });
+
+  it("a ban of another kind cancels nothing when it is made, even if its hash starts like the ref", async () => {
+    const ids = randomIds();
+    const ref = refFromInstallHash(ids.install);
+    await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
+
+    // The same hash as an idfv: only an install hash names a device.
+    expect((await ban("demo", "idfv", ids.install)).body).toEqual({ app: "demo", kind: "idfv", hash: ids.install });
+    const { unban } = (await adminCall("GET", "/v1/admin/lookup", { app: "demo", ref })).body;
+    expect(unban).toMatchObject({ consumed_at: null });
+  });
+
+  it("a manual ban of another identifier made after the unban cancels it on the device's check", async () => {
+    const ids = randomIds();
+    const ref = refFromInstallHash(ids.install);
+    const dc = new FakeDeviceCheck({ bit0: true });
+    const lookup = async (params: Record<string, string>) =>
+      (await adminCall("GET", "/v1/admin/lookup", { app: "demo", ...params })).body;
     await ban("demo", "install", ids.install);
     await adminCall("POST", "/v1/admin/unban", { app: "demo", ref });
     // Date.now() only moves between I/O in workerd: make sure the new ban is strictly later.
     await new Promise((resolve) => setTimeout(resolve, 5));
     await ban("demo", "idfv", ids.idfv);
+    // The Worker cannot tell whose idfv it is until that device checks in.
+    expect((await lookup({ ref })).unban).toMatchObject({ consumed_at: null });
 
-    // The pending unban lets the device in, clears bit0 and removes the older ban only.
-    expect((await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc)).body.status).toBe("ok");
-    const lookup = async (kind: string, hash: string) =>
-      (await adminCall("GET", "/v1/admin/lookup", { app: "demo", kind, hash })).body.banned;
-    expect(await lookup("install", ids.install)).toBeNull();
-    expect(await lookup("idfv", ids.idfv)).toMatchObject({ reason: "manual" });
-
-    // The newer ban wins on the next check.
+    // Blocked on its first check: the unban is cancelled, bit0 stays set and no ban is removed.
     expect((await check({ dc_token: TOKEN, dc_token_update: TOKEN_UPDATE, ids }, dc)).body.status).toBe("blocked");
+    expect(dc.writes()).toHaveLength(0);
+    expect((await lookup({ ref })).unban).toBeNull();
+    expect((await lookup({ kind: "install", hash: ids.install })).banned).toMatchObject({ reason: "manual" });
+    expect((await lookup({ kind: "idfv", hash: ids.idfv })).banned).toMatchObject({ reason: "manual" });
   });
 
   it("unban with Apple down: lets the device in but does not consume the ref", async () => {

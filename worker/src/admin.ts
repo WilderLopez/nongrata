@@ -4,7 +4,7 @@
 
 import { b64url } from "./apple/jwt";
 import { appConfig, isAppId, type AppConfig, type GuardEnv } from "./env";
-import { hashId, isHash, isKind, isRef, type Kind } from "./hash";
+import { hashId, isHash, isKind, isRef, refFromInstallHash, valueIsHash, type Kind } from "./hash";
 import { json } from "./http";
 import type { Actor, After, BanReason, Store } from "./store";
 
@@ -49,6 +49,8 @@ async function resolveId(
   if (isHash(b.hash)) return { kind: b.kind, hash: b.hash };
   if (b.hash !== undefined) return { error: "invalid hash" };
   if (typeof b.value !== "string" || b.value.length === 0) return { error: "invalid value" };
+  // A hash pasted as the value would be hashed again and match nothing.
+  if (valueIsHash(b.kind, b.value)) return { error: "value is a hash" };
   return { kind: b.kind, hash: await hashId(config.hashPrefix, b.kind, b.value) };
 }
 
@@ -72,9 +74,12 @@ export async function ban(request: Request, env: GuardEnv, store: Store, actor: 
   if (!id) return json({ error: "missing value or hash" }, 400);
   if ("error" in id) return json(id, 400);
   const note = typeof b.note === "string" ? b.note.slice(0, 500) : null;
-  // The ban and its admin_log row go in one transaction.
-  await store.banManual(app, id, note, actor, now);
-  return json({ app, kind: id.kind, hash: id.hash });
+  // The ban and its admin_log row go in one transaction, and so does cancelling the device's
+  // pending unban when the ban is of its `install`: the last decision wins.
+  const cancelled = await store.banManual(app, id, note, actor, now);
+  const result: Record<string, unknown> = { app, kind: id.kind, hash: id.hash };
+  if (cancelled) result.unban_cancelled = true;
+  return json(result);
 }
 
 export async function unban(request: Request, env: GuardEnv, store: Store, actor: Actor, now: number) {
@@ -202,7 +207,11 @@ export async function listBans(url: URL, env: GuardEnv, store: Store) {
 
   const filters = { kind: p.kind as Kind | undefined, reason: p.reason as BanReason | undefined };
   const rows = await store.listBans(app, filters, params.after, params.limit + 1);
-  return page(app, rows, params.limit, (r) => r.hash, (r) => r);
+  // Each ban with the device it belongs to, so a client can show one device instead of one row
+  // per identifier: the ref of an `install` is the start of its hash, and an automatic ban keeps
+  // the ref of the device that carried it. `null` when the Worker cannot tell.
+  const withRef = (r: (typeof rows)[number]) => ({ ...r, ref: r.kind === "install" ? refFromInstallHash(r.hash) : r.ref });
+  return page(app, rows, params.limit, (r) => r.hash, withRef);
 }
 
 export async function listChecks(url: URL, env: GuardEnv, store: Store) {

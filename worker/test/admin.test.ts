@@ -82,6 +82,8 @@ describe("admin: authorization", () => {
   });
 });
 
+const A_HASH = "aa11deb247b5206df2d97ed0634cb04ae5d66d1f36616b3a683be06912b8848b";
+
 describe("admin: validation (400 with the reason)", () => {
   const post = (path: string, body: string) =>
     rawAdmin(path, { method: "POST", headers: { authorization: `Bearer ${TOKEN}` }, body });
@@ -98,6 +100,11 @@ describe("admin: validation (400 with the reason)", () => {
     ["ban", { app: "demo", kind: "idfv", value: "" }, "invalid value"],
     ["ban", { app: "demo", kind: "idfv", value: 123 }, "invalid value"],
     ["ban", { app: "nope", kind: "idfv", value: "x" }, "app not configured"],
+    // A hash pasted as the value would be hashed again and match nothing.
+    ["ban", { app: "demo", kind: "icloud", value: A_HASH }, "value is a hash"],
+    ["ban", { app: "demo", kind: "idfv", value: A_HASH }, "value is a hash"],
+    ["ban", { app: "demo", kind: "install", value: ` ${A_HASH.toUpperCase()}\n` }, "value is a hash"],
+    ["unban", { app: "demo", kind: "icloud", value: A_HASH }, "value is a hash"],
     ["unban", { app: "Demo!", ref: "A1B2C3D4" }, "invalid app"],
     ["unban", { app: "demo", ref: "a1b2c3d4" }, "invalid ref"],
     ["unban", { app: "demo" }, "missing value, hash or ref"],
@@ -111,12 +118,22 @@ describe("admin: validation (400 with the reason)", () => {
     [{ app: "demo", ref: "a1b2c3d4" }, "invalid ref"],
     [{ app: "demo" }, "missing ref, value or hash"],
     [{ app: "demo", kind: "ip", value: "x" }, "invalid kind"],
+    [{ app: "demo", kind: "icloud", value: A_HASH }, "value is a hash"],
   ])("lookup %j: %s", async (payload, error) => {
     expect(await adminCall("GET", "/v1/admin/lookup", payload)).toEqual({ status: 400, body: { error } });
   });
 });
 
 describe("admin: responses", () => {
+  // A user ID is the app's own and may have the shape of a hash: it is hashed like any other.
+  it("ban accepts a user value that looks like a hash", async () => {
+    const value = randomHash();
+    const res = await adminCall("POST", "/v1/admin/ban", { app: "demo", kind: "user", value });
+    expect(res.status).toBe(200);
+    expect(res.body.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(res.body.hash).not.toBe(value);
+  });
+
   it("ban stores the note truncated to 500 characters", async () => {
     const hash = randomHash();
     await adminCall("POST", "/v1/admin/ban", { app: "demo", kind: "user", hash, note: "n".repeat(600) });

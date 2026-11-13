@@ -90,8 +90,9 @@ export async function runCheck(
   // No second token, no write: reusing the query token goes against what Apple asks.
   const updateToken = req.dcTokenUpdate;
 
+  const hashes = req.ids.map((id) => id.hash);
   const [matched, unban, bits] = await Promise.all([
-    store.anyBanned(app, req.ids.map((id) => id.hash)),
+    store.anyBanned(app, hashes),
     store.pendingUnban(app, ref),
     dc ? dc.query(req.env, req.dcToken!) : Promise.resolve<TwoBits | null>(null),
   ]);
@@ -100,19 +101,27 @@ export async function runCheck(
     store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent }, now);
 
   if (unban !== null) {
-    // Full unban: bit0 set to false and the hashes this device sends removed (its automatic
-    // bans went when the unban was scheduled; this also catches manual ones and older rows
-    // without a ref). Manual bans made after the unban was scheduled stay: they are newer. It is only consumed once the bit is clear; if Apple
-    // fails or the request lacks either of the two tokens, let the device in and retry on the
-    // next check (consuming it would leave bit0 set and the device would be blocked again).
-    // Without an Apple key there is no bit to clear: it is consumed with D1 alone.
-    const cleared = deviceCheck ? (dc && updateToken ? await dc.setBit0(req.env, updateToken, false) : false) : true;
-    if (cleared) {
-      await store.removeHashes(app, req.ids.map((id) => id.hash), unban);
-      await store.consumeUnban(app, ref, now);
+    if (await store.manualBanAfter(app, hashes, unban)) {
+      // The last decision wins: a manual ban made after the unban was scheduled cancels it,
+      // and the device is judged like any other. Banning an `install` already cancels it when
+      // the ban is made (the ref is known then); this catches the other kinds, whose device
+      // only shows up here.
+      await store.cancelUnban(app, ref);
+    } else {
+      // Full unban: bit0 set to false and the hashes this device sends removed (its automatic
+      // bans went when the unban was scheduled; this also catches manual ones and older rows
+      // without a ref). It is only consumed once the bit is clear; if Apple fails or the
+      // request lacks either of the two tokens, let the device in and retry on the next check
+      // (consuming it would leave bit0 set and the device would be blocked again). Without an
+      // Apple key there is no bit to clear: it is consumed with D1 alone.
+      const cleared = deviceCheck ? (dc && updateToken ? await dc.setBit0(req.env, updateToken, false) : false) : true;
+      if (cleared) {
+        await store.removeHashes(app, hashes, unban);
+        await store.consumeUnban(app, ref, now);
+      }
+      await log(false, cleared && dc ? false : (bits?.bit0 ?? null));
+      return { status: "ok", ref };
     }
-    await log(false, cleared && dc ? false : (bits?.bit0 ?? null));
-    return { status: "ok", ref };
   }
 
   const blocked = matched || bits?.bit0 === true;

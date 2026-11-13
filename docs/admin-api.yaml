@@ -60,6 +60,12 @@ paths:
         Adds the hash as a `manual` ban, or turns an existing `propagated` one into `manual`
         (with the new note and time). With `value`, the Worker hashes it with the app's prefix.
         The ban and its admin log entry are written in one transaction.
+
+        The last decision wins: a ban made after an unban by `ref` was scheduled, and before
+        the device checked in, cancels that unban. A ban of the device's `install` cancels it at
+        once and answers `unban_cancelled: true`; a ban of another kind cancels it when the
+        device checks in with that identifier. To warn before banning, look the `ref` up: a
+        pending unban has `consumed_at: null`.
       requestBody:
         required: true
         content:
@@ -85,12 +91,18 @@ paths:
                   app: { $ref: "#/components/schemas/App" }
                   kind: { $ref: "#/components/schemas/Kind" }
                   hash: { $ref: "#/components/schemas/Hash" }
+                  unban_cancelled:
+                    type: boolean
+                    enum: [true]
+                    description: |
+                      Only present when the ban was of an `install` and cancelled that
+                      device's pending unban by `ref`.
               example: { app: myapp, kind: idfv, hash: 9d2c5f8a1b4e7d0c3f6a9b2e5d8c1f4a7b0e3d6c9f2a5b8e1d4c7f0a3b6e9d2c }
         "400":
           $ref: "#/components/responses/BadRequest"
           description: |
             `invalid app`, `app not configured`, `missing value or hash`, `invalid kind`,
-            `invalid hash`, `invalid value`; `ambiguous credentials`.
+            `invalid hash`, `invalid value`, `value is a hash`; `ambiguous credentials`.
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -104,7 +116,8 @@ paths:
           was there).
         - `{ app, ref }` deletes at once the automatic (`propagated`) bans that device added and
           schedules its full unban: on its next check the Worker sets `bit0` to false and deletes
-          the hashes the check carries, except manual bans made after the unban was scheduled.
+          the hashes the check carries. A manual ban made before that check cancels the unban
+          (see `ban`).
 
         Both can go in one request. Every successful call is recorded in the admin log, also
         when `removed` is false.
@@ -150,7 +163,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
           description: |
             `invalid app`, `app not configured`, `missing value, hash or ref`, `invalid kind`,
-            `invalid hash`, `invalid value`, `invalid ref`; `ambiguous credentials`.
+            `invalid hash`, `invalid value`, `value is a hash`, `invalid ref`; `ambiguous credentials`.
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -240,7 +253,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
           description: |
             `invalid app`, `app not configured`, `invalid ref`, `missing ref, value or hash`,
-            `invalid kind`, `invalid hash`, `invalid value`.
+            `invalid kind`, `invalid hash`, `invalid value`, `value is a hash`.
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/admin/bans:
@@ -283,6 +296,7 @@ paths:
                     reason: manual
                     note: spam
                     created_at: 1762790400000
+                    ref: null
                 next_cursor: MTc2Mjc5MDQwMDAwMC45ZDJjNWY4YTFiNGU3ZDBjM2Y2YTliMmU1ZDhjMWY0YTdiMGUzZDZjOWYyYTViOGUxZDRjN2YwYTNiNmU5ZDJj
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -909,7 +923,14 @@ components:
       properties:
         app: { $ref: "#/components/schemas/App" }
         kind: { $ref: "#/components/schemas/Kind" }
-        value: { type: string, minLength: 1, description: Raw identifier; hashed and not kept. }
+        value:
+          type: string
+          minLength: 1
+          description: |
+            Raw identifier; hashed and not kept. For `idfv`, `install` and `icloud`, a value
+            with the shape of a hash (64 hex characters) is refused with `value is a hash`: it
+            is a hash in the wrong field, and hashing it again would match nothing. Send it as
+            `hash`.
         note: { type: string, description: Truncated to 500 characters. }
     BanByHash:
       type: object
@@ -940,13 +961,22 @@ components:
           description: Pass it as `cursor` for the next page; `null` on the last one.
     Ban:
       type: object
-      required: [hash, kind, reason, note, created_at]
+      required: [hash, kind, reason, note, created_at, ref]
       properties:
         hash: { $ref: "#/components/schemas/Hash" }
         kind: { $ref: "#/components/schemas/Kind" }
         reason: { $ref: "#/components/schemas/Reason" }
         note: { $ref: "#/components/schemas/Note" }
         created_at: { $ref: "#/components/schemas/Millis" }
+        ref:
+          description: |
+            The device the ban belongs to: bans with the same `ref` are one device. The start of
+            the hash for an `install`, and the device that carried it for an automatic ban.
+            `null` when the Worker cannot tell: a manual ban of another kind (it may match several
+            devices) or an automatic one from before migration `0004`.
+          oneOf:
+            - $ref: "#/components/schemas/Ref"
+            - type: "null"
     Check:
       type: object
       required: [ref, blocked, matched, bit0, intent, created_at]

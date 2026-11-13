@@ -34,6 +34,9 @@ The first 8 characters, uppercased, of the `install` hash. Example: `A1B2C3D4`.
 - Support unbans with `pnpm ng unban app=myapp ref=A1B2C3D4`.
 - The unban is complete: on that iPhone's next check, the Worker sets `bit0` to false and
   deletes from the list every hash the request carries.
+- The last decision wins: a manual ban made after the unban, and before that check, cancels it.
+- The admin listing of bans gives each ban's `ref` when the Worker knows it, so the bans of one
+  device can be shown together.
 - The Worker computes the `ref` itself; it never trusts the one the client sends.
 
 ## Normalization (decided on 2026-11-02)

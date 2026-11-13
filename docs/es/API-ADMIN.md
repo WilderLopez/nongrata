@@ -29,12 +29,15 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
   tiempo van en milisegundos Unix.
 - **Errores.** `400` con `{"error": "<motivo>"}`. Los motivos son textos cortos en inglés
   pensados para mostrarse tal cual: `invalid app`, `app not configured`, `invalid kind`,
-  `invalid hash`, `invalid value`, `invalid ref`, `missing value or hash`,
+  `invalid hash`, `invalid value`, `value is a hash`, `invalid ref`, `missing value or hash`,
   `missing value, hash or ref`, `missing ref, value or hash`, `invalid reason`,
   `invalid blocked`, `invalid since`, `invalid limit`, `invalid cursor`; para los
   dispositivos, `invalid role`, `invalid label`, `https required`, `invalid name`,
   `invalid platform`, `invalid pairing` y `ambiguous credentials`. `app` se comprueba siempre lo
-  primero. Los parámetros desconocidos se ignoran. Las rutas de dispositivos responden además
+  primero. Los parámetros desconocidos se ignoran. `value is a hash` significa un `value` de 64
+  caracteres hexadecimales en `idfv`, `install` o `icloud`: es un hash en el campo equivocado, y
+  volver a hashearlo daría un baneo que no coincide con nada, así que mándalo como `hash`. Un
+  valor de `user` sí puede tener esa forma y se acepta. Las rutas de dispositivos responden además
   `404` (`pairing not found`, `not_found` para un dispositivo desconocido), `409`
   (`pairing not claimed`, `pairing already approved`, `pairing expired`) y `429`
   (`rate_limited`, en las reclamaciones).
@@ -43,7 +46,7 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
 
 | Método y ruta | Qué hace |
 |---|---|
-| `POST /v1/admin/ban` | Banea `{ app, kind, value o hash, note? }` como `manual`. Devuelve `{ app, kind, hash }`. |
+| `POST /v1/admin/ban` | Banea `{ app, kind, value o hash, note? }` como `manual`. Devuelve `{ app, kind, hash }`, con `unban_cancelled: true` si era un `install` cuyo dispositivo tenía un desbaneo pendiente: gana la última decisión. |
 | `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra ese hash (`removed` dice si estaba); `{ app, ref }` borra en el momento los baneos automáticos que propagó ese dispositivo y programa su desbaneo completo en su próxima comprobación (`unban_scheduled: true`). Se pueden mandar los dos a la vez. |
 | `GET /v1/admin/lookup` | `?app&ref`: el desbaneo pendiente o consumido del dispositivo y sus últimas 20 comprobaciones. `?app&kind&(value o hash)`: la fila del baneo, o `null`. |
 | `GET /v1/admin/bans` | La lista de hashes baneados, de más reciente a más antiguo. Filtros: `kind`, `reason` (`manual` o `propagated`). |
@@ -99,7 +102,7 @@ Los elementos de cada listado:
 
 | Listado | Elemento |
 |---|---|
-| `bans` | `{ hash, kind, reason, note, created_at }` |
+| `bans` | `{ hash, kind, reason, note, created_at, ref }`: `ref` es el código de soporte del dispositivo al que pertenece el baneo, así que los baneos con el mismo `ref` son un solo dispositivo. Es el principio del hash en un `install`, y el dispositivo que lo trajo en un baneo automático. `null` cuando el Worker no puede saberlo: un baneo manual de otro tipo (puede coincidir con varios dispositivos) o uno automático anterior a la migración `0004` |
 | `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` y `bit0` valen `0` o `1`, como en `lookup` (`bit0` es `null` si no se preguntó a Apple o no respondió); `intent`, tal como lo mandó el SDK |
 | `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` es `ban`, `unban`, `pair` o `revoke`; `device_id` es el dispositivo de `pair` y `revoke`; `actor` es `token` o `device:<device_id>` (`null` antes de la migración `0003`); los campos que no aplican van a `null` |
 

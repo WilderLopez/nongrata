@@ -28,11 +28,14 @@ of the design document.
   response is JSON with `cache-control: no-store`. Timestamps are Unix milliseconds.
 - **Errors.** `400` with `{"error": "<reason>"}`. The reasons are short English strings meant to
   be shown as they are: `invalid app`, `app not configured`, `invalid kind`, `invalid hash`,
-  `invalid value`, `invalid ref`, `missing value or hash`, `missing value, hash or ref`,
-  `missing ref, value or hash`, `invalid reason`, `invalid blocked`, `invalid since`,
+  `invalid value`, `value is a hash`, `invalid ref`, `missing value or hash`,
+  `missing value, hash or ref`, `missing ref, value or hash`, `invalid reason`, `invalid blocked`, `invalid since`,
   `invalid limit`, `invalid cursor`; for devices, `invalid role`, `invalid label`,
   `https required`, `invalid name`, `invalid platform`, `invalid pairing` and
   `ambiguous credentials`. `app` is always checked first. Unknown query parameters are ignored.
+  `value is a hash` means a `value` of 64 hex characters for `idfv`, `install` or `icloud`: it
+  is a hash in the wrong field, and hashing it again would give a ban that matches nothing, so
+  send it as `hash`. A `user` value may have that shape and is accepted.
   The device routes also answer `404` (`pairing not found`, `not_found` for an unknown device),
   `409` (`pairing not claimed`, `pairing already approved`, `pairing expired`) and `429`
   (`rate_limited`, for claims).
@@ -41,7 +44,7 @@ of the design document.
 
 | Method and route | What it does |
 |---|---|
-| `POST /v1/admin/ban` | Bans `{ app, kind, value or hash, note? }` as `manual`. Returns `{ app, kind, hash }`. |
+| `POST /v1/admin/ban` | Bans `{ app, kind, value or hash, note? }` as `manual`. Returns `{ app, kind, hash }`, with `unban_cancelled: true` if it was an `install` whose device had an unban pending: the last decision wins. |
 | `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes that hash (`removed` says whether it was there); `{ app, ref }` deletes at once the automatic bans that device propagated and schedules its full unban on its next check (`unban_scheduled: true`). Both can go together. |
 | `GET /v1/admin/lookup` | `?app&ref`: the device's pending or consumed unban and its last 20 checks. `?app&kind&(value or hash)`: the ban row, or `null`. |
 | `GET /v1/admin/bans` | The list of banned hashes, newest first. Filters: `kind`, `reason` (`manual` or `propagated`). |
@@ -97,7 +100,7 @@ The items of each listing:
 
 | Listing | Item |
 |---|---|
-| `bans` | `{ hash, kind, reason, note, created_at }` |
+| `bans` | `{ hash, kind, reason, note, created_at, ref }`: `ref` is the support code of the device the ban belongs to, so the bans with the same `ref` are one device. It is the start of the hash for an `install`, and the device that carried it for an automatic ban. `null` when the Worker cannot tell: a manual ban of another kind (it may match several devices) or an automatic one from before migration `0004` |
 | `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` and `bit0` are `0` or `1` as in `lookup` (`bit0` is `null` when Apple was not asked or did not answer); `intent` as the SDK sent it |
 | `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` is `ban`, `unban`, `pair` or `revoke`; `device_id` is the device of `pair` and `revoke`; `actor` is `token` or `device:<device_id>` (`null` before migration `0003`); the fields that do not apply are `null` |
 

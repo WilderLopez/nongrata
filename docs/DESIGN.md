@@ -217,7 +217,9 @@ unban   = unban_refs (app, ref) not consumed
 
 bits = dc_token ? query_two_bits(env, dc_token) : null      // "Bit State Not Found" ⇒ bit0 = false
 
-if unban:
+if unban and one of the hashes has a manual ban made after the unban was scheduled:
+    cancel unban                       // the last decision wins; go on as if there were none
+else if unban:
     clean = dc_token ? update_two_bits(bit0 = false) : true
     if clean: delete the request's hashes from banned_ids and consume unban
     respond ok                         // if it was not left clean, retried on the next one
@@ -271,7 +273,7 @@ longer depends on the client.
 | `POST /v1/admin/ban` | `{ app, kind, value }` or `{ app, kind, hash }`, plus optional `note`. With a raw `value`, the Worker computes the hash with the app's prefix and stores only the hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes the hash. `{ app, ref }` schedules the bit unban for that device's next check. |
 | `GET /v1/admin/lookup` | By `hash` or `ref`. |
-| `GET /v1/admin/bans` | The banned hashes, newest first; filters `kind` and `reason`. |
+| `GET /v1/admin/bans` | The banned hashes, newest first, each with the `ref` of its device when the Worker knows it; filters `kind` and `reason`. |
 | `GET /v1/admin/checks` | The `check_log` (last 30 days), newest first; filters `ref`, `blocked` and `since`. |
 | `GET /v1/admin/log` | Every successful `ban` and `unban`, newest first. |
 
@@ -280,15 +282,25 @@ configured in that Worker (`HASH_PREFIX_<APP>`); otherwise, 400 `app not configu
 `hash` or `ref`, so that a typo in `app` does not give a 200 with no effect. Unbanning by `ref`
 is enough for a complete unban: at once, the Worker deletes the automatic (`propagated`) bans that
 device added; on its next check, it sets `bit0` to false and deletes the hashes the request
-carries, except manual bans made after the unban was scheduled (they are newer decisions).
-Unbanning a single hash is for removing a specific identifier (for example, the `icloud` of a
-couple who share an account).
+carries. Unbanning a single hash is for removing a specific identifier (for example, the
+`icloud` of a couple who share an account).
+
+The last decision wins. A manual ban made after an unban by `ref` was scheduled, and before the
+device checked in, cancels that unban: the device is blocked on its next check and `bit0` is
+never cleared. Banning the device's `install` cancels it at once (the `ref` is the start of that
+hash) and the response says so with `unban_cancelled: true`; a ban of another kind (`idfv`,
+`icloud`, `user`) cancels it when the device shows up with that identifier, since only then does
+the Worker know whose it is. A client can warn before banning: `lookup` by `ref` shows a pending
+unban as `consumed_at: null`.
 
 > Implementation (2026-11-11, migration `0004`): `banned_ids` keeps the `ref` of the device that
 > propagated each automatic ban, so an unban by `ref` removes them at once instead of on the
 > device's next check. Before, an administrator who unbanned a device still saw its automatic
 > bans in the list until the device opened the app. The rows from before the migration have no
 > `ref` and still go on that next check.
+
+> Implementation (2026-11-11): before this, a ban made while an unban was pending only took
+> effect on the device's second check: the first one consumed the unban and let it in.
 
 > Implementation (2026-11-10): the admin API became a proper API for any client (a web panel, a
 > bot, an app backend), not only the CLI. Three listings (`bans`, `checks`, `log`) with keyset
@@ -641,8 +653,9 @@ later on.
    (checked on 2026-11-02): only that `api.development` is "only for testing during
    development". For App Attest, Apple does say that TestFlight uses production
    (`com.apple.developer.devicecheck.appattest-environment`). The SDK sends `development` only in
-   `DEBUG` builds (`Configuration.swift`), so TestFlight goes to production. To be confirmed in
-   the end-to-end tests with a TestFlight build.
+   `DEBUG` builds (`Configuration.swift`), so TestFlight goes to production. On 2026-11-13 a
+   second iPhone with a TestFlight build closed it: the Worker wrote `bit0` = true, read it back
+   on the next check and cleared it with an unban by `ref`.
 3. Availability of the rate limiting binding on the free plan. **The documentation doesn't say**
    (checked on 2026-11-02): neither the binding page nor the pricing and limits pages talk about
    plans. On 2026-11-02 Cloudflare accepted the binding when deploying a test Worker on a

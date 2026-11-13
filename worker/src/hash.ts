@@ -28,6 +28,15 @@ export function normalizeValue(kind: Kind, value: string): string {
   return UUID_KINDS.includes(kind) ? trimmed.replace(/[a-z]/g, (c) => c.toUpperCase()) : trimmed;
 }
 
+// A UUID or a CloudKit record name never has the shape of a hash, so a `value` that does is a
+// hash pasted in the wrong field: hashing it again would give a ban that matches nothing. A
+// `user` ID is the app's own and may well be 64 hex characters.
+const NEVER_A_HASH: readonly Kind[] = ["idfv", "install", "icloud"];
+
+/** `true` if `value` is really a hash sent as the raw identifier of a kind that cannot be one. */
+export const valueIsHash = (kind: Kind, value: string): boolean =>
+  NEVER_A_HASH.includes(kind) && isHash(normalizeValue(kind, value).toLowerCase());
+
 export async function hashId(prefix: string, kind: Kind, value: string): Promise<string> {
   const data = new TextEncoder().encode(`${prefix}:${kind}:${normalizeValue(kind, value)}`);
   const digest = await crypto.subtle.digest("SHA-256", data);

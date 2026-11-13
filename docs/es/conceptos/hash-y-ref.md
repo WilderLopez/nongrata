@@ -34,6 +34,10 @@ Los 8 primeros caracteres, en mayúsculas, del hash de `install`. Ejemplo: `A1B2
 - Soporte desbanea con `pnpm ng unban app=myapp ref=A1B2C3D4`.
 - El desbaneo es completo: en la siguiente comprobación de ese iPhone, el Worker pone `bit0` a
   false y borra de la lista todos los hashes que trae.
+- Gana la última decisión: un baneo manual posterior al desbaneo, y anterior a esa comprobación,
+  lo cancela.
+- El listado de baneos de administración da el `ref` de cada baneo cuando el Worker lo conoce,
+  así los baneos de un mismo dispositivo se pueden mostrar juntos.
 - El Worker calcula el `ref` él mismo; nunca se fía del que manda el cliente.
 
 ## Normalización (decidido el 2026-11-02)
