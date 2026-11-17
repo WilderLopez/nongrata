@@ -108,6 +108,7 @@ struct ContentView: View {
                     .autocorrectionDisabled()
             }
             Button("Check: sign-up") { run(.signup) }
+            Button("Check: refresh") { run(.refresh) }
         } header: {
             Text("Run a check")
         } footer: {

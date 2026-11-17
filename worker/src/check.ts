@@ -6,7 +6,9 @@ import { isAppId } from "./env";
 import { isHash, refFromInstallHash, type Kind } from "./hash";
 import type { IdHash, Store } from "./store";
 
-export const INTENTS = ["launch", "foreground", "login", "signup"] as const;
+// `refresh` is a check the app forces (its own push arrived, its backend reported a blocked
+// account, a timer while it is open): the SDK never throttles it.
+export const INTENTS = ["launch", "foreground", "login", "signup", "refresh"] as const;
 export type Intent = (typeof INTENTS)[number];
 
 export interface CheckRequest {

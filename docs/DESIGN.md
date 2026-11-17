@@ -181,7 +181,7 @@ Request:
     "icloud": "hex or null",
     "user": "hex or null"
   },
-  "intent": "launch | foreground | login | signup",
+  "intent": "launch | foreground | login | signup | refresh",
   "platform": "ios",
   "app_version": "1.0.0"
 }
@@ -506,6 +506,9 @@ system. Optionally, a default SwiftUI view in a separate target.
   that case always, to detect the unban).
 - After a successful login, with `userId`.
 - Before creating the account, with `intent = signup` (strict mode if enabled).
+- Whenever the app has a reason to think something changed, with `intent = refresh`: never
+  throttled. A ban reaches a device on its next check, so this is how an app shortens the wait
+  (section 4 of the [integration guide](INTEGRATION-IOS.md)).
 
 Without `isSupported` (simulator), the request is sent without `dc_token` and the Worker decides
 with D1 alone.

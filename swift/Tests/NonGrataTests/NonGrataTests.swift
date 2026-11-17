@@ -167,6 +167,16 @@ struct NonGrataTests {
         #expect(device.transport.payloads.count == 3)
     }
 
+    @Test("A refresh always checks, even right after an allowed verdict")
+    func refreshIsNeverThrottled() async {
+        let guardian = device.launch()
+        await guardian.check(intent: .launch)
+        await guardian.check(intent: .refresh, userId: "u")
+        await guardian.check(intent: .refresh)
+        #expect(device.transport.payloads.count == 3)
+        #expect(device.transport.payloads.last?.intent == "refresh")
+    }
+
     @Test("While blocked, checks on every return to the foreground to detect an unban")
     func foregroundWhileBlocked() async {
         device.transport.mode = .blocked

@@ -991,7 +991,7 @@ components:
         bit0: { $ref: "#/components/schemas/NullableFlag" }
         intent:
           type: [string, "null"]
-          description: launch, foreground, login or signup, as the SDK sent it.
+          description: launch, foreground, login, signup or refresh, as the SDK sent it.
         created_at: { $ref: "#/components/schemas/Millis" }
     LogEntry:
       type: object

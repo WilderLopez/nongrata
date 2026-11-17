@@ -109,6 +109,28 @@ Los elementos de cada listado:
 En modo observación (`ENFORCE_<APP>` apagado), el `blocked` de una comprobación es lo que se
 habría bloqueado; por eso `checks?blocked=1` sirve antes de encender el bloqueo.
 
+### ¿Ha llegado el baneo al dispositivo?
+
+Un baneo se aplica en la siguiente comprobación del dispositivo, que puede tardar horas (ver
+[Cuánto tarda en llegar un baneo](INTEGRACION-IOS.md#cuánto-tarda-en-llegar-un-baneo)). Un
+cliente puede distinguir los dos estados solo con los listados:
+
+- **Aplicado**: hay una comprobación de ese `ref` con `blocked = 1` y `created_at` igual o
+  posterior al del baneo. Pide una vez `checks?blocked=1&since=<el baneo más antiguo sin
+  resolver>` y agrupa por `ref`, en vez de una petición por baneo; el listado va de más reciente
+  a más antiguo, así que la fila más antigua de cada `ref` es cuándo se aplicó. Un baneo
+  automático (`propagated`) lo escribe una comprobación bloqueada: un dispositivo que tiene uno
+  está aplicado por definición, y su `created_at` es la hora.
+- **Pendiente**: el baneo tiene `ref` y todavía no hay una comprobación así.
+- **No se puede saber**: un baneo manual con `ref` `null` no es de ningún dispositivo hasta que
+  uno comprueba, y esa fila sigue con `null` después (cada dispositivo que bloquea aparece
+  entonces con sus propios baneos automáticos). Y `check_log` se guarda 30 días: un baneo más
+  antiguo, sin fila automática y sin comprobaciones bloqueadas en esa ventana, no es ni lo uno
+  ni lo otro.
+
+En modo observación no se propaga nada y la app recibió `ok`, así que una comprobación que
+coincide significa "se habría bloqueado", no "aplicado".
+
 ## 3. Paginación
 
 Los tres listados funcionan igual:

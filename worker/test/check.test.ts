@@ -452,6 +452,16 @@ describe("check: additional cases", () => {
     ]);
   });
 
+  it("accepts the refresh intent, for a check the app forces, and logs it as such", async () => {
+    const ids = randomIds();
+    const res = await check({ ids, intent: "refresh" });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+    expect(await logRows("demo", refFromInstallHash(ids.install))).toEqual([
+      { blocked: 0, matched: 0, bit0: null, intent: "refresh" },
+    ]);
+  });
+
   it("lookup by ref returns the checks, most recent first", async () => {
     const ids = randomIds();
     const ref = refFromInstallHash(ids.install);

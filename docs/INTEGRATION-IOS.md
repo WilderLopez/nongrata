@@ -52,6 +52,7 @@ observe `verdict` directly.
 | On returning to the foreground | `await nonGrata.check(intent: .foreground)` (throttles itself to one every `foregroundInterval` while not blocked) |
 | After a successful login | `await nonGrata.check(intent: .login, userId: user.id)` |
 | Before creating the account | see below |
+| When something may have changed | `await nonGrata.check(intent: .refresh)` (never throttled; see [How soon a ban takes effect](#how-soon-a-ban-takes-effect)) |
 
 ```swift
 let verdict = await nonGrata.check(intent: .signup)
@@ -65,6 +66,39 @@ createAccount()
 
 `permits(_:for:)` applies fail-open: `.unknown` lets everything through except `.signup` with
 `strictSignup`.
+
+### How soon a ban takes effect
+
+A ban reaches a device on its **next check**, not when you make it. Launch, login and sign-up
+always check; a return to the foreground is skipped while the last allowed verdict is younger
+than `foregroundInterval` (6 hours by default). An app that stays in memory can take hours to
+find out. To shorten the wait:
+
+- **Lower `foregroundInterval`**, for example to 10 minutes. Each check is one request to your
+  Worker, one row in `check_log` and one query to Apple: count your daily users against your
+  Cloudflare plan before choosing.
+- **Check while the app is open.** Call `.foreground` on a short timer; the SDK still sends at
+  most one per `foregroundInterval`, so that setting stays the only knob:
+
+  ```swift
+  .task(id: scenePhase) {
+      guard scenePhase == .active else { return }
+      while !Task.isCancelled {
+          await nonGrata.check(intent: .foreground)
+          try? await Task.sleep(for: .seconds(60))
+      }
+  }
+  ```
+
+- **Call `check(intent: .refresh)` when you know something changed**: your backend answered that
+  the account is blocked, or a push of your own arrived. It is never throttled. `.refresh` came
+  after `0.2.0` and needs a Worker deployed from that same code or later, so deploy the Worker
+  first: an older one answers `400`, which the SDK treats as no response. With `0.2.0`, `.login`
+  does the same.
+
+The Worker sends no push and stores no push token: a token is a raw device identifier, and the
+Worker only keeps hashes. An unban has no such wait: a blocked device checks on every return to
+the foreground.
 
 ## 5. Blocking
 

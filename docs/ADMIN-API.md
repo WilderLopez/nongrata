@@ -107,6 +107,26 @@ The items of each listing:
 In observation mode (`ENFORCE_<APP>` off) a check's `blocked` is what would have been blocked,
 which is what makes `checks?blocked=1` useful before turning blocking on.
 
+### Has a ban reached the device?
+
+A ban takes effect on the device's next check, which can be hours later (see
+[How soon a ban takes effect](INTEGRATION-IOS.md#how-soon-a-ban-takes-effect)). A client can
+tell the two states apart with the listings alone:
+
+- **Applied**: there is a check of that `ref` with `blocked = 1` and `created_at` at or after the
+  ban's. Ask once for `checks?blocked=1&since=<the oldest unresolved ban>` and group by `ref`
+  rather than once per ban; the listing is newest first, so the oldest row found per `ref` is
+  when it was applied. An automatic (`propagated`) ban is written by a blocked check, so a
+  device that has one is applied by definition, and its `created_at` is the time.
+- **Pending**: the ban has a `ref` and there is no such check yet.
+- **Cannot tell**: a manual ban with `ref` `null` belongs to no device until one checks, and
+  that row keeps `null` afterwards (each device it blocks then shows up with its own automatic
+  bans). And `check_log` is kept for 30 days: an older ban with no automatic row and no blocked
+  check in that window is neither.
+
+In observation mode nothing is propagated and the app got `ok`, so a matching check means
+"would have been blocked", not "applied".
+
 ## 3. Pagination
 
 The three listings work the same way:

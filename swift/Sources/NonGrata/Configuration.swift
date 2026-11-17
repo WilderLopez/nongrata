@@ -68,6 +68,10 @@ public enum CheckIntent: String, Sendable, CaseIterable {
     case foreground
     case login
     case signup
+    /// A check the app forces because something may have changed (its own push arrived, its
+    /// backend reported a blocked account, a timer while the app is open). Never throttled.
+    /// Needs a Worker that knows it: an older one answers `400`, which counts as no response.
+    case refresh
 }
 
 public enum NonGrataVerdict: Sendable, Equatable {

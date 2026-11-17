@@ -52,6 +52,7 @@ puede observar `verdict` directamente.
 | Al volver a primer plano | `await nonGrata.check(intent: .foreground)` (se limita sola a una cada `foregroundInterval` mientras no haya bloqueo) |
 | Tras un login correcto | `await nonGrata.check(intent: .login, userId: user.id)` |
 | Antes de crear la cuenta | ver abajo |
+| Cuando algo puede haber cambiado | `await nonGrata.check(intent: .refresh)` (nunca se limita; ver [Cuánto tarda en llegar un baneo](#cuánto-tarda-en-llegar-un-baneo)) |
 
 ```swift
 let verdict = await nonGrata.check(intent: .signup)
@@ -65,6 +66,39 @@ createAccount()
 
 `permits(_:for:)` aplica el fail-open: `.unknown` deja seguir en todo salvo en `.signup` con
 `strictSignup`.
+
+### Cuánto tarda en llegar un baneo
+
+Un baneo llega a un dispositivo en su **siguiente comprobación**, no cuando lo haces. El
+arranque, el login y el registro siempre comprueban; la vuelta a primer plano se salta mientras
+el último veredicto permitido tenga menos de `foregroundInterval` (6 horas por defecto). Una app
+que sigue en memoria puede tardar horas en enterarse. Para acortar la espera:
+
+- **Baja `foregroundInterval`**, por ejemplo a 10 minutos. Cada comprobación es una petición a
+  tu Worker, una fila en `check_log` y una consulta a Apple: calcula tus usuarios diarios contra
+  tu plan de Cloudflare antes de elegir.
+- **Comprueba con la app abierta.** Llama a `.foreground` con un temporizador corto; el SDK
+  sigue mandando como mucho una por `foregroundInterval`, así que ese ajuste es el único mando:
+
+  ```swift
+  .task(id: scenePhase) {
+      guard scenePhase == .active else { return }
+      while !Task.isCancelled {
+          await nonGrata.check(intent: .foreground)
+          try? await Task.sleep(for: .seconds(60))
+      }
+  }
+  ```
+
+- **Llama a `check(intent: .refresh)` cuando sepas que algo cambió**: tu backend respondió que
+  la cuenta está bloqueada, o llegó una push tuya. Nunca se limita. `.refresh` es posterior a la
+  `0.2.0` y necesita un Worker desplegado con ese mismo código o uno posterior, así que
+  despliega primero el Worker: uno antiguo responde `400`, y el SDK lo trata como sin respuesta.
+  Con la `0.2.0`, `.login` hace lo mismo.
+
+El Worker no envía push ni guarda tokens de push: un token es un identificador en bruto del
+dispositivo, y el Worker solo guarda hashes. Un desbaneo no tiene esta espera: un dispositivo
+bloqueado comprueba en cada vuelta a primer plano.
 
 ## 5. Bloqueo
 

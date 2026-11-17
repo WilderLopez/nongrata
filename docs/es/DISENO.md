@@ -179,7 +179,7 @@ Petición:
     "icloud": "hex o null",
     "user": "hex o null"
   },
-  "intent": "launch | foreground | login | signup",
+  "intent": "launch | foreground | login | signup | refresh",
   "platform": "ios",
   "app_version": "1.0.0"
 }
@@ -507,6 +507,9 @@ presentación. Opcionalmente, una vista SwiftUI por defecto en un target aparte.
   ese caso siempre, para detectar el desbaneo).
 - Tras un login correcto, con `userId`.
 - Antes de crear la cuenta, con `intent = signup` (modo estricto si está activado).
+- Siempre que la app tenga motivos para pensar que algo cambió, con `intent = refresh`: nunca se
+  limita. Un baneo llega a un dispositivo en su siguiente comprobación, así que es la forma de
+  acortar la espera (sección 4 de la [guía de integración](INTEGRACION-IOS.md)).
 
 Sin `isSupported` (simulador), se manda sin `dc_token` y el Worker decide solo con D1.
 
