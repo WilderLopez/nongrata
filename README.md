@@ -108,8 +108,8 @@ cd worker
 pnpm exec wrangler d1 create nongrata-<your-app>     # copy the database_id into your wrangler.jsonc
 ```
 
-Edit `deployments/<your-app>/wrangler.jsonc` (name, `HASH_PREFIX_<APP>`, Team ID and Key ID) and,
-from `worker/`:
+Edit `deployments/<your-app>/wrangler.jsonc` (name, `HASH_PREFIX_<APP>`, Team ID and Key ID, and a
+`namespace_id` that no other rate limiter in your Cloudflare account uses) and, from `worker/`:
 
 ```sh
 pnpm exec wrangler d1 migrations apply DB --remote --config ../deployments/<your-app>/wrangler.jsonc
@@ -118,7 +118,9 @@ pnpm exec wrangler secret put APPLE_DC_KEY_P8_<APP> --config ../deployments/<you
 pnpm exec wrangler deploy --config ../deployments/<your-app>/wrangler.jsonc
 ```
 
-It starts in observation mode (`ENFORCE_<APP> = "false"`). More in
+`ADMIN_TOKEN` is a password you make up (`openssl rand -base64 32` gives a good one); the CLI
+and pairing an admin device need it. The Worker starts in observation mode
+(`ENFORCE_<APP> = "false"`). More in
 [Cloudflare Worker and D1](docs/concepts/cloudflare-worker-and-d1.md).
 
 ### 2. Add the package
@@ -196,7 +198,9 @@ pnpm ng pair   app=myapp role=read        # pair a phone (NonGrata Dashboard) by
 ```
 
 Besides the token, an admin app on a phone can pair with the Worker once and sign every request
-with a key in its Secure Enclave: see [Admin devices](docs/DEVICE-PAIRING.md).
+with a key in its Secure Enclave: see [Admin devices](docs/DEVICE-PAIRING.md). To go from
+nothing to the NonGrata Dashboard app paired with your Worker, follow
+[Setting up the Dashboard](docs/DASHBOARD-SETUP.md).
 
 The CLI is one client of the Worker's HTTP admin API; to build another (a web panel, a bot, your
 backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](docs/admin-api.yaml).
@@ -217,6 +221,8 @@ backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](do
 - [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
 - [Admin API](docs/ADMIN-API.md), with its [OpenAPI spec](docs/admin-api.yaml), and
   [admin devices](docs/DEVICE-PAIRING.md) (pairing a phone and signed requests).
+- [Setting up the NonGrata Dashboard](docs/DASHBOARD-SETUP.md): Worker, app and pairing, step by
+  step.
 - Concepts: [identifiers](docs/concepts/identifiers.md),
   [DeviceCheck](docs/concepts/devicecheck.md), [hash and ref](docs/concepts/hash-and-ref.md),
   [check flow](docs/concepts/check-flow.md), [propagation](docs/concepts/propagation.md),

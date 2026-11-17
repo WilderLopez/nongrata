@@ -109,8 +109,8 @@ cd worker
 pnpm exec wrangler d1 create nongrata-<tu-app>       # copia el database_id a tu wrangler.jsonc
 ```
 
-Edita `deployments/<tu-app>/wrangler.jsonc` (nombre, `HASH_PREFIX_<APP>`, Team ID y Key ID) y,
-desde `worker/`:
+Edita `deployments/<tu-app>/wrangler.jsonc` (nombre, `HASH_PREFIX_<APP>`, Team ID y Key ID, y un
+`namespace_id` que no use ningún otro rate limiter de tu cuenta de Cloudflare) y, desde `worker/`:
 
 ```sh
 pnpm exec wrangler d1 migrations apply DB --remote --config ../deployments/<tu-app>/wrangler.jsonc
@@ -119,7 +119,9 @@ pnpm exec wrangler secret put APPLE_DC_KEY_P8_<APP> --config ../deployments/<tu-
 pnpm exec wrangler deploy --config ../deployments/<tu-app>/wrangler.jsonc
 ```
 
-Arranca en modo observación (`ENFORCE_<APP> = "false"`). Más detalle en
+`ADMIN_TOKEN` es una contraseña que eliges tú (`openssl rand -base64 32` da una buena); la
+necesitan la CLI y el emparejamiento de un dispositivo de administración. El Worker arranca en
+modo observación (`ENFORCE_<APP> = "false"`). Más detalle en
 [Cloudflare Worker y D1](docs/es/conceptos/cloudflare-worker-y-d1.md).
 
 ### 2. Añade el paquete
@@ -198,7 +200,9 @@ pnpm ng pair   app=myapp role=read        # emparejar un teléfono (NonGrata Das
 
 Además del token, una app de administración en un teléfono puede emparejarse una vez con el
 Worker y firmar cada petición con una clave de su Secure Enclave: ver
-[Dispositivos de administración](docs/es/EMPAREJAMIENTO.md).
+[Dispositivos de administración](docs/es/EMPAREJAMIENTO.md). Para ir de la nada a tener la app
+NonGrata Dashboard emparejada con tu Worker, sigue
+[Poner en marcha el Dashboard](docs/es/CONFIGURAR-DASHBOARD.md).
 
 La CLI es un cliente de la API HTTP de administración del Worker; para hacer otro (un panel
 web, un bot, tu backend), ver la [guía de la API de administración](docs/es/API-ADMIN.md) y su
@@ -221,6 +225,8 @@ web, un bot, tu backend), ver la [guía de la API de administración](docs/es/AP
 - [API de administración](docs/es/API-ADMIN.md), con su [especificación OpenAPI](docs/admin-api.yaml), y
   [dispositivos de administración](docs/es/EMPAREJAMIENTO.md) (emparejar un teléfono y peticiones
   firmadas).
+- [Poner en marcha NonGrata Dashboard](docs/es/CONFIGURAR-DASHBOARD.md): Worker, app y
+  emparejamiento, paso a paso.
 - Conceptos: [identificadores](docs/es/conceptos/identificadores.md),
   [DeviceCheck](docs/es/conceptos/devicecheck.md), [hash y ref](docs/es/conceptos/hash-y-ref.md),
   [flujo de una comprobación](docs/es/conceptos/flujo-de-check.md),
