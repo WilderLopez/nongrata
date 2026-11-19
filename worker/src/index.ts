@@ -8,6 +8,8 @@ import { json } from "./http";
 import { Store } from "./store";
 
 const CHECK_LOG_RETENTION_MS = 30 * 24 * 3600 * 1000;
+/** A user-device link not seen for this long is dropped, unless that user is banned. */
+const USER_LINK_RETENTION_MS = 180 * 24 * 3600 * 1000;
 
 interface AdminContext {
   request: Request;
@@ -146,5 +148,7 @@ export default {
     const now = Date.now();
     await store.purgeCheckLog(now - CHECK_LOG_RETENTION_MS);
     await store.purgeAdminAuth(now, devices.MAX_FAILED_CLAIMS);
+    // Last: it needs migration 0005, and the purges above must not wait for it.
+    await store.purgeUserLinks(now - USER_LINK_RETENTION_MS);
   },
 } satisfies ExportedHandler<GuardEnv>;

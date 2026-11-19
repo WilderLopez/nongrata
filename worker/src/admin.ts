@@ -13,6 +13,8 @@ type Query = Record<string, string | undefined>;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+/** How many linked devices or users a lookup returns; a flag says whether there are more. */
+const LINKS_LIMIT = 100;
 
 export async function isAuthorized(request: Request, env: GuardEnv): Promise<boolean> {
   const expected = env.ADMIN_TOKEN;
@@ -114,19 +116,36 @@ export async function lookup(url: URL, env: GuardEnv, store: Store) {
   if (config instanceof Response) return config;
   const { app } = config;
 
+  // The linked devices and users only exist for an app with LINK_USERS_<APP>. Without it the
+  // fields are absent, which is how a client tells "not supported" from "none".
   if (p.ref !== undefined) {
     if (!isRef(p.ref)) return json({ error: "invalid ref" }, 400);
-    const [unbanRow, checks] = await Promise.all([
+    const [unbanRow, checks, users] = await Promise.all([
       store.getUnban(app, p.ref),
       store.recentChecks(app, p.ref),
+      config.linkUsers ? store.linkedUsers(app, p.ref, LINKS_LIMIT + 1) : null,
     ]);
-    return json({ app, ref: p.ref, unban: unbanRow, checks });
+    const result: Record<string, unknown> = { app, ref: p.ref, unban: unbanRow, checks };
+    if (users) {
+      result.users = users.slice(0, LINKS_LIMIT);
+      result.users_more = users.length > LINKS_LIMIT;
+    }
+    return json(result);
   }
 
   const id = await resolveId(config, p);
   if (!id) return json({ error: "missing ref, value or hash" }, 400);
   if ("error" in id) return json(id, 400);
-  return json({ app, hash: id.hash, banned: await store.getBanned(app, id.hash) });
+  const [banned, devices] = await Promise.all([
+    store.getBanned(app, id.hash),
+    config.linkUsers && id.kind === "user" ? store.linkedDevices(app, id.hash, LINKS_LIMIT + 1) : null,
+  ]);
+  const result: Record<string, unknown> = { app, hash: id.hash, banned };
+  if (devices) {
+    result.devices = devices.slice(0, LINKS_LIMIT);
+    result.devices_more = devices.length > LINKS_LIMIT;
+  }
+  return json(result);
 }
 
 /** A whole number in decimal digits (no sign, no exponent) within Number's safe range. */

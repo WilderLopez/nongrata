@@ -210,16 +210,19 @@ config = configuración de `app`        (Team ID, Key ID, clave, ENFORCE, App At
 si config exige App Attest y la aserción no valida → 401
 
 hashes  = ids no nulos
-matched = existe en banned_ids (app, hash IN hashes)
+si LINK_USERS e ids.user: recordar (install, user) en user_links        // sección 6.5
+linked  = LINK_USERS ? los usuarios que han pasado por este install : ninguno
+matched = existe en banned_ids (app, hash IN hashes o linked)
 unban   = unban_refs (app, ref) no consumido
 
 bits = dc_token ? query_two_bits(env, dc_token) : null      // "Bit State Not Found" ⇒ bit0 = false
 
-si unban y alguno de los hashes tiene un baneo manual hecho después de programar el desbaneo:
+si unban y alguno de los hashes o de linked tiene un baneo manual hecho después de programar el desbaneo:
     cancelar unban                     // gana la última decisión; se sigue como si no lo hubiera
 si no, si unban:
     limpio = dc_token ? update_two_bits(bit0 = false) : true
-    si limpio: borrar de banned_ids los hashes de la petición y consumir unban
+    si limpio: borrar de banned_ids los hashes de la petición, quitar los vínculos de este
+               install con usuarios baneados y consumir unban
     responder ok                       // si no quedó limpio, se reintenta en la siguiente
 
 blocked = matched o bits.bit0 == true
@@ -270,7 +273,7 @@ Worker), de modo que el bloqueo deje de depender del cliente.
 |---|---|
 | `POST /v1/admin/ban` | `{ app, kind, value }` o `{ app, kind, hash }`, más `note` opcional. Con `value` en bruto, el Worker calcula el hash con el prefijo de la app y solo guarda el hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra el hash. `{ app, ref }` programa el desbaneo del bit para la próxima comprobación de ese dispositivo. |
-| `GET /v1/admin/lookup` | Por `hash` o `ref`. |
+| `GET /v1/admin/lookup` | Por `hash` o `ref`. Con el vínculo de usuarios (sección 6.5): los dispositivos de un usuario y los usuarios de un dispositivo. |
 | `GET /v1/admin/bans` | Los hashes baneados, de más reciente a más antiguo, cada uno con el `ref` de su dispositivo cuando el Worker lo conoce; filtros `kind` y `reason`. |
 | `GET /v1/admin/checks` | El `check_log` (últimos 30 días), de más reciente a más antiguo; filtros `ref`, `blocked` y `since`. |
 | `GET /v1/admin/log` | Cada `ban` y `unban` con éxito, de más reciente a más antiguo. |
@@ -320,6 +323,50 @@ cliente puede avisar antes de banear: `lookup` por `ref` muestra un desbaneo pen
 > es la única forma de crear emparejamientos. El protocolo está en
 > [Dispositivos de administración](EMPAREJAMIENTO.md).
 
+### 6.5 Vínculo usuario-dispositivo (opcional por app)
+
+Decidido el 2026-11-19, a partir de la primera integración real: soporte parte del ID de usuario
+que ve en su backoffice, no de un Install ID. Sin el vínculo, un baneo por `user` solo alcanza a
+un dispositivo en una comprobación que lleve ese usuario: sin sesión, o con otra cuenta, el
+dispositivo no se bloquea nunca. Y no hay forma de ir de un usuario a sus dispositivos.
+
+Con `LINK_USERS_<APP>` en `"true"` (migración `0005`):
+
+- **La comprobación recuerda** cada par `(install, user)` que ve, como hashes, en `user_links`,
+  con la primera y la última vez. Un par ya guardado solo se vuelve a escribir cuando tiene más
+  de un día, así que un dispositivo cuesta como mucho una escritura extra al día. El vínculo no
+  es un baneo, así que también se guarda en modo observación.
+- **La comprobación decide** con los hashes de la petición más los usuarios que han pasado por
+  ese install. Un baneo por `user` alcanza así a todos los dispositivos donde se vio a ese
+  usuario, en su siguiente comprobación. No se copia nada al banear: desbanear al usuario lo
+  corta al momento para los dispositivos que aún no se habían bloqueado, y el modo observación
+  sigue sin escribir baneos. Un dispositivo bloqueado así se bloquea como cualquier otro: se
+  escribe `bit0` y se propagan los identificadores de la petición con su `ref`. Los usuarios
+  vinculados nunca se propagan, solo se comparan.
+- **Gana la última decisión** también aquí: un baneo manual de un usuario vinculado, hecho
+  después de programar un desbaneo por `ref`, lo cancela.
+- **El desbaneo completo por `ref`** quita además los vínculos de ese dispositivo con los
+  usuarios baneados. Esos usuarios siguen baneados; lo que termina es que su baneo alcance a
+  este dispositivo (un teléfono de segunda mano, un amigo que inició sesión una vez). Si el
+  dispositivo vuelve a iniciar sesión como uno de ellos, el vínculo vuelve.
+- **Lookup**: por `user`, los dispositivos donde se le vio, cada uno con su último veredicto
+  registrado; por `ref`, los hashes de usuario vistos en ese dispositivo y si cada uno está
+  baneado. Solo hashes: el Worker no puede decir quién es un usuario.
+- **Retención**: el cron diario quita un vínculo no visto en 180 días, salvo que ese usuario
+  esté baneado en esa app. `last_seen` avanza mientras la persona siga usando la app.
+
+Descartado: copiar el baneo a cada `install` vinculado al banear al usuario (no bloquea antes,
+porque el dispositivo tiene que comprobar igualmente, y las copias hay que deshacerlas al
+desbanear, con casos nuevos en «gana la última decisión» y en modo observación); y que el SDK
+recuerde al usuario (solo el último de cada dispositivo, y obliga a actualizar cada app).
+
+Sin la variable el Worker se comporta como antes y ninguna consulta toca `user_links`, así que
+el orden para activarlo es: aplicar la migración `0005`, luego poner la variable y desplegar.
+
+Cambia lo que guarda el Worker: un vínculo seudónimo de cada usuario con sesión, no solo de los
+baneados, y durante más tiempo que `check_log`. Una app que lo active lo refleja en su etiqueta
+de privacidad y en su política (sección 11).
+
 ## 7. Worker
 
 ### 7.1 Esquema D1
@@ -364,6 +411,16 @@ CREATE TABLE admin_log (
   ref         TEXT,
   note        TEXT,
   created_at  INTEGER NOT NULL
+);
+
+-- 0005_user_links.sql (sección 6.5)
+CREATE TABLE user_links (
+  app          TEXT NOT NULL,
+  install_hash TEXT NOT NULL,
+  user_hash    TEXT NOT NULL,
+  first_seen   INTEGER NOT NULL,
+  last_seen    INTEGER NOT NULL,
+  PRIMARY KEY (app, install_hash, user_hash)
 );
 ```
 
@@ -419,6 +476,7 @@ Por app (en secretos o en una tabla de configuración):
 | `APPLE_TEAM_ID_<APP>` | Team ID |
 | `HASH_PREFIX_<APP>` | Prefijo del hash, distinto por app, por ejemplo `myapp-ban-v1` |
 | `ENFORCE_<APP>` | `"true"` bloquea; cualquier otro valor es modo observación |
+| `LINK_USERS_<APP>` | `"true"` guarda qué usuarios han pasado por cada dispositivo (sección 6.5); con cualquier otro valor no se guarda nada |
 
 Globales: `ADMIN_TOKEN` (secreto), binding D1 `DB`, binding `RATE_LIMITER` (por ejemplo
 `limit: 20`, `period: 60`, clave `CF-Connecting-IP`). Si el binding no está en el plan gratuito,
@@ -574,6 +632,10 @@ desde App Store Connect, o el build fallará al resolver dependencias.
 ## 11. Privacidad
 
 - El Worker solo guarda hashes con prefijo por app; nunca identificadores en bruto ni IPs.
+- Con `LINK_USERS_<APP>` (desactivado por defecto, sección 6.5) guarda además qué hashes de
+  usuario han pasado por cada hash de instalación, de todos los usuarios con sesión y hasta 180
+  días después de la última vez visto. Siguen siendo solo hashes, pero es un dato ligado a la
+  cuenta del usuario que la app tiene que declarar.
 - No hay fingerprinting (no se combinan señales del dispositivo para inventar un identificador):
   solo `idfv`, un UUID propio, el ID de iCloud y DeviceCheck, que Apple ofrece para esto.
 - Revisar que los logs del Worker (Workers Logs) no registran los cuerpos de las peticiones.
@@ -584,6 +646,7 @@ desde App Store Connect, o el build fallará al resolver dependencias.
 |---|---|
 | Comprador de segunda mano de un iPhone baneado | Desbaneo por `ref` desde soporte |
 | Pareja que comparte cuenta de Apple | Desbaneo por `ref` y retirada del hash `icloud` |
+| Con el vínculo de usuarios, un dispositivo donde un usuario baneado inició sesión alguna vez (compartido, prestado, revendido) | Desbaneo por `ref`: quita también el vínculo de ese dispositivo con el usuario baneado. Los vínculos caducan a los 180 días sin verse |
 | Worker caído | Fail-open; solo siguen bloqueados quienes ya lo estaban |
 | Error al banear | Modo observación antes de activar `ENFORCE`; desbaneo por `ref` |
 | Bloqueo del dominio del Worker para registrarse | Modo estricto en el registro |

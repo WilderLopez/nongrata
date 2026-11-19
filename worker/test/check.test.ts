@@ -343,6 +343,7 @@ describe("parseCheckRequest", () => {
       dcToken: null,
       dcTokenUpdate: null,
       ids: [{ kind: "install", hash: install }],
+      install,
       ref: "AAAAAAAA",
       intent: "launch",
     });

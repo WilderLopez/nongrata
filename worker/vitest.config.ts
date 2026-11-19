@@ -18,6 +18,13 @@ export default defineConfig({
           // Second app, in observation mode, to check isolation.
           HASH_PREFIX_OTHER: "other-ban-v1",
           ENFORCE_OTHER: "false",
+          // Two apps that keep the user-device link: one enforcing, one in observation mode.
+          HASH_PREFIX_LINKED: "linked-ban-v1",
+          ENFORCE_LINKED: "true",
+          LINK_USERS_LINKED: "true",
+          HASH_PREFIX_LINKEDOBS: "linkedobs-ban-v1",
+          ENFORCE_LINKEDOBS: "false",
+          LINK_USERS_LINKEDOBS: "true",
         },
       },
     })),

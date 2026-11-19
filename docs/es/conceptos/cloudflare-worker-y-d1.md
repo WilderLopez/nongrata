@@ -36,6 +36,7 @@ Una base de datos SQLite gestionada por Cloudflare. El Worker la ve como `env.DB
 | `banned_ids` | Los hashes baneados, con `reason` = `manual` o `propagated` y, en los propagados, el `ref` del dispositivo que los añadió. Clave `(app, hash)`. |
 | `unban_refs` | Los desbaneos por `ref`: pendientes o ya consumidos. |
 | `check_log` | El resultado de cada comprobación. Nunca identificadores ni IPs. |
+| `user_links` | Solo con `LINK_USERS_<APP>`: qué hashes de usuario han pasado por cada hash de instalación, con la primera y la última vez visto. |
 
 - Se eligió D1 y no KV porque lo que se escribe se lee al momento. En KV un cambio puede
   tardar 60 s o más en verse, y hay pocas escrituras gratis.
@@ -104,6 +105,8 @@ Una tarea programada, como un cron de Unix. En el `wrangler.jsonc` de cada despl
 
 Cada día a las 3:17 (hora UTC) Cloudflare llama a `scheduled`, que borra de `check_log` las
 filas de más de 30 días (`purgeCheckLog` en `worker/src/store.ts`). Nadie tiene que lanzarlo.
+También quita los vínculos usuario-dispositivo no vistos en 180 días, salvo los de un usuario
+baneado.
 
 ## Otras piezas de la configuración
 

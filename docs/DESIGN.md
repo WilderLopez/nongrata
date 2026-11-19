@@ -212,16 +212,19 @@ config = configuration of `app`        (Team ID, Key ID, key, ENFORCE, App Attes
 if config requires App Attest and the assertion does not validate → 401
 
 hashes  = non-null ids
-matched = exists in banned_ids (app, hash IN hashes)
+if LINK_USERS and ids.user: remember (install, user) in user_links      // section 6.5
+linked  = LINK_USERS ? the users this install has carried : none
+matched = exists in banned_ids (app, hash IN hashes or linked)
 unban   = unban_refs (app, ref) not consumed
 
 bits = dc_token ? query_two_bits(env, dc_token) : null      // "Bit State Not Found" ⇒ bit0 = false
 
-if unban and one of the hashes has a manual ban made after the unban was scheduled:
+if unban and one of the hashes or linked has a manual ban made after the unban was scheduled:
     cancel unban                       // the last decision wins; go on as if there were none
 else if unban:
     clean = dc_token ? update_two_bits(bit0 = false) : true
-    if clean: delete the request's hashes from banned_ids and consume unban
+    if clean: delete the request's hashes from banned_ids, drop this install's links to
+              banned users and consume unban
     respond ok                         // if it was not left clean, retried on the next one
 
 blocked = matched or bits.bit0 == true
@@ -272,7 +275,7 @@ longer depends on the client.
 |---|---|
 | `POST /v1/admin/ban` | `{ app, kind, value }` or `{ app, kind, hash }`, plus optional `note`. With a raw `value`, the Worker computes the hash with the app's prefix and stores only the hash. |
 | `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes the hash. `{ app, ref }` schedules the bit unban for that device's next check. |
-| `GET /v1/admin/lookup` | By `hash` or `ref`. |
+| `GET /v1/admin/lookup` | By `hash` or `ref`. With user links (section 6.5): a user's devices, a device's users. |
 | `GET /v1/admin/bans` | The banned hashes, newest first, each with the `ref` of its device when the Worker knows it; filters `kind` and `reason`. |
 | `GET /v1/admin/checks` | The `check_log` (last 30 days), newest first; filters `ref`, `blocked` and `since`. |
 | `GET /v1/admin/log` | Every successful `ban` and `unban`, newest first. |
@@ -319,6 +322,48 @@ unban as `consumed_at: null`.
 > Worker-wide `pair` and `revoke`. The token keeps working as before and is the only way to
 > create pairings. The protocol is in [Admin devices](DEVICE-PAIRING.md).
 
+### 6.5 User-device links (optional per app)
+
+Decided on 2026-11-19, from the first real integration: support starts from the user ID it sees
+in its back office, not from an Install ID. Without links, a ban by `user` only reaches a device
+on a check that carries that user: signed out, or under another account, the device is never
+blocked. And there is no way to go from a user to its devices.
+
+With `LINK_USERS_<APP>` set to `"true"` (migration `0005`):
+
+- **The check remembers** each `(install, user)` pair it sees, as hashes, in `user_links`, with
+  the first and the last time. A pair already stored is written again only when it is more than a
+  day old, so a device costs at most one extra write a day. The link is not a ban, so it is kept
+  in observation mode too.
+- **The check decides** with the request's hashes plus the users that install has carried. A ban
+  by `user` therefore reaches every device that user was seen on, on its next check. Nothing is
+  copied when the ban is made: unbanning the user stops it at once for the devices not blocked
+  yet, and observation mode still writes no ban. A device blocked this way is blocked like any
+  other: `bit0` is written and the request's identifiers are propagated with its `ref`. The
+  linked users are never propagated, only matched.
+- **The last decision wins** here too: a manual ban of a linked user made after an unban by
+  `ref` was scheduled cancels it.
+- **A full unban by `ref`** also drops that device's links to the users that are banned. Those
+  users stay banned; what ends is that their ban reaches this device (a second-hand phone, a
+  friend who signed in once). If the device signs in as one of them again, the link comes back.
+- **Lookup**: by `user`, the devices it was seen on, each with its last logged verdict; by
+  `ref`, the user hashes seen on that device and whether each is banned. Only hashes: the
+  Worker cannot say who a user is.
+- **Retention**: the daily cron drops a link not seen for 180 days, unless that user is banned
+  in that app. `last_seen` moves while the person keeps using the app.
+
+Rejected: copying the ban to each linked `install` when the user is banned (it does not block
+any sooner, since the device still has to check, and the copies must be undone on unban, with
+new cases for "the last decision wins" and observation mode); and having the SDK remember the
+user (only the last user of each device, and every app has to update).
+
+Without the variable the Worker behaves as before and no query touches `user_links`, so the
+order when turning it on is: apply migration `0005`, then set the variable and deploy.
+
+It changes what the Worker keeps: a pseudonymous link for every signed-in user, not only for
+banned ones, and for longer than `check_log`. An app that turns it on reflects that in its
+privacy label and policy (section 11).
+
 ## 7. Worker
 
 ### 7.1 D1 schema
@@ -363,6 +408,16 @@ CREATE TABLE admin_log (
   ref         TEXT,
   note        TEXT,
   created_at  INTEGER NOT NULL
+);
+
+-- 0005_user_links.sql (section 6.5)
+CREATE TABLE user_links (
+  app          TEXT NOT NULL,
+  install_hash TEXT NOT NULL,
+  user_hash    TEXT NOT NULL,
+  first_seen   INTEGER NOT NULL,
+  last_seen    INTEGER NOT NULL,
+  PRIMARY KEY (app, install_hash, user_hash)
 );
 ```
 
@@ -417,6 +472,7 @@ Per app (in secrets or in a configuration table):
 | `APPLE_TEAM_ID_<APP>` | Team ID |
 | `HASH_PREFIX_<APP>` | Hash prefix, different per app, for example `myapp-ban-v1` |
 | `ENFORCE_<APP>` | `"true"` blocks; any other value is observation mode |
+| `LINK_USERS_<APP>` | `"true"` keeps which users each device has carried (section 6.5); any other value, nothing is kept |
 
 Global: `ADMIN_TOKEN` (secret), D1 binding `DB`, `RATE_LIMITER` binding (for example
 `limit: 20`, `period: 60`, key `CF-Connecting-IP`). If the binding is not available on the free
@@ -575,6 +631,10 @@ repo from App Store Connect, or the build will fail when resolving dependencies.
 ## 11. Privacy
 
 - The Worker only stores hashes with a per-app prefix; never raw identifiers or IPs.
+- With `LINK_USERS_<APP>` (off by default, section 6.5) it also keeps which user hashes each
+  install hash has carried, for every signed-in user and up to 180 days after the last time
+  seen. Still only hashes, but it is data linked to the user's account that the app has to
+  declare.
 - There is no fingerprinting (device signals are not combined to make up an identifier): only
   `idfv`, an own UUID, the iCloud ID and DeviceCheck, which Apple offers for this purpose.
 - Check that the Worker's logs (Workers Logs) do not record request bodies.
@@ -585,6 +645,7 @@ repo from App Store Connect, or the build will fail when resolving dependencies.
 |---|---|
 | Second-hand buyer of a banned iPhone | Unban by `ref` from support |
 | Couple sharing an Apple account | Unban by `ref` and removal of the `icloud` hash |
+| With user links, a device that a banned user once signed in on (shared, lent, resold) | Unban by `ref`: it also drops that device's link to the banned user. Links expire after 180 days unseen |
 | Worker down | Fail-open; only those already blocked stay blocked |
 | Banning by mistake | Observation mode before turning on `ENFORCE`; unban by `ref` |
 | Blocking the Worker's domain to sign up | Strict mode on sign-up |

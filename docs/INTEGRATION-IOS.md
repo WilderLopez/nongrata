@@ -144,9 +144,23 @@ apps do after a reinstall. If the app wipes its whole Keychain, exclude that ser
   even as free text, to cross-reference accounts.
 - `nonGrata.supportCode`: the 8-character `ref` to ask the user for in support.
 
+### Banning by user ID
+
+A ban by `user` reaches a device on a check that carries that user, so pass `userId` on the
+checks made with a session, not only on login. `user` values are case-sensitive: ban the ID
+exactly as the app passes it here.
+
+If your Worker sets `LINK_USERS_<APP>` ([design](DESIGN.md), section 6.5), it remembers which
+users each device has carried. A ban by user then reaches every device that user was seen on,
+signed in or not, and support can list those devices from the user ID. Nothing changes in the
+app.
+
 ## 8. Privacy
 
 - App Store privacy label: "Device ID" and "User ID" for fraud prevention.
+- With `LINK_USERS_<APP>` on, the Worker keeps a hash of the user ID linked to a hash of the
+  install ID for every signed-in user, up to 180 days after the last time seen. Say so in the
+  privacy policy.
 - Privacy policy: mention device identifiers used for fraud prevention.
 - This use is not tracking, so no App Tracking Transparency prompt is needed (verified on
   2026-11-02; [design](DESIGN.md), section 16, item 5).

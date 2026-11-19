@@ -35,6 +35,7 @@ A SQLite database managed by Cloudflare. The Worker sees it as `env.DB`.
 | `banned_ids` | The banned hashes, with `reason` = `manual` or `propagated` and, on propagated ones, the `ref` of the device that added them. Key `(app, hash)`. |
 | `unban_refs` | The unbans by `ref`: pending or already consumed. |
 | `check_log` | The result of each check. Never identifiers or IPs. |
+| `user_links` | Only with `LINK_USERS_<APP>`: which user hashes each install hash has carried, with the first and last time seen. |
 
 - D1 was chosen over KV because what is written can be read right away. In KV a change can take
   60 s or more to show up, and there are few free writes.
@@ -102,7 +103,8 @@ A scheduled task, like a Unix cron job. In each deployment's `wrangler.jsonc`:
 ```
 
 Every day at 3:17 (UTC) Cloudflare calls `scheduled`, which deletes from `check_log` the rows
-older than 30 days (`purgeCheckLog` in `worker/src/store.ts`). Nobody has to run it.
+older than 30 days (`purgeCheckLog` in `worker/src/store.ts`). Nobody has to run it. It also
+drops the user-device links not seen for 180 days, except those of a banned user.
 
 ## Other configuration pieces
 

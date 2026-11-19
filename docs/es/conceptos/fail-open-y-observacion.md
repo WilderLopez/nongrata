@@ -35,7 +35,9 @@ Es **observación pura** (decidido el 2026-11-02): mira D1 y consulta `bit0` en 
 cambia nada fuera de `check_log`. Ni escribe `bit0` ni [propaga](propagacion.md). Así, un baneo
 erróneo cargado durante la observación no deja huella en el iPhone de nadie. Al activar
 `ENFORCE`, la primera comprobación de cada dispositivo bloqueado escribe `bit0` y propaga. Los
-desbaneos por `ref` sí se aplican, porque los pide soporte a propósito.
+desbaneos por `ref` sí se aplican, porque los pide soporte a propósito. Con `LINK_USERS_<APP>`
+también se guarda el vínculo entre un usuario y sus dispositivos: no es un baneo, y tiene que
+estar ahí cuando se active `ENFORCE`.
 
 Sirve para el despliegue seguro:
 

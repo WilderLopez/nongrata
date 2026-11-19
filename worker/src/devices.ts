@@ -307,7 +307,8 @@ export function apps(env: GuardEnv) {
     .sort()
     .flatMap((app) => {
       const config = appConfig(env, app);
-      return config ? [{ app, enforce: config.enforce, devicecheck: config.apple !== undefined }] : [];
+      if (!config) return [];
+      return [{ app, enforce: config.enforce, devicecheck: config.apple !== undefined, link_users: config.linkUsers }];
     });
   return json({ apps: list });
 }

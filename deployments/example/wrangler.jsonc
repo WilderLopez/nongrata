@@ -34,6 +34,10 @@
     "HASH_PREFIX_MYAPP": "myapp-ban-v1",
     // Observation mode: logs the verdict but lets everyone in. "true" to block.
     "ENFORCE_MYAPP": "false",
+    // Optional. "true" keeps which users each device has carried, so a ban by user reaches all
+    // of that user's devices (docs/DESIGN.md, section 6.5). It changes what your app has to
+    // declare about privacy. Apply the migrations before turning it on.
+    // "LINK_USERS_MYAPP": "true",
     // Without all three Apple pieces (these two and the secret), the Worker decides with D1 alone.
     "APPLE_TEAM_ID_MYAPP": "<TEAM_ID>",
     "APPLE_KEY_ID_MYAPP": "<KEY_ID>"

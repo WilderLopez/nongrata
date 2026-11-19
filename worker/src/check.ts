@@ -22,6 +22,8 @@ export interface CheckRequest {
    */
   dcTokenUpdate: string | null;
   ids: IdHash[];
+  /** The `install` hash, which is also in `ids`: it names the device. */
+  install: string;
   ref: string;
   intent: Intent;
 }
@@ -70,10 +72,14 @@ export function parseCheckRequest(body: unknown): CheckRequest | null {
     dcToken,
     dcTokenUpdate,
     ids,
+    install: install.hash,
     ref: refFromInstallHash(install.hash),
     intent: intent as Intent,
   };
 }
+
+/** A link already stored is touched again only when it is older than this. */
+const LINK_REFRESH_MS = 24 * 3600 * 1000;
 
 export interface CheckDeps {
   store: Store;
@@ -93,21 +99,28 @@ export async function runCheck(
   const updateToken = req.dcTokenUpdate;
 
   const hashes = req.ids.map((id) => id.hash);
+  // With LINK_USERS, the device answers for the request's hashes and for the users it has
+  // carried: a ban by `user` reaches it even signed out or under another account. Without it,
+  // no query touches `user_links`.
+  const linked = config.linkUsers ? req.install : null;
+  const user = req.ids.find((id) => id.kind === "user");
   const [matched, unban, bits] = await Promise.all([
-    store.anyBanned(app, hashes),
+    store.anyBanned(app, hashes, linked),
     store.pendingUnban(app, ref),
     dc ? dc.query(req.env, req.dcToken!) : Promise.resolve<TwoBits | null>(null),
+    // The link is not a ban, so it is kept in observation mode too.
+    linked && user ? store.linkUser(app, linked, user.hash, now, now - LINK_REFRESH_MS) : null,
   ]);
 
   const log = (blocked: boolean, bit0: boolean | null) =>
     store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent }, now);
 
   if (unban !== null) {
-    if (await store.manualBanAfter(app, hashes, unban)) {
+    if (await store.manualBanAfter(app, hashes, unban, linked)) {
       // The last decision wins: a manual ban made after the unban was scheduled cancels it,
       // and the device is judged like any other. Banning an `install` already cancels it when
       // the ban is made (the ref is known then); this catches the other kinds, whose device
-      // only shows up here.
+      // only shows up here, and the ban of a user this device has carried.
       await store.cancelUnban(app, ref);
     } else {
       // Full unban: bit0 set to false and the hashes this device sends removed (its automatic
@@ -119,6 +132,9 @@ export async function runCheck(
       const cleared = deviceCheck ? (dc && updateToken ? await dc.setBit0(req.env, updateToken, false) : false) : true;
       if (cleared) {
         await store.removeHashes(app, hashes, unban);
+        // The users this device carried and does not send now stay banned: what goes is its
+        // link to them, or their ban would block it again on the next check.
+        if (linked) await store.unlinkBanned(app, linked, unban);
         await store.consumeUnban(app, ref, now);
       }
       await log(false, cleared && dc ? false : (bits?.bit0 ?? null));

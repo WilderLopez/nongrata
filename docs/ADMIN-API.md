@@ -46,11 +46,11 @@ of the design document.
 |---|---|
 | `POST /v1/admin/ban` | Bans `{ app, kind, value or hash, note? }` as `manual`. Returns `{ app, kind, hash }`, with `unban_cancelled: true` if it was an `install` whose device had an unban pending: the last decision wins. |
 | `POST /v1/admin/unban` | `{ app, kind, value or hash }` deletes that hash (`removed` says whether it was there); `{ app, ref }` deletes at once the automatic bans that device propagated and schedules its full unban on its next check (`unban_scheduled: true`). Both can go together. |
-| `GET /v1/admin/lookup` | `?app&ref`: the device's pending or consumed unban and its last 20 checks. `?app&kind&(value or hash)`: the ban row, or `null`. |
+| `GET /v1/admin/lookup` | `?app&ref`: the device's pending or consumed unban and its last 20 checks. `?app&kind&(value or hash)`: the ban row, or `null`. With user links on, also [a user's devices and a device's users](#a-users-devices-and-a-devices-users). |
 | `GET /v1/admin/bans` | The list of banned hashes, newest first. Filters: `kind`, `reason` (`manual` or `propagated`). |
 | `GET /v1/admin/checks` | The recent checks (`check_log`), newest first. Filters: `ref`, `blocked` (`0` or `1`), `since` (Unix ms, inclusive). |
 | `GET /v1/admin/log` | The admin actions, newest first. With `app`: every successful `ban` and `unban` of that app. Without `app`: the Worker's device events, `pair` and `revoke`. |
-| `GET /v1/admin/apps` | The apps configured in this Worker, with `enforce` and whether DeviceCheck is set. |
+| `GET /v1/admin/apps` | The apps configured in this Worker, with `enforce`, whether DeviceCheck is set and `link_users`. |
 | `GET /v1/admin/me` | The calling device (devices only). |
 | `GET /v1/admin/devices` | The paired devices, newest first. |
 | `POST /v1/admin/devices/{id}/revoke` | Revokes a device, for good. Idempotent. |
@@ -127,6 +127,59 @@ tell the two states apart with the listings alone:
 In observation mode nothing is propagated and the app got `ok`, so a matching check means
 "would have been blocked", not "applied".
 
+### A user's devices and a device's users
+
+Only for an app with `LINK_USERS_<APP>` set to `"true"` (design, section 6.5; `link_users` in
+`GET /v1/admin/apps` says so). The Worker then remembers which users each device has carried,
+and a ban by `user` reaches all of them on their next check.
+
+`GET /v1/admin/lookup?app&kind=user&(value or hash)` adds the devices that user was seen on:
+
+```json
+{
+  "app": "myapp",
+  "hash": "9f2c…",
+  "banned": null,
+  "devices": [
+    { "ref": "A1B2C3D4", "install_hash": "a1b2c3d4…", "first_seen": 1794000000000, "last_seen": 1794943390138, "blocked": 0 }
+  ],
+  "devices_more": false
+}
+```
+
+`GET /v1/admin/lookup?app&ref` adds the users seen on that device:
+
+```json
+{
+  "app": "myapp",
+  "ref": "A1B2C3D4",
+  "unban": null,
+  "checks": [],
+  "users": [
+    { "hash": "9f2c…", "first_seen": 1794000000000, "last_seen": 1794943390138, "banned": 0 }
+  ],
+  "users_more": false
+}
+```
+
+- **Most recently seen first, at most 100.** `devices_more` or `users_more` is `true` when there
+  are more than that; the ones left out are the least recently seen.
+- **`blocked`** is that device's last check in `check_log`: `1`, `0`, or `null` when it has none
+  in the last 30 days. In observation mode `1` means "would have been blocked".
+- **`banned`** is `1` when that user hash is in the ban list of the app.
+- **Missing field = not supported.** An app without `LINK_USERS_<APP>`, an older Worker, or a
+  lookup of another kind has no `devices` or `users` field. An empty list means "supported,
+  none seen".
+- **How long a link lasts:** until 180 days after the last time that user was seen on that
+  device; the links of a banned user are kept. `last_seen` is refreshed at most once a day.
+- **Only hashes.** `users` cannot say who a user is; it lets a client ban the account behind a
+  device (`POST /v1/admin/ban` with `kind: "user"` and that `hash`). `install_hash` does the
+  same for one device (`kind: "install"`).
+- **`user` values are case-sensitive.** `value` must be the ID exactly as the app passes it to
+  the SDK.
+
+Unbanning a device by `ref` also drops its links to the users that are banned; they stay banned.
+
 ## 3. Pagination
 
 The three listings work the same way:
@@ -194,6 +247,8 @@ pnpm ng checks app=myapp ref=7f3a9c21          # the ref may be lowercase
 pnpm ng checks app=myapp blocked=1 since=1762704000000
 pnpm ng log    app=myapp
 pnpm ng bans   app=myapp cursor=<next_cursor>  # the next page
+pnpm ng lookup app=myapp kind=user value=<user id>   # with user links: that user's devices
+pnpm ng ban    app=myapp kind=user value=<user id>   # reaches them all on their next check
 ```
 
 The CLI prints the Worker's JSON as it comes, one page per call. It reads

@@ -48,11 +48,11 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
 |---|---|
 | `POST /v1/admin/ban` | Banea `{ app, kind, value o hash, note? }` como `manual`. Devuelve `{ app, kind, hash }`, con `unban_cancelled: true` si era un `install` cuyo dispositivo tenía un desbaneo pendiente: gana la última decisión. |
 | `POST /v1/admin/unban` | `{ app, kind, value o hash }` borra ese hash (`removed` dice si estaba); `{ app, ref }` borra en el momento los baneos automáticos que propagó ese dispositivo y programa su desbaneo completo en su próxima comprobación (`unban_scheduled: true`). Se pueden mandar los dos a la vez. |
-| `GET /v1/admin/lookup` | `?app&ref`: el desbaneo pendiente o consumido del dispositivo y sus últimas 20 comprobaciones. `?app&kind&(value o hash)`: la fila del baneo, o `null`. |
+| `GET /v1/admin/lookup` | `?app&ref`: el desbaneo pendiente o consumido del dispositivo y sus últimas 20 comprobaciones. `?app&kind&(value o hash)`: la fila del baneo, o `null`. Con el vínculo de usuarios activado, también [los dispositivos de un usuario y los usuarios de un dispositivo](#los-dispositivos-de-un-usuario-y-los-usuarios-de-un-dispositivo). |
 | `GET /v1/admin/bans` | La lista de hashes baneados, de más reciente a más antiguo. Filtros: `kind`, `reason` (`manual` o `propagated`). |
 | `GET /v1/admin/checks` | Las comprobaciones recientes (`check_log`), de más reciente a más antigua. Filtros: `ref`, `blocked` (`0` o `1`), `since` (ms Unix, inclusive). |
 | `GET /v1/admin/log` | Las acciones de administración, de más reciente a más antigua. Con `app`: cada `ban` y `unban` con éxito de esa app. Sin `app`: los eventos de dispositivos del Worker, `pair` y `revoke`. |
-| `GET /v1/admin/apps` | Las apps configuradas en este Worker, con `enforce` y si DeviceCheck está configurado. |
+| `GET /v1/admin/apps` | Las apps configuradas en este Worker, con `enforce`, si DeviceCheck está configurado y `link_users`. |
 | `GET /v1/admin/me` | El dispositivo que llama (solo dispositivos). |
 | `GET /v1/admin/devices` | Los dispositivos emparejados, de más reciente a más antiguo. |
 | `POST /v1/admin/devices/{id}/revoke` | Revoca un dispositivo, para siempre. Idempotente. |
@@ -131,6 +131,63 @@ cliente puede distinguir los dos estados solo con los listados:
 En modo observación no se propaga nada y la app recibió `ok`, así que una comprobación que
 coincide significa "se habría bloqueado", no "aplicado".
 
+### Los dispositivos de un usuario y los usuarios de un dispositivo
+
+Solo para una app con `LINK_USERS_<APP>` en `"true"` (diseño, sección 6.5; lo dice `link_users`
+en `GET /v1/admin/apps`). El Worker recuerda entonces qué usuarios han pasado por cada
+dispositivo, y un baneo por `user` los alcanza a todos en su siguiente comprobación.
+
+`GET /v1/admin/lookup?app&kind=user&(value o hash)` añade los dispositivos donde se vio a ese
+usuario:
+
+```json
+{
+  "app": "myapp",
+  "hash": "9f2c…",
+  "banned": null,
+  "devices": [
+    { "ref": "A1B2C3D4", "install_hash": "a1b2c3d4…", "first_seen": 1794000000000, "last_seen": 1794943390138, "blocked": 0 }
+  ],
+  "devices_more": false
+}
+```
+
+`GET /v1/admin/lookup?app&ref` añade los usuarios vistos en ese dispositivo:
+
+```json
+{
+  "app": "myapp",
+  "ref": "A1B2C3D4",
+  "unban": null,
+  "checks": [],
+  "users": [
+    { "hash": "9f2c…", "first_seen": 1794000000000, "last_seen": 1794943390138, "banned": 0 }
+  ],
+  "users_more": false
+}
+```
+
+- **El visto más recientemente primero, como mucho 100.** `devices_more` o `users_more` vale
+  `true` cuando hay más; los que quedan fuera son los vistos hace más tiempo.
+- **`blocked`** es la última comprobación de ese dispositivo en `check_log`: `1`, `0`, o `null`
+  cuando no tiene ninguna en los últimos 30 días. En modo observación `1` significa «se habría
+  bloqueado».
+- **`banned`** vale `1` cuando ese hash de usuario está en la lista de baneos de la app.
+- **Campo ausente = no soportado.** Una app sin `LINK_USERS_<APP>`, un Worker anterior o un
+  lookup de otro tipo no tienen campo `devices` ni `users`. Una lista vacía significa
+  «soportado, ninguno visto».
+- **Cuánto dura un vínculo:** hasta 180 días después de la última vez que se vio a ese usuario
+  en ese dispositivo; los vínculos de un usuario baneado se conservan. `last_seen` se renueva
+  como mucho una vez al día.
+- **Solo hashes.** `users` no puede decir quién es un usuario; permite a un cliente banear la
+  cuenta que hay detrás de un dispositivo (`POST /v1/admin/ban` con `kind: "user"` y ese
+  `hash`). `install_hash` hace lo mismo para un dispositivo (`kind: "install"`).
+- **Los valores de `user` distinguen mayúsculas.** `value` tiene que ser el ID exactamente como
+  la app lo pasa al SDK.
+
+Desbanear un dispositivo por `ref` quita también sus vínculos con los usuarios baneados; ellos
+siguen baneados.
+
 ## 3. Paginación
 
 Los tres listados funcionan igual:
@@ -200,6 +257,8 @@ pnpm ng checks app=myapp ref=7f3a9c21          # el ref puede ir en minúsculas
 pnpm ng checks app=myapp blocked=1 since=1762704000000
 pnpm ng log    app=myapp
 pnpm ng bans   app=myapp cursor=<next_cursor>  # la página siguiente
+pnpm ng lookup app=myapp kind=user value=<id de usuario>   # con el vínculo: los dispositivos de ese usuario
+pnpm ng ban    app=myapp kind=user value=<id de usuario>   # los alcanza a todos en su siguiente comprobación
 ```
 
 La CLI imprime el JSON del Worker tal cual, una página por llamada. Lee `NONGRATA_URL_<APP>` y

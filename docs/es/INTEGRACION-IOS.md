@@ -145,9 +145,23 @@ servicio.
   de la app, aunque sea como texto libre, para cruzar cuentas.
 - `nonGrata.supportCode`: el `ref` de 8 caracteres que hay que pedir al usuario en soporte.
 
+### Banear por ID de usuario
+
+Un baneo por `user` alcanza a un dispositivo en una comprobación que lleve ese usuario, así que
+pasa `userId` en las comprobaciones hechas con sesión, no solo en el login. Los valores de
+`user` distinguen mayúsculas: banea el ID exactamente como la app lo pasa aquí.
+
+Si tu Worker tiene `LINK_USERS_<APP>` ([diseño](DISENO.md), sección 6.5), recuerda qué usuarios
+han pasado por cada dispositivo. Un baneo por usuario alcanza entonces a todos los dispositivos
+donde se vio a ese usuario, con sesión o sin ella, y soporte puede listar esos dispositivos a
+partir del ID de usuario. En la app no cambia nada.
+
 ## 8. Privacidad
 
 - Etiqueta de privacidad de App Store: "Device ID" y "User ID" con fin de prevención de fraude.
+- Con `LINK_USERS_<APP>` activado, el Worker guarda un hash del ID de usuario ligado a un hash
+  del ID de instalación de cada usuario con sesión, hasta 180 días después de la última vez
+  visto. Dilo en la política de privacidad.
 - Política de privacidad: mencionar identificadores de dispositivo con fin antifraude.
 - Este uso no es tracking, así que no hace falta pedir el permiso de ATT (verificado el
   2026-11-02; [diseño](DISENO.md), sección 16, punto 5).

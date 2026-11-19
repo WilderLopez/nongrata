@@ -400,13 +400,15 @@ describe("nonces and last_used_at", () => {
 });
 
 describe("GET /v1/admin/apps", () => {
-  it("the configured apps, sorted, with enforce and whether DeviceCheck is set", async () => {
+  it("the configured apps, sorted, with enforce, whether DeviceCheck is set and whether users are linked", async () => {
     expect(await tokenCall("GET", "/v1/admin/apps")).toEqual({
       status: 200,
       body: {
         apps: [
-          { app: "demo", enforce: true, devicecheck: true },
-          { app: "other", enforce: false, devicecheck: false },
+          { app: "demo", enforce: true, devicecheck: true, link_users: false },
+          { app: "linked", enforce: true, devicecheck: false, link_users: true },
+          { app: "linkedobs", enforce: false, devicecheck: false, link_users: true },
+          { app: "other", enforce: false, devicecheck: false, link_users: false },
         ],
       },
     });
@@ -430,8 +432,8 @@ describe("GET /v1/admin/apps", () => {
     } as unknown as GuardEnv;
     expect((await tokenCall("GET", "/v1/admin/apps", undefined, env)).body).toEqual({
       apps: [
-        { app: "my_app", enforce: true, devicecheck: false },
-        { app: "zeta", enforce: false, devicecheck: false },
+        { app: "my_app", enforce: true, devicecheck: false, link_users: false },
+        { app: "zeta", enforce: false, devicecheck: false, link_users: false },
       ],
     });
   });

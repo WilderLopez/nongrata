@@ -102,6 +102,23 @@ export interface After {
   key: string | number;
 }
 
+/** A device a user was seen on (`GET /v1/admin/lookup` by user). `blocked`: its last check, if any is left in the log. */
+export interface LinkedDeviceRow {
+  ref: string;
+  install_hash: string;
+  first_seen: number;
+  last_seen: number;
+  blocked: number | null;
+}
+
+/** A user seen on a device (`GET /v1/admin/lookup` by ref). `banned` is 0 or 1. */
+export interface LinkedUserRow {
+  hash: string;
+  first_seen: number;
+  last_seen: number;
+  banned: number;
+}
+
 export interface CheckLogRow {
   ref: string;
   blocked: boolean;
@@ -113,13 +130,26 @@ export interface CheckLogRow {
 export class Store {
   constructor(private readonly db: D1Database) {}
 
-  async anyBanned(app: string, hashes: string[]): Promise<boolean> {
+  /**
+   * The condition "one of these hashes" and its parameters. With `linkedInstall`, also "or a user
+   * that install has carried" (`user_links`); with `null` the query never touches that table.
+   */
+  private among(app: string, hashes: string[], linkedInstall: string | null): { sql: string; values: string[] } {
+    const marks = hashes.map(() => "?").join(", ");
+    if (linkedInstall === null) return { sql: `hash IN (${marks})`, values: hashes };
+    return {
+      sql: `(hash IN (${marks}) OR hash IN (SELECT user_hash FROM user_links WHERE app = ? AND install_hash = ?))`,
+      values: [...hashes, app, linkedInstall],
+    };
+  }
+
+  async anyBanned(app: string, hashes: string[], linkedInstall: string | null = null): Promise<boolean> {
     // Stryker disable next-line ConditionalExpression: SQLite accepts `IN ()` and finds nothing; the guard only saves the query.
     if (hashes.length === 0) return false;
-    const marks = hashes.map(() => "?").join(", ");
+    const ids = this.among(app, hashes, linkedInstall);
     const row = await this.db
-      .prepare(`SELECT 1 FROM banned_ids WHERE app = ? AND hash IN (${marks}) LIMIT 1`)
-      .bind(app, ...hashes)
+      .prepare(`SELECT 1 FROM banned_ids WHERE app = ? AND ${ids.sql} LIMIT 1`)
+      .bind(app, ...ids.values)
       .first();
     return row !== null;
   }
@@ -187,15 +217,23 @@ export class Store {
     await this.cancelUnbanStatement(app, ref).run();
   }
 
-  /** Whether any of these hashes has a manual ban made after `since` (Unix ms). */
-  async manualBanAfter(app: string, hashes: string[], since: number): Promise<boolean> {
-    const marks = hashes.map(() => "?").join(", ");
+  /**
+   * Whether any of these hashes, or with `linkedInstall` any user that install has carried, has a
+   * manual ban made after `since` (Unix ms).
+   */
+  async manualBanAfter(
+    app: string,
+    hashes: string[],
+    since: number,
+    linkedInstall: string | null = null,
+  ): Promise<boolean> {
+    const ids = this.among(app, hashes, linkedInstall);
     const row = await this.db
       .prepare(
-        `SELECT 1 FROM banned_ids WHERE app = ? AND hash IN (${marks})
+        `SELECT 1 FROM banned_ids WHERE app = ? AND ${ids.sql}
          AND reason = 'manual' AND created_at > ? LIMIT 1`,
       )
-      .bind(app, ...hashes, since)
+      .bind(app, ...ids.values, since)
       .first();
     return row !== null;
   }
@@ -260,6 +298,83 @@ export class Store {
          AND (reason = 'propagated' OR created_at <= ?)`,
       )
       .bind(app, ...hashes, scheduledAt)
+      .run();
+  }
+
+  // The link between a user and the devices it was seen on (docs/DESIGN.md, section 6.5). Only
+  // the apps with LINK_USERS_<APP> reach these.
+
+  /**
+   * Remembers that this install carried this user. A pair already stored is written again only
+   * if it was last seen before `staleBefore`, so a device that checks often costs one write a day.
+   */
+  async linkUser(app: string, installHash: string, userHash: string, now: number, staleBefore: number): Promise<void> {
+    await this.db
+      .prepare(
+        `INSERT INTO user_links (app, install_hash, user_hash, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (app, install_hash, user_hash) DO UPDATE SET last_seen = excluded.last_seen
+         WHERE user_links.last_seen < ?`,
+      )
+      .bind(app, installHash, userHash, now, now, staleBefore)
+      .run();
+  }
+
+  /**
+   * Part of a full unban by ref scheduled at `scheduledAt`: drops the device's links to the users
+   * that are banned, so their ban stops reaching it; they stay banned. Like `removeHashes`, it
+   * leaves alone a manual ban made after the unban.
+   */
+  async unlinkBanned(app: string, installHash: string, scheduledAt: number): Promise<void> {
+    await this.db
+      .prepare(
+        `DELETE FROM user_links WHERE app = ? AND install_hash = ? AND user_hash IN (
+           SELECT hash FROM banned_ids WHERE app = ? AND (reason = 'propagated' OR created_at <= ?))`,
+      )
+      .bind(app, installHash, app, scheduledAt)
+      .run();
+  }
+
+  /** The devices a user was seen on, most recently seen first, each with its last logged verdict. */
+  async linkedDevices(app: string, userHash: string, limit: number): Promise<LinkedDeviceRow[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT upper(substr(l.install_hash, 1, 8)) AS ref, l.install_hash, l.first_seen, l.last_seen,
+           (SELECT c.blocked FROM check_log c
+            WHERE c.app = l.app AND c.ref = upper(substr(l.install_hash, 1, 8))
+            ORDER BY c.created_at DESC, c.rowid DESC LIMIT 1) AS blocked
+         FROM user_links l WHERE l.app = ? AND l.user_hash = ?
+         ORDER BY l.last_seen DESC, l.install_hash DESC LIMIT ?`,
+      )
+      .bind(app, userHash, limit)
+      .all<LinkedDeviceRow>();
+    return results;
+  }
+
+  /** The users seen on the device with this ref, most recently seen first. */
+  async linkedUsers(app: string, ref: string, limit: number): Promise<LinkedUserRow[]> {
+    // The ref is the start of the install hash, in uppercase; hashes are lowercase hex, so every
+    // hash with that start sorts before the start followed by "g".
+    const start = ref.toLowerCase();
+    const { results } = await this.db
+      .prepare(
+        `SELECT l.user_hash AS hash, l.first_seen, l.last_seen,
+           EXISTS (SELECT 1 FROM banned_ids b WHERE b.app = l.app AND b.hash = l.user_hash) AS banned
+         FROM user_links l WHERE l.app = ? AND l.install_hash >= ? AND l.install_hash < ?
+         ORDER BY l.last_seen DESC, l.user_hash DESC LIMIT ?`,
+      )
+      .bind(app, start, `${start}g`, limit)
+      .all<LinkedUserRow>();
+    return results;
+  }
+
+  /** Daily cron: links last seen before `olderThan`, except those of a user banned in that app. */
+  async purgeUserLinks(olderThan: number): Promise<void> {
+    await this.db
+      .prepare(
+        `DELETE FROM user_links WHERE last_seen < ? AND NOT EXISTS (
+           SELECT 1 FROM banned_ids b WHERE b.app = user_links.app AND b.hash = user_links.user_hash)`,
+      )
+      .bind(olderThan)
       .run();
   }
 

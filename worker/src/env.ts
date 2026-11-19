@@ -11,6 +11,8 @@ export interface AppConfig {
   app: string;
   hashPrefix: string;
   enforce: boolean;
+  /** Keep which users each device has carried (`user_links`, migration 0005). */
+  linkUsers: boolean;
   /** Absent if the app has no DeviceCheck key: decisions use D1 alone. */
   apple?: { teamId: string; keyId: string; p8: string };
 }
@@ -40,6 +42,7 @@ export function appConfig(env: GuardEnv, app: string): AppConfig | null {
     app,
     hashPrefix,
     enforce: str("ENFORCE") === "true",
+    linkUsers: str("LINK_USERS") === "true",
     apple: teamId && keyId && p8 ? { teamId, keyId, p8 } : undefined,
   };
 }

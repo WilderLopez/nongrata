@@ -147,6 +147,9 @@ doesn't know Cloudflare. When a note explains a term in depth, it is linked.
 
 ## U
 
+- **User link**: with `LINK_USERS_<APP>`, the Worker remembers which user hashes each device has
+  carried (`user_links` in D1), so a ban by `user` reaches every device that user was seen on
+  and an admin can list them. Off by default. See section 6.5 of the [design](DESIGN.md).
 - **`userRecordID`**: the iCloud user's ID in the app's CloudKit container. In the list it is
   the `icloud` kind. Still to be confirmed that it doesn't change across devices. See
   [Identifiers](concepts/identifiers.md).

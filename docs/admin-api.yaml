@@ -175,6 +175,14 @@ paths:
       description: |
         With `ref`: the pending or consumed unban of that device and its last 20 checks. With
         `kind` and `value` or `hash`: the ban row, or `null`. `ref` wins if both are given.
+
+        For an app with `LINK_USERS_<APP>` (`link_users` in `GET /v1/admin/apps`), a lookup by
+        `ref` also returns `users` (the user hashes seen on that device) and a lookup with
+        `kind=user` returns `devices` (the devices that user was seen on): most recently seen
+        first, at most 100, with `users_more` or `devices_more` saying whether there are more.
+        Without that setting, in an older Worker, or for another `kind`, those fields are absent;
+        an empty list means "supported, none seen". A link lasts until 180 days after the last
+        time seen; the links of a banned user are kept.
       parameters:
         - $ref: "#/components/parameters/app"
         - name: ref
@@ -226,6 +234,21 @@ paths:
                             bit0: { $ref: "#/components/schemas/NullableFlag" }
                             intent: { type: [string, "null"] }
                             created_at: { $ref: "#/components/schemas/Millis" }
+                      users:
+                        type: array
+                        maxItems: 100
+                        description: Only with user links on. The users seen on this device, most recently seen first.
+                        items:
+                          type: object
+                          required: [hash, first_seen, last_seen, banned]
+                          properties:
+                            hash: { $ref: "#/components/schemas/Hash" }
+                            first_seen: { $ref: "#/components/schemas/Millis" }
+                            last_seen: { $ref: "#/components/schemas/Millis" }
+                            banned: { $ref: "#/components/schemas/Flag" }
+                      users_more:
+                        type: boolean
+                        description: Only with user links on. There are more than 100 users.
                   - type: object
                     title: By hash
                     required: [app, hash, banned]
@@ -241,6 +264,24 @@ paths:
                                 required: [app]
                                 properties:
                                   app: { $ref: "#/components/schemas/App" }
+                      devices:
+                        type: array
+                        maxItems: 100
+                        description: Only with user links on and `kind=user`. The devices this user was seen on, most recently seen first.
+                        items:
+                          type: object
+                          required: [ref, install_hash, first_seen, last_seen, blocked]
+                          properties:
+                            ref: { $ref: "#/components/schemas/Ref" }
+                            install_hash: { $ref: "#/components/schemas/Hash" }
+                            first_seen: { $ref: "#/components/schemas/Millis" }
+                            last_seen: { $ref: "#/components/schemas/Millis" }
+                            blocked:
+                              description: The device's last check in the log; `null` if it has none left.
+                              $ref: "#/components/schemas/NullableFlag"
+                      devices_more:
+                        type: boolean
+                        description: Only with user links on and `kind=user`. There are more than 100 devices.
               examples:
                 byRef:
                   value:
@@ -441,7 +482,10 @@ paths:
                         app: { $ref: "#/components/schemas/App" }
                         enforce: { type: boolean, description: "`ENFORCE_<APP>` is `true` (otherwise observation mode)." }
                         devicecheck: { type: boolean, description: The Apple DeviceCheck key is set. }
-              example: { apps: [{ app: myapp, enforce: true, devicecheck: true }] }
+                        link_users:
+                          type: boolean
+                          description: "`LINK_USERS_<APP>` is `true`: the Worker keeps which users each device has carried. Absent in a Worker that predates it."
+              example: { apps: [{ app: myapp, enforce: true, devicecheck: true, link_users: false }] }
         "400": { $ref: "#/components/responses/AmbiguousCredentials" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 

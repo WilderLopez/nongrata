@@ -146,6 +146,13 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
   lista es el tipo `icloud`. Falta confirmar que no cambie entre dispositivos. Ver
   [Identificadores](conceptos/identificadores.md).
 
+## V
+
+- **Vínculo usuario-dispositivo**: con `LINK_USERS_<APP>`, el Worker recuerda qué hashes de
+  usuario han pasado por cada dispositivo (`user_links` en D1), para que un baneo por `user`
+  alcance a todos los dispositivos donde se vio a ese usuario y un admin pueda listarlos.
+  Desactivado por defecto. Ver la sección 6.5 del [diseño](DISENO.md).
+
 ## W
 
 - **Worker**: programa que Cloudflare ejecuta en sus servidores con cada petición HTTP, sin

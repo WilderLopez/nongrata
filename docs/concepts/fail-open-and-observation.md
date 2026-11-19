@@ -36,6 +36,8 @@ but changes nothing outside `check_log`. It neither writes `bit0` nor
 [propagates](propagation.md). That way, a wrong ban loaded during observation leaves no trace on
 anyone's iPhone. When `ENFORCE` is turned on, the first check of each blocked device writes
 `bit0` and propagates. Unbans by `ref` are applied, because support requests them on purpose.
+With `LINK_USERS_<APP>`, the link between a user and its devices is kept too: it is not a ban,
+and it has to be there when `ENFORCE` is turned on.
 
 It enables a safe rollout:
 

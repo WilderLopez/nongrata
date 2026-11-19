@@ -49,11 +49,18 @@ describe("appConfig", () => {
     const env = envOf({
       HASH_PREFIX_MYAPP: "myapp-ban-v1",
       ENFORCE_OTHER: "true",
+      LINK_USERS_OTHER: "true",
       APPLE_TEAM_ID_OTHER: "T",
       APPLE_KEY_ID_OTHER: "K",
       APPLE_DC_KEY_P8_OTHER: "P",
     });
-    expect(appConfig(env, "myapp")).toEqual({ app: "myapp", hashPrefix: "myapp-ban-v1", enforce: false, apple: undefined });
+    expect(appConfig(env, "myapp")).toEqual({
+      app: "myapp",
+      hashPrefix: "myapp-ban-v1",
+      enforce: false,
+      linkUsers: false,
+      apple: undefined,
+    });
   });
 
   it("with all three Apple variables, each one in its own field", () => {
@@ -89,5 +96,15 @@ describe("appConfig", () => {
     [undefined, false],
   ])('ENFORCE_<APP>=%j: only an exact "true" blocks', (value, enforce) => {
     expect(appConfig(envOf({ HASH_PREFIX_MYAPP: "p", ENFORCE_MYAPP: value }), "myapp")?.enforce).toBe(enforce);
+  });
+
+  it.each([
+    ["true", true],
+    ["TRUE", false],
+    ["1", false],
+    ["false", false],
+    [undefined, false],
+  ])('LINK_USERS_<APP>=%j: only an exact "true" keeps the user-device link', (value, linkUsers) => {
+    expect(appConfig(envOf({ HASH_PREFIX_MYAPP: "p", LINK_USERS_MYAPP: value }), "myapp")?.linkUsers).toBe(linkUsers);
   });
 });
