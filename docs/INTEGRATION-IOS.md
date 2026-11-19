@@ -147,8 +147,10 @@ apps do after a reinstall. If the app wipes its whole Keychain, exclude that ser
 ### Banning by user ID
 
 A ban by `user` reaches a device on a check that carries that user, so pass `userId` on the
-checks made with a session, not only on login. `user` values are case-sensitive: ban the ID
-exactly as the app passes it here.
+checks made with a session, not only on login. Capitals do not matter: the SDK and the Worker
+lowercase A-Z in a user ID before hashing it. That came after `0.2.0`; with `0.2.0`, ban the
+ID exactly as the app passes it here. If your user IDs are short and case-sensitive, see
+[Hash and ref](concepts/hash-and-ref.md).
 
 If your Worker sets `LINK_USERS_<APP>` ([design](DESIGN.md), section 6.5), it remembers which
 users each device has carried. A ban by user then reaches every device that user was seen on,

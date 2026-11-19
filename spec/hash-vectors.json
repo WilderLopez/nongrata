@@ -1,5 +1,5 @@
 {
-  "_comment": "Vectors of SHA256(prefix + ':' + kind + ':' + normalized value) in lowercase hex (UTF-8). Normalize: strip space, \\t, \\n and \\r from both ends; for idfv and install, uppercase a-z (ASCII only). Generated with shasum -a 256 over the already normalized value. Used by the Worker, Swift SDK and CLI tests; if they change, every existing list changes.",
+  "_comment": "Vectors of SHA256(prefix + ':' + kind + ':' + normalized value) in lowercase hex (UTF-8). Normalize: strip space, \\t, \\n and \\r from both ends; for idfv and install, uppercase a-z; for user, lowercase A-Z (ASCII only in both cases). Generated with shasum -a 256 over the already normalized value. Used by the Worker, Swift SDK and CLI tests; if they change, every existing list changes.",
   "vectors": [
     {
       "prefix": "myapp-ban-v1",
@@ -40,8 +40,9 @@
       "prefix": "myapp-ban-v1",
       "kind": "user",
       "value": "José Ñúñez 😎",
-      "hash": "b34235667ecf4603c164c67b888b0449d1b97445d5866ded680248609d6112ad",
-      "ref": "B3423566"
+      "hash": "ca8fecc41f74c557dd879a0f9585b7ecba4738cc9bf3b06c2cbe66e0b5e77bc7",
+      "ref": "CA8FECC4",
+      "note": "user: only A-Z is lowercased; Ñ stays as is"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -87,9 +88,9 @@
       "prefix": "myapp-ban-v1",
       "kind": "user",
       "value": "User_12345",
-      "hash": "77ac2d5eca5e7df463c15ea259134ff10fe78cd91d78eb183e5076f07389926a",
-      "ref": "77AC2D5E",
-      "note": "user is opaque: case is kept"
+      "hash": "83b1273587f3f4c91e0dcab9c6952765dfb2b00f743d0979cb9679d82f493854",
+      "ref": "83B12735",
+      "note": "user: A-Z is lowercased, so it is the same hash as user_12345"
     },
     {
       "prefix": "myapp-ban-v1",
@@ -98,6 +99,22 @@
       "hash": "9d97841901376293c23ca2743eab4adaa32ac948ecaf682e7775a91bb5b1862a",
       "ref": "9D978419",
       "note": "the non-breaking space is not removed"
+    },
+    {
+      "prefix": "myapp-ban-v1",
+      "kind": "user",
+      "value": "018f3b2a-7c4d-7e1a-9b3c-5d6e7f8091a2",
+      "hash": "51e07d19f834bae2ef800eb54f92fcf0b892ff39d685b2a01599851a93b3feca",
+      "ref": "51E07D19",
+      "note": "user: a UUID as an app's backend returns it"
+    },
+    {
+      "prefix": "myapp-ban-v1",
+      "kind": "user",
+      "value": " 018F3B2A-7C4D-7E1A-9B3C-5D6E7F8091A2\n",
+      "hash": "51e07d19f834bae2ef800eb54f92fcf0b892ff39d685b2a01599851a93b3feca",
+      "ref": "51E07D19",
+      "note": "user: the same UUID pasted in uppercase, with spaces: same hash"
     }
   ]
 }

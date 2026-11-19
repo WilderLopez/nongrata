@@ -46,14 +46,31 @@ Antes del hash, el valor se limpia igual en los tres sitios:
 
 - Se quitan espacios, tabuladores y saltos de línea de los extremos (solo los ASCII).
 - En `idfv` e `install`, que son UUID, las letras a-z pasan a mayúsculas.
-- `icloud` y `user` se dejan como están: son opacos y distinguen mayúsculas.
+- En `user`, las letras A-Z pasan a minúsculas (desde el 2026-11-19; ver abajo).
+- `icloud` se deja como está: es opaco y distingue mayúsculas.
 
 Por qué: el SDK manda los UUID en mayúsculas (`uuidString`), pero un `idfv` copiado de otra
 herramienta puede venir en minúsculas o con un espacio al final. Sin normalizar, ese baneo no
 coincidiría nunca y nada avisaría.
 
 Se descartó no normalizar y que solo la CLI avisara (un baneo hecho sin la CLI seguiría fallando)
-y pasarlo todo a minúsculas (alteraría `icloud` y `user`).
+y pasarlo todo a minúsculas (alteraría `icloud`).
+
+### `user` en minúsculas (2026-11-19)
+
+Hasta entonces `user` conservaba las mayúsculas, como `icloud`. Soporte banea con el ID de
+usuario que copia de un backoffice, y bastaba una mayúscula para que el baneo no coincidiera con
+nada, sin aviso. Ahora `A1b2` y `a1B2` son el mismo usuario.
+
+- **Lo que cuesta:** dos usuarios cuyos ID solo difieran en mayúsculas pasan a ser uno. Con
+  UUID, números o ID aleatorios largos eso no ocurre. Si tus ID son cortos y distinguen
+  mayúsculas, un baneo por `user` podría alcanzar a quien no debe: banea esos por `install`.
+- **A quién le cambia:** nada para un ID que ya iba en minúsculas. Para un ID con mayúsculas,
+  una app con el SDK `0.2.0` o anterior sigue mandando el hash antiguo hasta que se actualice, y
+  un baneo suyo por `value` solo coincide con el nuevo; un baneo guardado por `hash` sigue
+  coincidiendo con lo mismo que antes.
+- Solo A-Z, como la regla de mayúsculas de los UUID: las demás letras (`Ñ`, `ß`) no se tocan,
+  para que Swift y JavaScript coincidan siempre.
 
 En código: `normalizeValue` en `worker/src/hash.ts` (lo usa también la CLI) e
 `IdentifierHasher.normalize` en Swift. Los vectores con `note` en `spec/hash-vectors.json`

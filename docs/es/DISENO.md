@@ -746,3 +746,7 @@ el Worker más adelante.
    tocan. Así un `idfv` copiado en minúsculas da el mismo hash que el que manda el SDK. Igual en
    el SDK, el Worker y la CLI; los vectores nuevos de `spec/hash-vectors.json` lo fijan. No
    cambia ningún hash de un valor que ya estuviera normalizado.
+   **Cambiado** el 2026-11-19: en `user` las letras A-Z pasan a minúsculas, para que un ID de
+   usuario pegado con otras mayúsculas sea el mismo usuario; `icloud` y `android_id` siguen sin
+   tocarse. Cambia el hash de un valor `user` que tuviera mayúsculas; ver
+   [Hash y ref](conceptos/hash-y-ref.md).

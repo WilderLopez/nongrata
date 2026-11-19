@@ -24,9 +24,10 @@ public struct IdentifierHasher: Sendable {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Same as the Worker's `normalizeValue`: trims space, `\t`, `\n` and `\r` from both ends
-    /// and, for UUIDs (`idfv`, `install`), uppercases only a-z. Works on Unicode scalars because
-    /// in Swift `"\r\n"` is a single `Character`.
+    /// Same as the Worker's `normalizeValue`: trims space, `\t`, `\n` and `\r` from both ends;
+    /// for UUIDs (`idfv`, `install`), uppercases only a-z; for `user`, lowercases only A-Z, so an
+    /// ID typed with other capitals is still the same user. `icloud` keeps its case. Works on
+    /// Unicode scalars because in Swift `"\r\n"` is a single `Character`.
     static func normalize(_ kind: IdentifierKind, _ value: String) -> String {
         let edge: Set<Unicode.Scalar> = [" ", "\t", "\n", "\r"]
         var scalars = Array(value.unicodeScalars)[...]
@@ -34,10 +35,16 @@ public struct IdentifierHasher: Sendable {
         while let last = scalars.last, edge.contains(last) { scalars = scalars.dropLast() }
 
         let uppercase = kind == .idfv || kind == .install
+        let lowercase = kind == .user
         var result = String.UnicodeScalarView()
         for scalar in scalars {
-            let isLowerASCII = ("a"..."z").contains(scalar)
-            result.append(uppercase && isLowerASCII ? Unicode.Scalar(scalar.value - 32)! : scalar)
+            if uppercase, ("a"..."z").contains(scalar) {
+                result.append(Unicode.Scalar(scalar.value - 32)!)
+            } else if lowercase, ("A"..."Z").contains(scalar) {
+                result.append(Unicode.Scalar(scalar.value + 32)!)
+            } else {
+                result.append(scalar)
+            }
         }
         return String(result)
     }

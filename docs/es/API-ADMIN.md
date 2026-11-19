@@ -182,8 +182,9 @@ usuario:
 - **Solo hashes.** `users` no puede decir quién es un usuario; permite a un cliente banear la
   cuenta que hay detrás de un dispositivo (`POST /v1/admin/ban` con `kind: "user"` y ese
   `hash`). `install_hash` hace lo mismo para un dispositivo (`kind: "install"`).
-- **Los valores de `user` distinguen mayúsculas.** `value` tiene que ser el ID exactamente como
-  la app lo pasa al SDK.
+- **Las mayúsculas no importan en un valor `user`.** El Worker pasa A-Z a minúsculas antes del
+  hash, igual que el SDK ([Hash y ref](conceptos/hash-y-ref.md)); un Worker desplegado antes de
+  ese cambio toma `value` tal como se escribe.
 
 Desbanear un dispositivo por `ref` quita también sus vínculos con los usuarios baneados; ellos
 siguen baneados.

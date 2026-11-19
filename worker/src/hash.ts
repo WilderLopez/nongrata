@@ -18,14 +18,17 @@ export const isRef = (value: unknown): value is string =>
   typeof value === "string" && REF_RE.test(value);
 
 // Normalization before hashing, identical in the SDK: strips ASCII spaces, tabs and line breaks
-// from both ends, and uppercases (a-z only) the UUIDs, which iOS returns in uppercase.
-// `icloud`, `user` and `android_id` are opaque and keep their case.
+// from both ends; uppercases (a-z only) the UUIDs, which iOS returns in uppercase; and lowercases
+// (A-Z only) `user`, so an ID typed or pasted with other capitals is still the same user.
+// `icloud` and `android_id` are opaque and keep their case.
 const EDGE_WHITESPACE_RE = /^[ \t\n\r]+|[ \t\n\r]+$/g;
 const UUID_KINDS: readonly Kind[] = ["idfv", "install"];
 
 export function normalizeValue(kind: Kind, value: string): string {
   const trimmed = value.replace(EDGE_WHITESPACE_RE, "");
-  return UUID_KINDS.includes(kind) ? trimmed.replace(/[a-z]/g, (c) => c.toUpperCase()) : trimmed;
+  if (UUID_KINDS.includes(kind)) return trimmed.replace(/[a-z]/g, (c) => c.toUpperCase());
+  if (kind === "user") return trimmed.replace(/[A-Z]/g, (c) => c.toLowerCase());
+  return trimmed;
 }
 
 // A UUID or a CloudKit record name never has the shape of a hash, so a `value` that does is a

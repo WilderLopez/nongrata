@@ -749,3 +749,6 @@ later on.
    That way an `idfv` copied in lowercase gives the same hash as the one the SDK sends. The same
    in the SDK, the Worker and the CLI; the new vectors in `spec/hash-vectors.json` pin it down.
    It does not change any hash of a value that was already normalized.
+   **Changed** on 2026-11-19: in `user` the letters A-Z are lowercased, so a user ID pasted with
+   other capitals is the same user; `icloud` and `android_id` stay untouched. It changes the
+   hash of a `user` value that had capitals; see [Hash and ref](concepts/hash-and-ref.md).

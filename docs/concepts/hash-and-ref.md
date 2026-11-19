@@ -45,14 +45,30 @@ Before hashing, the value is cleaned the same way in all three places:
 
 - Spaces, tabs and line breaks are stripped from both ends (ASCII ones only).
 - In `idfv` and `install`, which are UUIDs, the letters a-z are uppercased.
-- `icloud` and `user` are left as they are: they are opaque and case-sensitive.
+- In `user`, the letters A-Z are lowercased (since 2026-11-19; see below).
+- `icloud` is left as it is: it is opaque and case-sensitive.
 
 Why: the SDK sends UUIDs in uppercase (`uuidString`), but an `idfv` copied from another tool may
 come in lowercase or with a trailing space. Without normalization, that ban would never match
 and nothing would warn about it.
 
 Rejected alternatives: not normalizing and having only the CLI warn (a ban made without the CLI
-would still fail), and lowercasing everything (it would alter `icloud` and `user`).
+would still fail), and lowercasing everything (it would alter `icloud`).
+
+### `user` in lowercase (2026-11-19)
+
+Until then `user` kept its case, like `icloud`. Support bans by the user ID it copies from a
+back office, and one capital letter was enough for the ban to match nothing, with no warning.
+Now `A1b2` and `a1B2` are the same user.
+
+- **What it costs:** two users whose IDs differ only in capitals become one. With UUIDs, numbers
+  or long random IDs that does not happen. If your IDs are short and case-sensitive, a ban by
+  `user` could reach the wrong person: ban those by `install` instead.
+- **Who it changes:** nothing for an ID that was already lowercase. For an ID with capitals, an
+  app on SDK `0.2.0` or earlier still sends the old hash until it updates, and a ban of it by
+  `value` only matches the new one; a ban stored by `hash` keeps matching what it matched.
+- Only A-Z, like the uppercase rule for UUIDs: other letters (`Ñ`, `ß`) are left alone, so
+  Swift and JavaScript always agree.
 
 In code: `normalizeValue` in `worker/src/hash.ts` (also used by the CLI) and
 `IdentifierHasher.normalize` in Swift. The vectors with a `note` in `spec/hash-vectors.json`

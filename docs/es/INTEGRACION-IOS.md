@@ -148,8 +148,11 @@ servicio.
 ### Banear por ID de usuario
 
 Un baneo por `user` alcanza a un dispositivo en una comprobación que lleve ese usuario, así que
-pasa `userId` en las comprobaciones hechas con sesión, no solo en el login. Los valores de
-`user` distinguen mayúsculas: banea el ID exactamente como la app lo pasa aquí.
+pasa `userId` en las comprobaciones hechas con sesión, no solo en el login. Las mayúsculas no
+importan: el SDK y el Worker pasan A-Z a minúsculas en un ID de usuario antes del hash. Eso
+llegó después de la `0.2.0`; con la `0.2.0`, banea el ID exactamente como la app lo pasa aquí.
+Si tus ID de usuario son cortos y distinguen mayúsculas, mira
+[Hash y ref](conceptos/hash-y-ref.md).
 
 Si tu Worker tiene `LINK_USERS_<APP>` ([diseño](DISENO.md), sección 6.5), recuerda qué usuarios
 han pasado por cada dispositivo. Un baneo por usuario alcanza entonces a todos los dispositivos

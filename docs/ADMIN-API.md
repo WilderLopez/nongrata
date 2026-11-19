@@ -175,8 +175,9 @@ and a ban by `user` reaches all of them on their next check.
 - **Only hashes.** `users` cannot say who a user is; it lets a client ban the account behind a
   device (`POST /v1/admin/ban` with `kind: "user"` and that `hash`). `install_hash` does the
   same for one device (`kind: "install"`).
-- **`user` values are case-sensitive.** `value` must be the ID exactly as the app passes it to
-  the SDK.
+- **Capitals do not matter in a `user` value.** The Worker lowercases A-Z before hashing, as the
+  SDK does ([Hash and ref](concepts/hash-and-ref.md)); a Worker deployed before that change
+  takes `value` as written.
 
 Unbanning a device by `ref` also drops its links to the users that are banned; they stay banned.
 
