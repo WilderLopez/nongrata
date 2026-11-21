@@ -100,11 +100,17 @@ parameters have defaults:
 | `environment` | `PRODUCTION` | Sent as `env`; for the check log only, because an Android check never calls Apple. |
 | `strictSignup` | `true` | With `SIGNUP`, creating the account requires `Allowed`. |
 | `foregroundInterval` | 6 hours | Minimum gap between `FOREGROUND` checks while allowed. |
-| `timeout` | 5 seconds | To connect and, separately, to read the answer. |
+| `timeout` | 5 seconds | The longest wait to connect to one of the Worker's addresses and, separately, for the answer. The DNS lookup is not counted and each address can take its own connect wait, so a check with a bad network can last longer. |
 
 The constructor reads two small files on the calling thread, so a device that was blocked is
-`Blocked` from the first instant, before any check. The checks themselves run on a background
-thread.
+`Blocked` from the first instant, before any check; on the first launch it also writes the
+`installId`. A StrictMode policy that detects disk access on the main thread reports both. The
+checks themselves run on a background thread.
+
+If your app runs more than one process, `Application.onCreate` runs in each of them. Create
+NonGrata only in the process that checks (for example, compare `Application.getProcessName()`,
+API 28 and later, with your package name): two processes creating it on the same first launch can
+each make their own `installId`, and one of them would be lost.
 
 ## 5. When to check
 
@@ -195,13 +201,16 @@ override fun onStop() {
 }
 ```
 
-- Listeners and the `check` callback are called **on the main thread**. Add them from the main
-  thread, and remove them when the screen goes away: the SDK holds them strongly.
+- Listeners and the `check` callback are called **on the main thread**. Remove listeners when the
+  screen goes away: the SDK holds them strongly, and one that captures an `Activity` leaks it. A
+  listener hears only changes, and it can hear a verdict it has just read from
+  `nonGrata.verdict`; write it so that hearing the same verdict twice does no harm, as above.
 - With `Blocked(ref)`, log the user out and show your suspended screen with the `ref` as the
   support code. **The SDK imposes no UI and never closes the app.** Do not close it
   programmatically either; the screen stays put.
 - `nonGrata.supportCode` is the same 8-character `ref` for this device, available from any thread
-  (`null` only if the storage could not be read). Show it in "Contact support" and ask for it.
+  (`null` only while the `installId` can be neither read nor created). Show it in "Contact
+  support" and ask for it.
   `nonGrata.installId` is the SDK's own UUID, for analytics: send it to your backend to
   cross-reference accounts.
 - **The local block mark** is a file in `noBackupFilesDir`. A `blocked` answer writes the `ref`
@@ -258,7 +267,9 @@ a reinstall or an update. If you clear that directory, you lose the `installId` 
   button for each kind of check, a field for the `userId` and the verdict and support code on
   screen. Copy `nongrata.local.properties.example` to `nongrata.local.properties` (git ignores
   the copy) and fill in your Worker's URL, `appId` and `hashPrefix`; without it the demo builds
-  with placeholders and every check ends in `Unknown`. `make build-android` builds it.
+  with placeholders and every check ends in `Unknown`. `make build-android` builds it; its
+  [README](../Examples/NonGrataDemoAndroid/README.md) explains how to install it on the emulator
+  and what to try.
 - **The emulator** is enough: the SDK uses no Google services, so an AOSP image works as well as
   one with Google Play. The emulator has its own `ANDROID_ID`, and a wipe changes it, which is a
   quick way to try a "factory reset".

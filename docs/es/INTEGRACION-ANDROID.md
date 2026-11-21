@@ -101,11 +101,17 @@ demás parámetros tienen valor por defecto:
 | `environment` | `PRODUCTION` | Se manda como `env`; solo para el registro de comprobaciones, porque una comprobación Android nunca llama a Apple. |
 | `strictSignup` | `true` | Con `SIGNUP`, crear la cuenta exige `Allowed`. |
 | `foregroundInterval` | 6 horas | Intervalo mínimo entre comprobaciones `FOREGROUND` mientras está permitido. |
-| `timeout` | 5 segundos | Para conectar y, aparte, para leer la respuesta. |
+| `timeout` | 5 segundos | La espera máxima para conectar con una de las direcciones del Worker y, aparte, para la respuesta. La búsqueda DNS no cuenta y cada dirección puede gastar su propia espera de conexión, así que con mala red una comprobación puede durar más. |
 
 El constructor lee dos ficheros pequeños en el hilo que lo llama, así que un dispositivo que estaba
-bloqueado es `Blocked` desde el primer instante, antes de cualquier comprobación. Las comprobaciones
-corren en un hilo de fondo.
+bloqueado es `Blocked` desde el primer instante, antes de cualquier comprobación; en el primer
+arranque además escribe el `installId`. Una política de StrictMode que detecte acceso a disco en el
+hilo principal avisa de las dos cosas. Las comprobaciones corren en un hilo de fondo.
+
+Si tu app tiene más de un proceso, `Application.onCreate` se ejecuta en cada uno. Crea NonGrata solo
+en el proceso que comprueba (por ejemplo, compara `Application.getProcessName()`, API 28 o
+posterior, con el nombre de tu paquete): dos procesos que lo creen en el mismo primer arranque pueden
+generar cada uno su `installId`, y uno de los dos se perdería.
 
 ## 5. Cuándo comprobar
 
@@ -197,14 +203,17 @@ override fun onStop() {
 }
 ```
 
-- Los oyentes y el callback de `check` se llaman **en el hilo principal**. Añádelos desde el hilo
-  principal y quítalos cuando la pantalla desaparezca: el SDK los retiene con referencia fuerte.
+- Los oyentes y el callback de `check` se llaman **en el hilo principal**. Quita los oyentes cuando
+  la pantalla desaparezca: el SDK los retiene con referencia fuerte, y uno que capture una
+  `Activity` la filtra. Un oyente solo oye cambios, y puede oír un veredicto que acaba de leer en
+  `nonGrata.verdict`; escríbelo de forma que oír el mismo veredicto dos veces no haga daño, como
+  arriba.
 - Con `Blocked(ref)`, cierra la sesión del usuario y muestra tu pantalla de suspendido con el `ref`
   como código de soporte. **El SDK no impone interfaz y nunca cierra la app.** Tampoco la cierres
   por código; la pantalla queda fija.
 - `nonGrata.supportCode` es el mismo `ref` de 8 caracteres de este dispositivo, disponible desde
-  cualquier hilo (`null` solo si no se pudo leer el almacenamiento). Muéstralo en "Contactar con
-  soporte" y pídelo. `nonGrata.installId` es el UUID propio del SDK, para analítica: mándalo a tu
+  cualquier hilo (`null` solo mientras el `installId` no se pueda leer ni crear). Muéstralo en
+  "Contactar con soporte" y pídelo. `nonGrata.installId` es el UUID propio del SDK, para analítica: mándalo a tu
   backend para cruzar cuentas.
 - **La marca local de bloqueo** es un fichero en `noBackupFilesDir`. Una respuesta `blocked` escribe
   ahí el `ref`; solo un `ok` lo borra. Un error de red, un timeout o un `5xx` no tocan nada: un
@@ -261,7 +270,8 @@ marca de bloqueo.
   código de soporte en pantalla. Copia `nongrata.local.properties.example` a
   `nongrata.local.properties` (git ignora la copia) y rellena la URL, el `appId` y el `hashPrefix`
   de tu Worker; sin él la demo compila con marcadores y toda comprobación acaba en `Unknown`.
-  `make build-android` la compila.
+  `make build-android` la compila; su [README](../../Examples/NonGrataDemoAndroid/README.md)
+  explica cómo instalarla en el emulador y qué probar (en inglés).
 - **El emulador** basta: el SDK no usa servicios de Google, así que una imagen AOSP sirve igual que
   una con Google Play. El emulador tiene su propio `ANDROID_ID` y un borrado de datos lo cambia, que
   es una forma rápida de probar un "restablecimiento de fábrica".

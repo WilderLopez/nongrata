@@ -47,7 +47,9 @@ private val checkExecutor: ExecutorService by lazy {
 /**
  * One file per key in [directory]. A missing file is `null`; any other failure throws, so the
  * caller can tell "there is none" from "couldn't read it". Writes go to a temporary file that is
- * synced and then renamed over the old one, so a crash never leaves half a value.
+ * synced and then renamed over the old one, so a crash never leaves half a value. Each write has
+ * its own temporary file: two writers of the same key (two instances, two processes) can never
+ * rename a file the other one is still filling.
  */
 internal class FileStore(directory: File) : LocalStore {
     private val directory: Path = directory.toPath()
@@ -60,16 +62,24 @@ internal class FileStore(directory: File) : LocalStore {
 
     override fun write(key: String, value: String) {
         Files.createDirectories(directory)
-        val temporary = directory.resolve("$key.tmp")
-        Files.write(
-            temporary,
-            value.toByteArray(Charsets.UTF_8),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.TRUNCATE_EXISTING,
-            StandardOpenOption.WRITE,
-            StandardOpenOption.SYNC,
-        )
-        Files.move(temporary, path(key), StandardCopyOption.ATOMIC_MOVE)
+        val temporary = Files.createTempFile(directory, "$key.", ".tmp")
+        try {
+            Files.write(
+                temporary,
+                value.toByteArray(Charsets.UTF_8),
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.SYNC,
+            )
+            Files.move(temporary, path(key), StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: Throwable) {
+            try {
+                Files.deleteIfExists(temporary)
+            } catch (cleanup: IOException) {
+                e.addSuppressed(cleanup)
+            }
+            throw e
+        }
     }
 
     override fun remove(key: String) {
@@ -105,14 +115,16 @@ internal class AndroidDeviceIdentity(private val context: Context) : DeviceIdent
 /**
  * `HttpURLConnection`, so the SDK needs no HTTP library. [open] is injectable for the tests.
  * The timeout applies to connecting and again to reading, like `URLRequest.timeoutInterval`
- * applies to each wait rather than to the whole request.
+ * applies to each wait rather than to the whole request. It does not bound the DNS lookup, and the
+ * platform may try each of the host's addresses with its own connect timeout.
  */
 internal class HttpCheckTransport(
     private val open: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
 ) : CheckTransport {
     override fun send(payload: CheckPayload, endpoint: URL, timeout: Duration): CheckResponse {
         val body = payload.toJson().toByteArray(Charsets.UTF_8)
-        val millis = timeout.toMillis().coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
+        // At least 1: for HttpURLConnection, 0 means no timeout at all.
+        val millis = timeout.toMillisSaturated().coerceIn(1, Int.MAX_VALUE.toLong()).toInt()
         val connection = open(endpoint)
         try {
             connection.requestMethod = "POST"

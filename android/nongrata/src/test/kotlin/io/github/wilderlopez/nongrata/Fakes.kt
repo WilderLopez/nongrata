@@ -9,6 +9,9 @@ import java.util.concurrent.Executor
 internal class MemoryStore : LocalStore {
     val values = mutableMapOf<String, String>()
     var unavailable = false
+
+    /** Reads work, but writing or removing throws, like a full disk. */
+    var readOnly = false
     var writes = 0
         private set
 
@@ -18,13 +21,13 @@ internal class MemoryStore : LocalStore {
     }
 
     override fun write(key: String, value: String) {
-        if (unavailable) throw IOException("unavailable")
+        if (unavailable || readOnly) throw IOException("unavailable")
         writes++
         values[key] = value
     }
 
     override fun remove(key: String) {
-        if (unavailable) throw IOException("unavailable")
+        if (unavailable || readOnly) throw IOException("unavailable")
         values.remove(key)
     }
 }
@@ -42,13 +45,16 @@ internal class FakeTransport : CheckTransport {
     enum class Mode { OK, BLOCKED, FAILING }
 
     var mode = Mode.OK
+
+    /** The `ref` the Worker answers with; `null` answers the one in the request. */
+    var ref: String? = null
     val payloads = mutableListOf<CheckPayload>()
 
     override fun send(payload: CheckPayload, endpoint: URL, timeout: Duration): CheckResponse {
         payloads.add(payload)
         return when (mode) {
-            Mode.OK -> CheckResponse(CheckResponse.Status.OK, payload.ref)
-            Mode.BLOCKED -> CheckResponse(CheckResponse.Status.BLOCKED, payload.ref)
+            Mode.OK -> CheckResponse(CheckResponse.Status.OK, ref ?: payload.ref)
+            Mode.BLOCKED -> CheckResponse(CheckResponse.Status.BLOCKED, ref ?: payload.ref)
             Mode.FAILING -> throw IOException("timed out")
         }
     }

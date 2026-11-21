@@ -10,7 +10,9 @@ import java.time.Duration
  *
  * @property endpoint Full URL of `POST /v1/device/check`, such as
  *   `https://nongrata-myapp.example.workers.dev/v1/device/check`. A string rather than a
- *   `java.net.URL`, whose `equals` and `hashCode` resolve the host over the network.
+ *   `java.net.URL`, whose `equals` and `hashCode` resolve the host over the network. Plain `http`
+ *   is accepted, but Android blocks cleartext traffic unless the app's network security config
+ *   allows it, and then every check ends in no answer.
  * @property appId The app's identifier in the Worker, for example `"myapp"`.
  * @property hashPrefix Same as the Worker's `HASH_PREFIX_<APP>`, for example `"myapp-ban-v1"`.
  * @property environment Sent as `env` on every check. The Worker uses it to pick the DeviceCheck
@@ -18,8 +20,12 @@ import java.time.Duration
  * @property strictSignup With [CheckIntent.SIGNUP], creating the account requires the check to end
  *   in [NonGrataVerdict.Allowed].
  * @property foregroundInterval Minimum interval between [CheckIntent.FOREGROUND] checks while
- *   allowed.
- * @property timeout Maximum time to connect to the Worker, and again to read its answer.
+ *   allowed. Zero or negative never skips one.
+ * @property timeout The longest wait to open a connection to one of the Worker's addresses, and
+ *   again the longest wait for its answer, rather than a limit on the whole check: the DNS lookup is
+ *   not counted, and a host with several addresses can try each in turn. Zero or less counts as one
+ *   millisecond.
+ * @throws IllegalArgumentException if [endpoint] is not an absolute `http(s)` URL with a host.
  */
 public data class NonGrataConfiguration @JvmOverloads constructor(
     val endpoint: String,
@@ -43,16 +49,25 @@ public data class NonGrataConfiguration @JvmOverloads constructor(
         uri.toURL()
     }
 
+    /** The `env` sent with each check, as [wireValue]. */
     public enum class Environment(public val wireValue: String) {
         DEVELOPMENT("development"),
         PRODUCTION("production"),
     }
 }
 
+/** Why the app checks; sent as `intent`, as [wireValue]. Only [FOREGROUND] is ever skipped. */
 public enum class CheckIntent(public val wireValue: String) {
+    /** The app started. */
     LAUNCH("launch"),
+
+    /** The app came back to the foreground. Skipped while allowed and checked recently (`foregroundInterval`). */
     FOREGROUND("foreground"),
+
+    /** A user signed in. Pass their `userId`. */
     LOGIN("login"),
+
+    /** Before creating an account; decide with [NonGrata.permits], which applies `strictSignup`. */
     SIGNUP("signup"),
 
     /**
@@ -63,11 +78,24 @@ public enum class CheckIntent(public val wireValue: String) {
     REFRESH("refresh"),
 }
 
+/** What the SDK knows about this device. Use [NonGrata.permits] to decide with it. */
 public sealed class NonGrataVerdict {
+    /** The last check that decided got `ok` from the Worker. */
     public data object Allowed : NonGrataVerdict()
 
+    /**
+     * The Worker answered `blocked`, now or on an earlier launch (the local mark). [ref] is the
+     * support code to show the user, as the Worker sent it.
+     */
     public data class Blocked(val ref: String) : NonGrataVerdict()
 
     /** The check couldn't complete and there is no local mark. */
     public data object Unknown : NonGrataVerdict()
+}
+
+/** [Duration.toMillis], but a duration too long for a `Long` of milliseconds saturates instead of throwing. */
+internal fun Duration.toMillisSaturated(): Long = try {
+    toMillis()
+} catch (e: ArithmeticException) {
+    if (isNegative) Long.MIN_VALUE else Long.MAX_VALUE
 }

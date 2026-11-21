@@ -58,7 +58,8 @@ nonGrata.check(CheckIntent.SIGNUP, userId) { verdict ->
 ```
 
 `Examples/NonGrataDemoAndroid` is a minimal app that does this. Its Worker values go in
-`nongrata.local.properties` (copy `nongrata.local.properties.example`; git ignores the copy).
+`nongrata.local.properties` (copy `nongrata.local.properties.example`; git ignores the copy); its
+[README](../Examples/NonGrataDemoAndroid/README.md) explains how to run it and what to try.
 
 ## Supply chain
 

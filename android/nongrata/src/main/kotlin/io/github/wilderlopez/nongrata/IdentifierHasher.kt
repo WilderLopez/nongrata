@@ -2,19 +2,30 @@ package io.github.wilderlopez.nongrata
 
 import java.security.MessageDigest
 
-/** Identifier kinds the Android SDK sends. `idfv` and `icloud` are iOS only. */
+/**
+ * Identifier kinds the Android SDK sends, with the `kind` that goes into the hash as [wireValue].
+ * `idfv` and `icloud` are iOS only.
+ */
 public enum class IdentifierKind(public val wireValue: String) {
+    /** The SDK's own `installId`. Its hash gives the support code ([IdentifierHasher.ref]). */
     INSTALL("install"),
+
+    /** The app's ID for the signed-in user. */
     USER("user"),
+
+    /** `Settings.Secure.ANDROID_ID`. */
     ANDROID_ID("android_id"),
 }
 
 /**
  * Same formula as the Worker, the CLI and the Swift SDK:
  * `SHA256(prefix + ":" + kind + ":" + normalized value)` in lowercase hex, over UTF-8.
- * `spec/hash-vectors.json` pins the result.
+ * `spec/hash-vectors.json` pins the result. Stateless and safe to use from any thread.
+ *
+ * @property prefix The app's `HASH_PREFIX_<APP>`, used as it is.
  */
 public class IdentifierHasher(public val prefix: String) {
+    /** The 64-character lowercase hex hash of [value], normalized first for its [kind]. */
     public fun hash(kind: IdentifierKind, value: String): String {
         val input = "$prefix:${kind.wireValue}:${normalize(kind, value)}"
         val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
@@ -29,7 +40,10 @@ public class IdentifierHasher(public val prefix: String) {
     public companion object {
         private const val HEX = "0123456789abcdef"
 
-        /** Support code: the first 8 characters, uppercased, of the `installId` hash. */
+        /**
+         * Support code: the first 8 characters, uppercased, of the `installId` hash. It does not
+         * check its argument: a string shorter than 8 characters is returned whole, uppercased.
+         */
         @JvmStatic
         public fun ref(installHash: String): String = installHash.take(8).uppercase()
 
