@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/verdict_label"
+            android:textAppearance="@android:style/TextAppearance.Material.Caption" />
+
+        <TextView
+            android:id="@+id/verdict"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textAppearance="@android:style/TextAppearance.Material.Headline" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/support_code_label"
+            android:textAppearance="@android:style/TextAppearance.Material.Caption" />
+
+        <TextView
+            android:id="@+id/support_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textAppearance="@android:style/TextAppearance.Material.Title" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/install_id_label"
+            android:textAppearance="@android:style/TextAppearance.Material.Caption" />
+
+        <TextView
+            android:id="@+id/install_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/worker_label"
+            android:textAppearance="@android:style/TextAppearance.Material.Caption" />
+
+        <TextView
+            android:id="@+id/worker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:textIsSelectable="true" />
+
+        <EditText
+            android:id="@+id/user_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:autofillHints="username"
+            android:hint="@string/user_id_hint"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/check_launch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_launch" />
+
+        <Button
+            android:id="@+id/check_foreground"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_foreground" />
+
+        <Button
+            android:id="@+id/check_login"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_login" />
+
+        <Button
+            android:id="@+id/check_signup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_signup" />
+
+        <Button
+            android:id="@+id/check_refresh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_refresh" />
+
+        <TextView
+            android:id="@+id/last_check"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
+</ScrollView>

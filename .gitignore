@@ -38,3 +38,10 @@ CLAUDE.md
 Examples/NonGrataDemo/Config/Local.xcconfig
 Examples/NonGrataDemo/*.xcodeproj/
 Examples/NonGrataDemo/build/
+
+# Android (Gradle): build outputs, caches, the local SDK path and the demo's Worker values
+.gradle/
+.kotlin/
+build/
+local.properties
+Examples/NonGrataDemoAndroid/nongrata.local.properties

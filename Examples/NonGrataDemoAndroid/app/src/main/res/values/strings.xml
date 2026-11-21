@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NonGrata Demo</string>
+    <string name="verdict_label">Verdict</string>
+    <string name="support_code_label">Support code</string>
+    <string name="install_id_label">installId</string>
+    <string name="worker_label">Worker</string>
+    <string name="worker_value">%1$s\napp %2$s · prefix %3$s</string>
+    <string name="user_id_hint">User ID (optional, different on each device)</string>
+    <string name="check_launch">Check: launch</string>
+    <string name="check_foreground">Check: foreground</string>
+    <string name="check_login">Check: login</string>
+    <string name="check_signup">Check: sign-up</string>
+    <string name="check_refresh">Check: refresh</string>
+    <string name="none">none</string>
+    <string name="checking">Checking…</string>
+    <string name="verdict_allowed">Allowed</string>
+    <string name="verdict_blocked">Blocked (%1$s)</string>
+    <string name="verdict_unknown">Unknown (no answer, no local mark)</string>
+    <string name="last_check">Last check: %1$s → %2$s</string>
+    <string name="last_check_signup">Last check: %1$s → %2$s. Sign-up %3$s</string>
+    <string name="signup_permitted">permitted</string>
+    <string name="signup_refused">refused</string>
+</resources>

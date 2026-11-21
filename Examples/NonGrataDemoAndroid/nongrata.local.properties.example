@@ -1,0 +1,6 @@
+# Copy to nongrata.local.properties (git ignores it) and fill in your Worker's values.
+# Without that file the demo builds with these placeholders, and every check ends in "unknown".
+nongrata.workerUrl=https://nongrata-myapp.example.workers.dev
+# Must match the Worker: app "myapp" reads HASH_PREFIX_MYAPP.
+nongrata.appId=myapp
+nongrata.hashPrefix=myapp-ban-v1

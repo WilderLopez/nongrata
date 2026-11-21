@@ -1,0 +1,14 @@
+# Exact versions only: no ranges, no "+". gradle/verification-metadata.xml pins the SHA-256 of
+# every artifact these resolve to; after changing a version, regenerate it (see README.md).
+[versions]
+# AGP 9.5.x: Gradle >= 9.6.0, JDK 17, API level <= 37. Built-in Kotlin, with the Kotlin Gradle
+# plugin AGP itself depends on (2.2.10): no kotlin-android plugin and no Kotlin version here.
+agp = "9.5.1"
+junit = "4.13.2"
+
+[libraries]
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
