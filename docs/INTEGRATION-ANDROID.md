@@ -37,8 +37,8 @@ with a Gradle composite build, as `Examples/NonGrataDemoAndroid` does.
    }
    ```
 
-**Pin it.** A checkout of `main` changes under you. Check out a release tag or a commit that
-contains `android/`, and in a submodule commit that pointer, so every build uses the same SDK.
+**Pin it.** A checkout of `main` changes under you. Check out a release tag (`0.3.0` or later: the first
+with `android/`) or a commit, and in a submodule commit that pointer, so every build uses the same SDK.
 Before 1.0 a minor bump may break the API.
 
 **Dependency verification.** Gradle reads `gradle/verification-metadata.xml` only from the root

@@ -97,7 +97,9 @@ public final class NonGrata {
                 idfv: dependencies.identity.vendorIdentifier().map { hasher.hash(.idfv, $0) },
                 install: installHash,
                 icloud: icloud,
-                user: userId.map { hasher.hash(.user, $0) }
+                // An empty user ID hashes the same for every signed-out device; one propagated ban
+                // of it would block them all. Left out (the Worker drops it as well).
+                user: userId.flatMap { IdentifierHasher.normalize(.user, $0).isEmpty ? nil : hasher.hash(.user, $0) }
             ),
             intent: intent.rawValue,
             platform: "ios",

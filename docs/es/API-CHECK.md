@@ -136,8 +136,8 @@ antiguo responde `400` a `intent: "refresh"`, porque no lo conoce.
   configuración de la app (ver [Clientes Android](#clientes-android)).
 - **Usuario vacío.** El hash de un `user` vacío (`""`, o solo espacios y saltos de línea antes de
   normalizar) es el mismo para todo dispositivo que lo mande. El Worker lo descarta antes de
-  nada: no coincide, no se propaga y no se vincula. Un cliente no debería mandarlo (el SDK Kotlin
-  lo omite); un baneo de ese hash nunca coincide.
+  nada: no coincide, no se propaga y no se vincula. Un cliente no debería mandarlo (los dos SDK
+  lo omiten, el de Swift desde la `0.3.0`); un baneo de ese hash nunca coincide.
 - **Propagación.** Con `ENFORCE` activo, un dispositivo bloqueado (por hash o por `bit0`) guarda
   todos sus hashes como baneados, y así el bloqueo salta a otro dispositivo con el mismo hash
   `icloud`.

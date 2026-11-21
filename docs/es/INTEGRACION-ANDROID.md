@@ -38,8 +38,8 @@ con una compilación compuesta de Gradle, como hace `Examples/NonGrataDemoAndroi
    }
    ```
 
-**Fíjalo.** Una copia de `main` cambia bajo tus pies. Usa una etiqueta de versión o un commit que
-contenga `android/` y, en un submódulo, haz commit de ese puntero, para que todas las compilaciones
+**Fíjalo.** Una copia de `main` cambia bajo tus pies. Usa una etiqueta de versión (`0.3.0` o
+posterior: la primera con `android/`) o un commit y, en un submódulo, haz commit de ese puntero, para que todas las compilaciones
 usen el mismo SDK. Antes de 1.0, un cambio de minor puede romper la API.
 
 **Verificación de dependencias.** Gradle solo lee `gradle/verification-metadata.xml` de la

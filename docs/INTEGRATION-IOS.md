@@ -7,7 +7,7 @@
 Swift Package Manager, pinned to a version tag:
 
 - In Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
-  rule "Up to Next Minor Version" from `0.2.0` (before 1.0, a minor bump may break things).
+  rule "Up to Next Minor Version" from `0.3.0` (before 1.0, a minor bump may break things).
 - Products: `NonGrata` (required) and `NonGrataUI` (optional, the suspended screen).
 - If you use a private fork, Xcode needs your GitHub account in Settings → Accounts and, if the
   app builds on Xcode Cloud, you have to grant it access to that repo from App Store Connect.
@@ -91,8 +91,8 @@ find out. To shorten the wait:
   ```
 
 - **Call `check(intent: .refresh)` when you know something changed**: your backend answered that
-  the account is blocked, or a push of your own arrived. It is never throttled. `.refresh` came
-  after `0.2.0` and needs a Worker deployed from that same code or later, so deploy the Worker
+  the account is blocked, or a push of your own arrived. It is never throttled. `.refresh` arrived
+  in `0.3.0` and needs a Worker of `0.3.0` or later, so deploy the Worker
   first: an older one answers `400`, which the SDK treats as no response. With `0.2.0`, `.login`
   does the same.
 
@@ -148,8 +148,9 @@ apps do after a reinstall. If the app wipes its whole Keychain, exclude that ser
 
 A ban by `user` reaches a device on a check that carries that user, so pass `userId` on the
 checks made with a session, not only on login. Capitals do not matter: the SDK and the Worker
-lowercase A-Z in a user ID before hashing it. That came after `0.2.0`; with `0.2.0`, ban the
-ID exactly as the app passes it here. If your user IDs are short and case-sensitive, see
+lowercase A-Z in a user ID before hashing it (since `0.3.0`; with `0.2.0`, ban the ID exactly
+as the app passes it here). Since `0.3.0` an empty or blank `userId` is left out: its hash would
+be the same for every signed-out device. If your user IDs are short and case-sensitive, see
 [Hash and ref](concepts/hash-and-ref.md).
 
 If your Worker sets `LINK_USERS_<APP>` ([design](DESIGN.md), section 6.5), it remembers which

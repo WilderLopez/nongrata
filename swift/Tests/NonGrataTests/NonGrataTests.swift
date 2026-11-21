@@ -167,6 +167,16 @@ struct NonGrataTests {
         #expect(device.transport.payloads.count == 3)
     }
 
+    // The hash of "" is the same for every signed-out device: sent and propagated after one ban,
+    // it would block all of them. The Worker drops it too.
+    @Test("An empty or blank userId is left out", arguments: ["", "  ", "\t\r\n"])
+    func emptyUserIdIsLeftOut(_ userId: String) async throws {
+        let guardian = device.launch()
+        await guardian.check(intent: .login, userId: userId)
+        let payload = try #require(device.transport.payloads.last)
+        #expect(payload.ids.user == nil)
+    }
+
     @Test("A refresh always checks, even right after an allowed verdict")
     func refreshIsNeverThrottled() async {
         let guardian = device.launch()

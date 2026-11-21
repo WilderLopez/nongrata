@@ -126,10 +126,10 @@ and pairing an admin device need it. The Worker starts in observation mode
 ### 2. Add the package
 
 In Xcode: **File → Add Package Dependencies…** with `https://github.com/WilderLopez/nongrata.git`,
-from `0.2.0`. Or in your `Package.swift`:
+from `0.3.0`. Or in your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/WilderLopez/nongrata.git", from: "0.2.0")
+.package(url: "https://github.com/WilderLopez/nongrata.git", from: "0.3.0")
 ```
 
 Products: `NonGrata` (required) and `NonGrataUI` (the screen, optional).

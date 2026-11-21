@@ -7,7 +7,7 @@
 Swift Package Manager, fijado a una etiqueta de versión:
 
 - En Xcode: File → Add Package Dependencies… → `https://github.com/WilderLopez/nongrata.git`,
-  regla "Up to Next Minor Version" desde `0.2.0` (antes de 1.0, un cambio de minor puede romper).
+  regla "Up to Next Minor Version" desde `0.3.0` (antes de 1.0, un cambio de minor puede romper).
 - Productos: `NonGrata` (obligatorio) y `NonGrataUI` (opcional, la pantalla de suspendido).
 - Si usas un fork privado, Xcode necesita tu cuenta de GitHub en Settings → Accounts y, si la
   app compila en Xcode Cloud, hay que darle acceso a ese repo desde App Store Connect.
@@ -91,8 +91,8 @@ que sigue en memoria puede tardar horas en enterarse. Para acortar la espera:
   ```
 
 - **Llama a `check(intent: .refresh)` cuando sepas que algo cambió**: tu backend respondió que
-  la cuenta está bloqueada, o llegó una push tuya. Nunca se limita. `.refresh` es posterior a la
-  `0.2.0` y necesita un Worker desplegado con ese mismo código o uno posterior, así que
+  la cuenta está bloqueada, o llegó una push tuya. Nunca se limita. `.refresh` llegó con la
+  `0.3.0` y necesita un Worker de la `0.3.0` o posterior, así que
   despliega primero el Worker: uno antiguo responde `400`, y el SDK lo trata como sin respuesta.
   Con la `0.2.0`, `.login` hace lo mismo.
 
@@ -149,8 +149,10 @@ servicio.
 
 Un baneo por `user` alcanza a un dispositivo en una comprobación que lleve ese usuario, así que
 pasa `userId` en las comprobaciones hechas con sesión, no solo en el login. Las mayúsculas no
-importan: el SDK y el Worker pasan A-Z a minúsculas en un ID de usuario antes del hash. Eso
-llegó después de la `0.2.0`; con la `0.2.0`, banea el ID exactamente como la app lo pasa aquí.
+importan: el SDK y el Worker pasan A-Z a minúsculas en un ID de usuario antes del hash (desde la
+`0.3.0`; con la `0.2.0`, banea el ID exactamente como la app lo pasa aquí). Desde la `0.3.0`, un
+`userId` vacío o en blanco se omite: su hash sería el mismo para todos los dispositivos sin
+sesión.
 Si tus ID de usuario son cortos y distinguen mayúsculas, mira
 [Hash y ref](conceptos/hash-y-ref.md).
 
