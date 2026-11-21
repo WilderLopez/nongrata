@@ -26,6 +26,8 @@ export interface CheckListRow {
   matched: number;
   bit0: number | null;
   intent: string | null;
+  /** `null` on rows from before migration 0006. */
+  platform: "ios" | "android" | null;
   created_at: number;
 }
 
@@ -125,6 +127,7 @@ export interface CheckLogRow {
   matched: boolean;
   bit0: boolean | null;
   intent: string | null;
+  platform: "ios" | "android";
 }
 
 export class Store {
@@ -395,19 +398,26 @@ export class Store {
   async recentChecks(app: string, ref: string, limit = 20) {
     const { results } = await this.db
       .prepare(
-        `SELECT blocked, matched, bit0, intent, created_at FROM check_log
+        `SELECT blocked, matched, bit0, intent, platform, created_at FROM check_log
          WHERE app = ? AND ref = ? ORDER BY created_at DESC LIMIT ?`,
       )
       .bind(app, ref, limit)
-      .all<{ blocked: number; matched: number; bit0: number | null; intent: string | null; created_at: number }>();
+      .all<{
+        blocked: number;
+        matched: number;
+        bit0: number | null;
+        intent: string | null;
+        platform: string | null;
+        created_at: number;
+      }>();
     return results;
   }
 
   async logCheck(app: string, row: CheckLogRow, now: number): Promise<void> {
     await this.db
       .prepare(
-        `INSERT INTO check_log (app, ref, blocked, matched, bit0, intent, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO check_log (app, ref, blocked, matched, bit0, intent, platform, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         app,
@@ -416,6 +426,7 @@ export class Store {
         row.matched ? 1 : 0,
         row.bit0 === null ? null : row.bit0 ? 1 : 0,
         row.intent,
+        row.platform,
         now,
       )
       .run();
@@ -452,7 +463,7 @@ export class Store {
     limit: number,
   ) {
     return this.page<CheckListRow>(
-      "SELECT rowid AS id, ref, blocked, matched, bit0, intent, created_at FROM check_log",
+      "SELECT rowid AS id, ref, blocked, matched, bit0, intent, platform, created_at FROM check_log",
       "rowid",
       [
         ["app = ?", app],

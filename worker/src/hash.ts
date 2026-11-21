@@ -17,17 +17,19 @@ export const isHash = (value: unknown): value is string =>
 export const isRef = (value: unknown): value is string =>
   typeof value === "string" && REF_RE.test(value);
 
-// Normalization before hashing, identical in the SDK: strips ASCII spaces, tabs and line breaks
+// Normalization before hashing, identical in the SDKs: strips ASCII spaces, tabs and line breaks
 // from both ends; uppercases (a-z only) the UUIDs, which iOS returns in uppercase; and lowercases
-// (A-Z only) `user`, so an ID typed or pasted with other capitals is still the same user.
-// `icloud` and `android_id` are opaque and keep their case.
+// (A-Z only) `user`, so an ID typed or pasted with other capitals is still the same user, and
+// `android_id`, a hex number that Android gives in lowercase. `icloud` is opaque and keeps its
+// case.
 const EDGE_WHITESPACE_RE = /^[ \t\n\r]+|[ \t\n\r]+$/g;
 const UUID_KINDS: readonly Kind[] = ["idfv", "install"];
+const LOWERCASE_KINDS: readonly Kind[] = ["user", "android_id"];
 
 export function normalizeValue(kind: Kind, value: string): string {
   const trimmed = value.replace(EDGE_WHITESPACE_RE, "");
   if (UUID_KINDS.includes(kind)) return trimmed.replace(/[a-z]/g, (c) => c.toUpperCase());
-  if (kind === "user") return trimmed.replace(/[A-Z]/g, (c) => c.toLowerCase());
+  if (LOWERCASE_KINDS.includes(kind)) return trimmed.replace(/[A-Z]/g, (c) => c.toLowerCase());
   return trimmed;
 }
 

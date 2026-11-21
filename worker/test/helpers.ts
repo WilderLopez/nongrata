@@ -50,6 +50,8 @@ export interface CheckBody {
   env?: string;
   ids: Record<string, string | null>;
   intent?: string;
+  /** Defaults to "ios", like the Swift SDK; `undefined` leaves it out of the body. */
+  platform?: string;
 }
 
 export async function check(body: CheckBody, dc: FakeDeviceCheck | null = null) {

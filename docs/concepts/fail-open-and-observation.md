@@ -46,7 +46,7 @@ It enables a safe rollout:
 3. Watch `check_log` for a few days: would it block the right people? Anyone else?
 4. Turn on `ENFORCE`. No new app version is needed.
 
-`check_log` only stores results (app, `ref`, blocked, bits, intent, date); never identifiers or
+`check_log` only stores results (app, `ref`, blocked, bits, intent, platform, date); never identifiers or
 IPs. It is purged daily after 30 days.
 
 Design: sections 6.2 and 14 of [DESIGN.md](../DESIGN.md).

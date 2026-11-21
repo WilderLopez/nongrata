@@ -116,5 +116,24 @@
       "ref": "51E07D19",
       "note": "user: the same UUID pasted in uppercase, with spaces: same hash"
     }
+  ],
+  "_comment_android": "Kinds the Swift SDK never sends, kept apart so its tests (which only know the iOS kinds) do not read them. Normalize android_id: strip space, \\t, \\n and \\r from both ends; lowercase A-Z (ASCII only). Used by the Worker, CLI and Android SDK tests.",
+  "android_vectors": [
+    {
+      "prefix": "myapp-ban-v1",
+      "kind": "android_id",
+      "value": "3f9a1c2b7d4e5f60",
+      "hash": "4689a028b9610e455979dd12871c77850feaaa4e9745da8f1f9189d30667a128",
+      "ref": "4689A028",
+      "note": "ANDROID_ID: 64 bits as 16 hex characters"
+    },
+    {
+      "prefix": "myapp-ban-v1",
+      "kind": "android_id",
+      "value": " 3F9A1C2B7D4E5F60\n",
+      "hash": "4689a028b9610e455979dd12871c77850feaaa4e9745da8f1f9189d30667a128",
+      "ref": "4689A028",
+      "note": "android_id: A-Z is lowercased and the edges are trimmed, so it is the same hash"
+    }
   ]
 }

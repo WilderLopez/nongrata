@@ -26,6 +26,11 @@ export interface CheckRequest {
   install: string;
   ref: string;
   intent: Intent;
+  /**
+   * `"android"` for a client without DeviceCheck; absent for every other request, which takes
+   * the iOS path exactly as before (the Swift SDK sends `platform: "ios"`, never validated).
+   */
+  platform?: "android";
 }
 
 export interface CheckResult {
@@ -35,6 +40,11 @@ export interface CheckResult {
 
 const TOKEN_RE = /^[A-Za-z0-9+/=_-]{16,8192}$/;
 const ID_KINDS: readonly Kind[] = ["idfv", "install", "icloud", "user"];
+// Android has no idfv, iCloud account or DeviceCheck; ANDROID_ID survives a reinstall.
+const ANDROID_ID_KINDS: readonly Kind[] = ["install", "user", "android_id"];
+const APPLE_ONLY_KINDS: readonly Kind[] = ["idfv", "icloud"];
+
+const present = (v: unknown) => v !== undefined && v !== null;
 
 const optionalToken = (v: unknown): string | null | undefined =>
   v === undefined || v === null ? null : typeof v === "string" && TOKEN_RE.test(v) ? v : undefined;
@@ -56,8 +66,15 @@ export function parseCheckRequest(body: unknown): CheckRequest | null {
 
   if (typeof b.ids !== "object" || b.ids === null) return null;
   const rawIds = b.ids as Record<string, unknown>;
+
+  // Only "android" changes anything. An Android request with Apple's fields is a mix-up, not a
+  // device: rejected rather than half-read.
+  const android = b.platform === "android";
+  if (android && (dcToken !== null || dcTokenUpdate !== null)) return null;
+  if (android && APPLE_ONLY_KINDS.some((kind) => present(rawIds[kind]))) return null;
+
   const ids: IdHash[] = [];
-  for (const kind of ID_KINDS) {
+  for (const kind of android ? ANDROID_ID_KINDS : ID_KINDS) {
     const v = rawIds[kind];
     if (v === undefined || v === null) continue;
     if (!isHash(v)) return null;
@@ -75,6 +92,7 @@ export function parseCheckRequest(body: unknown): CheckRequest | null {
     install: install.hash,
     ref: refFromInstallHash(install.hash),
     intent: intent as Intent,
+    ...(android ? { platform: "android" as const } : {}),
   };
 }
 
@@ -91,9 +109,14 @@ export interface CheckDeps {
 export async function runCheck(
   req: CheckRequest,
   config: AppConfig,
-  { store, deviceCheck, now }: CheckDeps,
+  deps: CheckDeps,
 ): Promise<CheckResult> {
+  const { store, now } = deps;
   const { app, ref } = req;
+  // An Android device has no DeviceCheck: no query, no write, and an unban by ref is consumed
+  // with D1 alone, as in an app without an Apple key. The iOS path is untouched.
+  const deviceCheck = req.platform === "android" ? null : deps.deviceCheck;
+  const platform = req.platform ?? "ios";
   const dc = deviceCheck && req.dcToken ? deviceCheck : null;
   // No second token, no write: reusing the query token goes against what Apple asks.
   const updateToken = req.dcTokenUpdate;
@@ -113,7 +136,7 @@ export async function runCheck(
   ]);
 
   const log = (blocked: boolean, bit0: boolean | null) =>
-    store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent }, now);
+    store.logCheck(app, { ref, blocked, matched, bit0, intent: req.intent, platform }, now);
 
   if (unban !== null) {
     if (await store.manualBanAfter(app, hashes, unban, linked)) {

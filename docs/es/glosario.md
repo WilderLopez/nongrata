@@ -30,7 +30,7 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 ## C
 
 - **`check_log`**: tabla de D1 con el resultado de cada comprobación (app, `ref`, bloqueado,
-  bits, intent, fecha). Nunca identificadores ni IPs. Sirve para el modo observación y se purga
+  bits, intent, plataforma, fecha). Nunca identificadores ni IPs. Sirve para el modo observación y se purga
   a los 30 días. Ver [Fail-open y modo observación](conceptos/fail-open-y-observacion.md).
 - **Clave `.p8`**: el fichero de clave privada que descargas del portal de Apple al crear una
   clave con DeviceCheck activado. El Worker la guarda como secreto (`APPLE_DC_KEY_P8_<APP>`) y

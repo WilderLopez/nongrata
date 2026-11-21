@@ -204,6 +204,7 @@ nothing to the NonGrata Dashboard app paired with your Worker, follow
 
 The CLI is one client of the Worker's HTTP admin API; to build another (a web panel, a bot, your
 backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](docs/admin-api.yaml).
+To write a client of the check itself (another platform), see the [check API](docs/CHECK-API.md).
 
 ## What it doesn't do
 
@@ -212,13 +213,16 @@ backend), see the [Admin API guide](docs/ADMIN-API.md) and its [OpenAPI spec](do
 - **It isn't a full anti-fraud system.** It is a wall for people you have already decided to ban;
   finding who to ban is up to you.
 - **The DeviceCheck part doesn't work in the Simulator**: test on a real iPhone.
-- **Android** is sketched in the design, not implemented.
+- **Android** has no SDK yet. The Worker already accepts Android clients (`platform: "android"` in
+  the [check API](docs/CHECK-API.md)); the Kotlin SDK is not written.
 
 ## Documentation
 
 - [Full design](docs/DESIGN.md): the problem, architecture, contract, algorithm, risks and what
   is still to be verified.
 - [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
+- [Check API](docs/CHECK-API.md), with its [OpenAPI spec](docs/check-api.yaml): the exact contract
+  for a client that is not the Swift SDK.
 - [Admin API](docs/ADMIN-API.md), with its [OpenAPI spec](docs/admin-api.yaml), and
   [admin devices](docs/DEVICE-PAIRING.md) (pairing a phone and signed requests).
 - [Setting up the NonGrata Dashboard](docs/DASHBOARD-SETUP.md): Worker, app and pairing, step by

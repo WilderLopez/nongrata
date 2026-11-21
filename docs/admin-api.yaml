@@ -233,6 +233,7 @@ paths:
                             matched: { $ref: "#/components/schemas/Flag" }
                             bit0: { $ref: "#/components/schemas/NullableFlag" }
                             intent: { type: [string, "null"] }
+                            platform: { $ref: "#/components/schemas/Platform" }
                             created_at: { $ref: "#/components/schemas/Millis" }
                       users:
                         type: array
@@ -1036,7 +1037,14 @@ components:
         intent:
           type: [string, "null"]
           description: launch, foreground, login, signup or refresh, as the SDK sent it.
+        platform: { $ref: "#/components/schemas/Platform" }
         created_at: { $ref: "#/components/schemas/Millis" }
+    Platform:
+      type: [string, "null"]
+      enum: [ios, android, null]
+      description: |
+        The platform of the check: `android` when the request said `platform: "android"`, `ios`
+        for every other request. `null` in rows from before migration `0006`.
     LogEntry:
       type: object
       required: [action, kind, hash, ref, note, device_id, actor, created_at]

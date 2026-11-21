@@ -26,7 +26,7 @@ function harness(env: Io["env"] = ENV, reply = () => Response.json({ ok: true })
 }
 
 describe("hash (offline)", () => {
-  for (const v of vectors.vectors) {
+  for (const v of [...vectors.vectors, ...vectors.android_vectors]) {
     it(`vector ${v.prefix} ${v.kind} ${v.value}`, async () => {
       const h = harness();
       const code = await run(["hash", `prefix=${v.prefix}`, `kind=${v.kind}`, `value=${v.value}`], h.io);

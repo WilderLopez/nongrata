@@ -46,6 +46,7 @@ Before hashing, the value is cleaned the same way in all three places:
 - Spaces, tabs and line breaks are stripped from both ends (ASCII ones only).
 - In `idfv` and `install`, which are UUIDs, the letters a-z are uppercased.
 - In `user`, the letters A-Z are lowercased (since 2026-11-19; see below).
+- In `android_id`, the letters A-Z are lowercased too (since 2026-11-21), for the same reason.
 - `icloud` is left as it is: it is opaque and case-sensitive.
 
 Why: the SDK sends UUIDs in uppercase (`uuidString`), but an `idfv` copied from another tool may

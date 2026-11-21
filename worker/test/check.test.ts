@@ -327,7 +327,7 @@ describe("POST /v1/device/check", () => {
   it("stores no raw identifiers or IPs in check_log", async () => {
     const { results } = await guardEnv.DB.prepare("PRAGMA table_info(check_log)").all<{ name: string }>();
     expect(results.map((c) => c.name).sort()).toEqual(
-      ["app", "bit0", "blocked", "created_at", "intent", "matched", "ref"].sort(),
+      ["app", "bit0", "blocked", "created_at", "intent", "matched", "platform", "ref"].sort(),
     );
   });
 });
@@ -473,8 +473,8 @@ describe("check: additional cases", () => {
     const { body } = await adminCall("GET", "/v1/admin/lookup", { app: "demo", ref });
     expect(body.unban).toBeNull();
     expect((body.checks as Record<string, unknown>[]).map(({ created_at: _, ...c }) => c)).toEqual([
-      { blocked: 1, matched: 1, bit0: null, intent: "login" },
-      { blocked: 0, matched: 0, bit0: null, intent: "launch" },
+      { blocked: 1, matched: 1, bit0: null, intent: "login", platform: "ios" },
+      { blocked: 0, matched: 0, bit0: null, intent: "launch", platform: "ios" },
     ]);
   });
 });

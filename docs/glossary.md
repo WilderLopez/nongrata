@@ -31,7 +31,7 @@ doesn't know Cloudflare. When a note explains a term in depth, it is linked.
 ## C
 
 - **`check_log`**: D1 table with the result of each check (app, `ref`, blocked, bits, intent,
-  date). Never identifiers or IPs. It serves observation mode and is purged after 30 days. See
+  platform, date). Never identifiers or IPs. It serves observation mode and is purged after 30 days. See
   [Fail-open and observation mode](concepts/fail-open-and-observation.md).
 - **Cron Trigger**: a scheduled task of a Worker, like a Unix cron job. Here it purges
   `check_log` every day. See [Cloudflare Worker and D1](concepts/cloudflare-worker-and-d1.md).

@@ -177,10 +177,11 @@ Petición:
     "idfv": "hex o null",
     "install": "hex",
     "icloud": "hex o null",
-    "user": "hex o null"
+    "user": "hex o null",
+    "android_id": "hex o null (solo con platform android)"
   },
   "intent": "launch | foreground | login | signup | refresh",
-  "platform": "ios",
+  "platform": "ios | android",
   "app_version": "1.0.0"
 }
 ```
@@ -191,13 +192,20 @@ Respuesta `200`:
 { "status": "ok | blocked", "ref": "A1B2C3D4" }
 ```
 
-Cualquier otra respuesta el cliente la trata como error.
+Cualquier otra respuesta el cliente la trata como error. El contrato exacto para un cliente que
+no es el SDK de Swift está en la [guía de la API de comprobación](API-CHECK.md) y su
+[especificación OpenAPI](../check-api.yaml).
 
 `dc_token_update` (añadido en la implementación): Apple pide tratar cada token de DeviceCheck
 como de un solo uso, así que el SDK genera un segundo token para `update_two_bits`. Si falta, el
 Worker consulta pero no escribe; se escribe en la siguiente comprobación que traiga los dos
 (cambio del 2026-11-02; antes reutilizaba `dc_token`). El Worker deriva `ref` del hash de `install` e ignora el que mande el
 cliente.
+
+`platform` (2026-11-21): solo `"android"` cambia algo; ausente, `"ios"` (lo que manda el SDK de
+Swift) o cualquier otro valor toma el camino de iOS, sin validar. Con `"android"` los ids que se
+leen son `install`, `user` y `android_id`, la petición da `400` si trae un `dc_token`,
+`dc_token_update`, `ids.idfv` o `ids.icloud` no nulo, y nunca se llama a Apple (sección 15).
 
 `app` permite que un mismo Worker sirva a varias apps con listas separadas (sección 7.1). Si se
 prefiere aislamiento total, un despliegue por app y se ignora el campo.
@@ -210,6 +218,7 @@ config = configuración de `app`        (Team ID, Key ID, clave, ENFORCE, App At
 si config exige App Attest y la aserción no valida → 401
 
 hashes  = ids no nulos
+si platform == android: sin DeviceCheck en esta petición (dc_token es null, un desbaneo se consume solo con D1)
 si LINK_USERS e ids.user: recordar (install, user) en user_links        // sección 6.5
 linked  = LINK_USERS ? los usuarios que han pasado por este install : ninguno
 matched = existe en banned_ids (app, hash IN hashes o linked)
@@ -398,6 +407,7 @@ CREATE TABLE check_log (
   matched     INTEGER NOT NULL,
   bit0        INTEGER,
   intent      TEXT,
+  platform    TEXT CHECK (platform IN ('ios', 'android')),  -- migración 0006; NULL en filas antiguas
   created_at  INTEGER NOT NULL
 );
 
@@ -426,6 +436,11 @@ CREATE TABLE user_links (
 
 `check_log` solo guarda resultados (sin IPs ni identificadores en bruto) y sirve para el modo
 observación. Conviene purgarlo periódicamente con un Cron Trigger.
+
+> Implementación (2026-11-21, migración `0006`): `check_log.platform` es `android` para una
+> petición con `platform: "android"` e `ios` para cualquier otra. Aplica la migración antes de
+> desplegar el código, que escribe la columna. `GET /v1/admin/checks` y los `checks` de `lookup`
+> la devuelven.
 
 > Implementación: el cron diario borra las filas de `check_log` de más de 30 días. `admin_log`
 > (2026-11-10) apunta las acciones de administración solo con lo que guardan los endpoints
@@ -544,6 +559,7 @@ presentación. Opcionalmente, una vista SwiftUI por defecto en un target aparte.
 - **`icloud`:** `try await CKContainer.default().userRecordID().recordName`, con timeout corto;
   se omite si no hay cuenta.
 - **`user`:** lo pasa la app si hay sesión.
+- **`android_id`** (solo clientes Android, sección 15): `Settings.Secure.ANDROID_ID`.
 - **Hash:** `SHA256(hashPrefix + ":" + kind + ":" + value)` en hex, con CryptoKit. El Worker y la
   CLI usan la misma fórmula. Desde el 2026-11-02 el valor se normaliza antes (pendiente 9).
 - **`ref`:** primeros 8 caracteres en mayúsculas del hash de `installId`. Es el código de soporte.
@@ -700,10 +716,40 @@ Los pasos 4 y 5 no requieren nueva versión de la app.
 
 ## 15. Android
 
-Fuera de la primera versión. Equivalente propuesto, **por verificar** con la documentación de
-Android: `ANDROID_ID` como identificador de instalación (tipo `android_id`), el mismo Worker y la
-misma lista. Play Integrity no ofrece bits por dispositivo; sus veredictos se podrían validar en
-el Worker más adelante.
+Decidido el 2026-11-21 e implementado en el Worker; el SDK de Kotlin aún no existe. El mismo
+Worker y la misma lista, con `install` (un UUID propio del cliente) y `user`, más `ANDROID_ID`
+como tipo `android_id`, en un `POST /v1/device/check` con `platform: "android"` (sección 6.1,
+[API de comprobación](API-CHECK.md)). La lista de baneos es la misma que la de iOS, así que un
+baneo por `user` alcanza a la persona en las dos plataformas. Un dispositivo Android bloqueado
+propaga su `android_id`, así que reinstalar (`install` nuevo, mismo `ANDROID_ID`) sigue
+bloqueado. Lo que dice la documentación de Android (verificado el 2026-11-21; sección 16, punto 7):
+
+- **`ANDROID_ID`** sobrevive a desinstalar y reinstalar. Desde Android 8 es "unique to each
+  combination of app-signing key, user, and device" y "does not change on package uninstall or
+  reinstall, as long as the signing key is the same". Un restablecimiento de fábrica puede
+  cambiarlo ("may change if a factory reset is performed"), y cada usuario del dispositivo
+  "appears as a completely separate device". No se lista ningún permiso para leerlo. Antes de
+  Android 8 lo comparten todas las apps del dispositivo. Google no lo prohíbe para prevenir
+  abusos, pero para eso recomienda Play Integrity, y para identificar una instalación "a
+  Firebase installation ID (FID) or a privately stored GUID"
+  ([identificadores únicos](https://developer.android.com/identity/user-data-ids)).
+- **El `installId`** no puede guardarse donde lo restaure Auto Backup, que restaura las
+  preferencias y los ficheros de la app al reinstalar y en un teléfono **nuevo**: eso clonaría el
+  `ref`. `getNoBackupFilesDir()` queda "always excluded".
+- **Play Integrity** ya tiene bits por dispositivo. *Device recall* guarda tres bits por
+  dispositivo que sobreviven a reinstalar y a un restablecimiento, durante 3 años desde el último
+  acceso, y los escribe el servidor. Pero está en beta cerrada, "open only to apps that meet
+  specific eligibility criteria" (uso en producción de Play Integrity y de la facturación de
+  Play), y exige licencia de Play. El veredicto estándar solo lo descodifican los servidores de
+  Google, con una cuenta de servicio de Google Cloud por app y una cuota por defecto de 10.000
+  peticiones al día. Ninguna de las dos cosas entra en la primera versión para Android.
+- **El formulario «Seguridad de los datos» de Play Console**: "Device or other IDs" y "User
+  IDs", con el propósito "Fraud prevention, security, and compliance"; se recogen y no se
+  comparten. El formulario no dice nada de que hashearlos exima de declararlos.
+- **Un cliente sin DeviceCheck** no manda tokens, y la petición da `400` si los manda. El Worker
+  nunca llama a Apple para una petición `platform: "android"`, ni siquiera en una app con clave
+  de Apple, y consume un desbaneo por `ref` pendiente solo con D1, como en una app sin clave. El
+  camino de iOS no cambia.
 
 ## 16. Pendientes de verificar
 
@@ -734,7 +780,12 @@ el Worker más adelante.
    "User ID"; propósito "App Functionality" (incluye "prevent fraud"); casi seguro "linked to
    the user". Hay que declararlo aunque solo sea funcional.
 6. Flujo de validación de App Attest (atestación y aserción) si se usa en `check`.
-7. `ANDROID_ID` y su comportamiento al reinstalar, para la versión Android.
+7. ~~`ANDROID_ID` y su comportamiento al reinstalar, para la versión Android.~~ **Verificado** el
+   2026-11-21: sobrevive a desinstalar y reinstalar con la misma clave de firma, y puede cambiar
+   con un restablecimiento de fábrica
+   ([`Settings.Secure.ANDROID_ID`](https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID),
+   [cambios de Android 8](https://developer.android.com/about/versions/oreo/android-8.0-changes#privacy-all)).
+   El *device recall* de Play Integrity existe, pero está en beta cerrada. Detalle en la sección 15.
 8. ~~Si Apple acepta el mismo token de DeviceCheck para `query_two_bits` y `update_two_bits`.~~
    **Verificado** el 2026-11-02: no se debe. `generateToken`: "you should not use a token
    multiple times. Instead, use this method to generate a new token"; solo vale para reintentar
@@ -743,10 +794,14 @@ el Worker más adelante.
 9. ~~Normalización de los valores en bruto antes del hash.~~ **Decidido** el 2026-11-02: antes
    del hash se quitan espacio, `\t`, `\n` y `\r` de los extremos, y en `idfv` e `install` (UUID)
    se pasan a mayúsculas las letras a-z. `icloud`, `user` y `android_id` son opacos y no se
-   tocan. Así un `idfv` copiado en minúsculas da el mismo hash que el que manda el SDK. Igual en
+   tocan (ver los cambios más abajo). Así un `idfv` copiado en minúsculas da el mismo hash que el que manda el SDK. Igual en
    el SDK, el Worker y la CLI; los vectores nuevos de `spec/hash-vectors.json` lo fijan. No
    cambia ningún hash de un valor que ya estuviera normalizado.
    **Cambiado** el 2026-11-19: en `user` las letras A-Z pasan a minúsculas, para que un ID de
    usuario pegado con otras mayúsculas sea el mismo usuario; `icloud` y `android_id` siguen sin
    tocarse. Cambia el hash de un valor `user` que tuviera mayúsculas; ver
    [Hash y ref](conceptos/hash-y-ref.md).
+   **Cambiado** el 2026-11-21: `android_id` también pasa A-Z a minúsculas, como `user`; `icloud`
+   sigue sin tocarse. No invalida nada: no existía ningún baneo `android_id`. Los vectores están
+   en la lista `android_vectors` de `spec/hash-vectors.json`, que el SDK de Swift no lee porque
+   no conoce ese tipo.

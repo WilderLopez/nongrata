@@ -46,7 +46,7 @@ Sirve para el despliegue seguro:
 3. Mirar `check_log` unos días: ¿bloquearía a quien debe? ¿a alguien más?
 4. Activar `ENFORCE`. No hace falta versión nueva de la app.
 
-`check_log` solo guarda resultados (app, `ref`, bloqueado, bits, intent, fecha); nunca
+`check_log` solo guarda resultados (app, `ref`, bloqueado, bits, intent, plataforma, fecha); nunca
 identificadores ni IPs. Se purga a diario a los 30 días.
 
 Diseño: secciones 6.2 y 14 de [DISENO.md](../DISENO.md).

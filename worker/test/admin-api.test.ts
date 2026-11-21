@@ -100,6 +100,8 @@ interface Check {
   matched: number;
   bit0: number | null;
   intent: string | null;
+  /** Not inserted: rows written outside the check, like those before migration 0006, have none. */
+  platform?: string | null;
   created_at: number;
 }
 
@@ -121,6 +123,7 @@ const checkRow = (created_at: number, extra: Partial<Check> = {}): Check => ({
   matched: 0,
   bit0: null,
   intent: "launch",
+  platform: null,
   created_at,
   ...extra,
 });
@@ -397,7 +400,7 @@ describe("GET /v1/admin/checks", () => {
     const { ref } = await deviceCheck({ intent: "login", ids: randomIds() });
     const items = (await get<Check>("/v1/admin/checks")).body.items;
     expect(items).toEqual([
-      { ref, blocked: 0, matched: 0, bit0: null, intent: "login", created_at: expect.any(Number) },
+      { ref, blocked: 0, matched: 0, bit0: null, intent: "login", platform: "ios", created_at: expect.any(Number) },
     ]);
   });
 

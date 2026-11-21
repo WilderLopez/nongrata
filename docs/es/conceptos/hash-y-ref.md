@@ -46,7 +46,7 @@ Antes del hash, el valor se limpia igual en los tres sitios:
 
 - Se quitan espacios, tabuladores y saltos de línea de los extremos (solo los ASCII).
 - En `idfv` e `install`, que son UUID, las letras a-z pasan a mayúsculas.
-- En `user`, las letras A-Z pasan a minúsculas (desde el 2026-11-19; ver abajo).
+- En `android_id`, las letras A-Z también pasan a minúsculas (desde el 2026-11-21), por la misma razón.
 - `icloud` se deja como está: es opaco y distingue mayúsculas.
 
 Por qué: el SDK manda los UUID en mayúsculas (`uuidString`), pero un `idfv` copiado de otra

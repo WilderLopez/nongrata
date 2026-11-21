@@ -10,6 +10,12 @@ describe("hashId", () => {
     expect(refFromInstallHash(hash)).toBe(v.ref);
   });
 
+  // Kinds the Swift SDK never sends live in their own list of the same file.
+  it.each(vectors.android_vectors)("$prefix:$kind:$value", async (v) => {
+    if (!isKind(v.kind)) throw new Error(`unknown kind in the vectors: ${v.kind}`);
+    expect(await hashId(v.prefix, v.kind, v.value)).toBe(v.hash);
+  });
+
   it("tells kinds with the same value apart", async () => {
     const a = await hashId("p", "idfv", "X");
     const b = await hashId("p", "install", "X");

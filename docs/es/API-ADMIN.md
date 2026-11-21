@@ -91,8 +91,8 @@ curl -sS "https://nongrata-myapp.<tu-subdominio>.workers.dev/v1/admin/checks?app
 {
   "app": "myapp",
   "items": [
-    { "ref": "7F3A9C21", "blocked": 1, "matched": 0, "bit0": 1, "intent": "launch", "created_at": 1762786800000 },
-    { "ref": "0B4E6D12", "blocked": 1, "matched": 1, "bit0": null, "intent": "signup", "created_at": 1762786200000 }
+    { "ref": "7F3A9C21", "blocked": 1, "matched": 0, "bit0": 1, "intent": "launch", "platform": "ios", "created_at": 1762786800000 },
+    { "ref": "0B4E6D12", "blocked": 1, "matched": 1, "bit0": null, "intent": "signup", "platform": "android", "created_at": 1762786200000 }
   ],
   "next_cursor": "MTc2Mjc4NjIwMDAwMC40Mg"
 }
@@ -103,7 +103,7 @@ Los elementos de cada listado:
 | Listado | Elemento |
 |---|---|
 | `bans` | `{ hash, kind, reason, note, created_at, ref }`: `ref` es el código de soporte del dispositivo al que pertenece el baneo, así que los baneos con el mismo `ref` son un solo dispositivo. Es el principio del hash en un `install`, y el dispositivo que lo trajo en un baneo automático. `null` cuando el Worker no puede saberlo: un baneo manual de otro tipo (puede coincidir con varios dispositivos) o uno automático anterior a la migración `0004` |
-| `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` y `bit0` valen `0` o `1`, como en `lookup` (`bit0` es `null` si no se preguntó a Apple o no respondió); `intent`, tal como lo mandó el SDK |
+| `checks` | `{ ref, blocked, matched, bit0, intent, platform, created_at }`: `blocked`, `matched` y `bit0` valen `0` o `1`, como en `lookup` (`bit0` es `null` si no se preguntó a Apple o no respondió, y siempre en una comprobación Android); `intent`, tal como lo mandó el SDK; `platform` es `"ios"`, `"android"` o `null` en filas anteriores a la migración `0006` |
 | `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` es `ban`, `unban`, `pair` o `revoke`; `device_id` es el dispositivo de `pair` y `revoke`; `actor` es `token` o `device:<device_id>` (`null` antes de la migración `0003`); los campos que no aplican van a `null` |
 
 En modo observación (`ENFORCE_<APP>` apagado), el `blocked` de una comprobación es lo que se
@@ -249,6 +249,12 @@ para que responda que sí.
 terminal no interactiva, y compruébala con `wrangler d1 migrations list DB --remote`: hasta que
 se aplique, `ban`, `unban` y `log` fallan con un `500` mientras `/v1/device/check` sigue
 funcionando.
+
+**Actualizar a la columna de plataforma.** El código actual escribe la `platform` de cada
+comprobación en `check_log`, y eso necesita la migración `0006_check_log_platform.sql` (y las
+anteriores). Aplícala igual antes de desplegar. Esta es más estricta que las otras: hasta que se
+aplique, **cada `/v1/device/check` falla con un `500`**, y las apps caen en fail-open (entran los
+dispositivos sin marca local de bloqueo).
 
 ## 5. Desde la CLI
 

@@ -166,3 +166,8 @@ app.
 - Privacy policy: mention device identifiers used for fraud prevention.
 - This use is not tracking, so no App Tracking Transparency prompt is needed (verified on
   2026-11-02; [design](DESIGN.md), section 16, item 5).
+
+## 9. Other platforms
+
+The exact contract of the check, for a client that is not this SDK, is in the
+[check API guide](CHECK-API.md).

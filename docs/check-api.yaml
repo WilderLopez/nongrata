@@ -1,0 +1,206 @@
+openapi: 3.1.0
+info:
+  title: NonGrata check API
+  version: v1
+  summary: Ask a NonGrata Worker whether a device is blocked.
+  description: |
+    The one endpoint an app calls to know whether its device is blocked (`POST
+    /v1/device/check`). The guide is [docs/CHECK-API.md](CHECK-API.md), with the rules the client
+    follows on its own side (hashing, fail-open, local mark, check intervals); the algorithm, in
+    section 6.1 of docs/DESIGN.md. The admin API is in [admin-api.yaml](admin-api.yaml).
+
+    - The endpoint is public: it takes no credentials. It is limited per client IP when the
+      Worker has the `RATE_LIMITER` binding.
+    - The client sends only hashes (SHA-256 of `prefix:kind:value`) and DeviceCheck tokens. The
+      Worker never stores raw identifiers or IPs.
+    - Fields the Worker does not know (`ref`, `app_version`, ...) are ignored. `platform` is read:
+      only `android` changes anything.
+    - The client must treat anything but a `200` with `{status, ref}` as no answer.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://nongrata-{app}.{subdomain}.workers.dev
+    description: One Worker deployment per app.
+    variables:
+      app:
+        default: myapp
+      subdomain:
+        default: your-subdomain
+  - url: http://localhost:8787
+    description: wrangler dev
+security: []
+tags:
+  - name: check
+    description: The device check.
+
+paths:
+  /v1/device/check:
+    post:
+      tags: [check]
+      operationId: check
+      summary: Check whether this device is blocked
+      description: |
+        Order of the checks: rate limit (`429`), JSON body, field formats (`400`), app
+        configured (`404`).
+
+        With `ENFORCE_<APP>` off (observation mode) the answer is `ok` even for a blocked
+        device; the verdict is only logged. Without an Apple key the Worker decides from its
+        database alone. Without `dc_token_update` it queries Apple but writes nothing and does
+        not consume a pending unban. With `LINK_USERS_<APP>` on, it also checks the users this
+        `install` has been seen with.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckRequest" }
+            examples:
+              full:
+                summary: What the Swift SDK sends
+                value:
+                  app: myapp
+                  env: production
+                  intent: launch
+                  dc_token: AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/
+                  dc_token_update: QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3
+                  ids:
+                    idfv: b55ea8ae1f1ece0d1fd58ce1ebdf9c6573beedb75ef78b13335904980c55c408
+                    install: c1456573e3a96b15719a3522e962118ab1277207541d95b4ff72c2ea9de08b10
+                    icloud: null
+                    user: null
+              minimal:
+                value:
+                  app: myapp
+                  ids:
+                    install: c1456573e3a96b15719a3522e962118ab1277207541d95b4ff72c2ea9de08b10
+      responses:
+        "200":
+          description: The check ran.
+          headers:
+            cache-control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckResponse" }
+              examples:
+                ok:
+                  value: { status: ok, ref: C1456573 }
+                blocked:
+                  value: { status: blocked, ref: C1456573 }
+        "400":
+          description: The body is not JSON or a field fails its format. It is not a verdict.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: bad_request }
+        "404":
+          description: The Worker has no `HASH_PREFIX_<APP>` for `app`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: unknown_app }
+        "429":
+          description: Over the per-IP rate limit; answered before reading the body.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: rate_limited }
+
+components:
+  schemas:
+    Hash:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
+      description: |
+        `SHA-256(prefix:kind:value)` as 64 lowercase hex characters. Uppercase is rejected. The
+        value is normalized first; see the guide, section 4.
+    Token:
+      type: string
+      pattern: "^[A-Za-z0-9+/=_-]{16,8192}$"
+      description: A DeviceCheck token in base64. Apple asks not to reuse one, so the client sends two.
+    CheckRequest:
+      type: object
+      required: [app, ids]
+      additionalProperties: true
+      description: Unknown properties (`ref`, `app_version`, ...) are ignored.
+      properties:
+        app:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_-]{0,31}$"
+          example: myapp
+        env:
+          type: [string, "null"]
+          enum: [development, production, null]
+          default: production
+          description: DeviceCheck endpoint the Worker uses. `null` counts as absent.
+        intent:
+          type: [string, "null"]
+          enum: [launch, foreground, login, signup, refresh, null]
+          default: launch
+          description: Only logged. `null` counts as absent. A Worker older than `refresh` answers `400` to it.
+        dc_token:
+          oneOf:
+            - $ref: "#/components/schemas/Token"
+            - type: "null"
+          description: Token to query the device's bits. A malformed one is a `400`, not an omission.
+        dc_token_update:
+          oneOf:
+            - $ref: "#/components/schemas/Token"
+            - type: "null"
+          description: Second token, to write the bits. Without it nothing is written to Apple.
+        platform:
+          type: string
+          description: |
+            `android` marks a client without DeviceCheck. Absent, `ios` (what the Swift SDK sends)
+            or any other value takes the iOS path, without validation.
+
+            With `android`: the ids read are `install` (required), `user` and `android_id`; it is
+            a `400` if `dc_token` or `dc_token_update` is non-null, or `ids.idfv` or `ids.icloud`
+            is non-null; the Worker never calls Apple for the request, even if the app has an
+            Apple key (no query, no `bit0` write), and a pending unban by `ref` is consumed with D1
+            alone. The ban list is the same as iOS's.
+          example: android
+        ids:
+          type: object
+          required: [install]
+          description: |
+            Without `platform: android`, only `idfv`, `install`, `icloud` and `user` are read and
+            `android_id` is ignored. With it, only `install`, `user` and `android_id` are read.
+            Each other id is optional; `null` counts as absent.
+          properties:
+            install: { $ref: "#/components/schemas/Hash" }
+            idfv:
+              oneOf:
+                - $ref: "#/components/schemas/Hash"
+                - type: "null"
+            icloud:
+              oneOf:
+                - $ref: "#/components/schemas/Hash"
+                - type: "null"
+            user:
+              oneOf:
+                - $ref: "#/components/schemas/Hash"
+                - type: "null"
+            android_id:
+              oneOf:
+                - $ref: "#/components/schemas/Hash"
+                - type: "null"
+              description: Hash of `Settings.Secure.ANDROID_ID`. Read only when `platform` is `android`.
+    CheckResponse:
+      type: object
+      required: [status, ref]
+      properties:
+        status:
+          type: string
+          enum: [ok, blocked]
+        ref:
+          type: string
+          pattern: "^[0-9A-F]{8}$"
+          description: |
+            Support code: the first 8 characters, uppercased, of the `install` hash. The Worker
+            derives it; the client's is never used.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }

@@ -89,8 +89,8 @@ curl -sS "https://nongrata-myapp.<your-subdomain>.workers.dev/v1/admin/checks?ap
 {
   "app": "myapp",
   "items": [
-    { "ref": "7F3A9C21", "blocked": 1, "matched": 0, "bit0": 1, "intent": "launch", "created_at": 1762786800000 },
-    { "ref": "0B4E6D12", "blocked": 1, "matched": 1, "bit0": null, "intent": "signup", "created_at": 1762786200000 }
+    { "ref": "7F3A9C21", "blocked": 1, "matched": 0, "bit0": 1, "intent": "launch", "platform": "ios", "created_at": 1762786800000 },
+    { "ref": "0B4E6D12", "blocked": 1, "matched": 1, "bit0": null, "intent": "signup", "platform": "android", "created_at": 1762786200000 }
   ],
   "next_cursor": "MTc2Mjc4NjIwMDAwMC40Mg"
 }
@@ -101,7 +101,7 @@ The items of each listing:
 | Listing | Item |
 |---|---|
 | `bans` | `{ hash, kind, reason, note, created_at, ref }`: `ref` is the support code of the device the ban belongs to, so the bans with the same `ref` are one device. It is the start of the hash for an `install`, and the device that carried it for an automatic ban. `null` when the Worker cannot tell: a manual ban of another kind (it may match several devices) or an automatic one from before migration `0004` |
-| `checks` | `{ ref, blocked, matched, bit0, intent, created_at }`: `blocked`, `matched` and `bit0` are `0` or `1` as in `lookup` (`bit0` is `null` when Apple was not asked or did not answer); `intent` as the SDK sent it |
+| `checks` | `{ ref, blocked, matched, bit0, intent, platform, created_at }`: `blocked`, `matched` and `bit0` are `0` or `1` as in `lookup` (`bit0` is `null` when Apple was not asked or did not answer, and always for an Android check); `intent` as the SDK sent it; `platform` is `"ios"`, `"android"` or `null` in rows from before migration `0006` |
 | `log` | `{ action, kind, hash, ref, note, device_id, actor, created_at }`: `action` is `ban`, `unban`, `pair` or `revoke`; `device_id` is the device of `pair` and `revoke`; `actor` is `token` or `device:<device_id>` (`null` before migration `0003`); the fields that do not apply are `null` |
 
 In observation mode (`ENFORCE_<APP>` off) a check's `blocked` is what would have been blocked,
@@ -239,6 +239,12 @@ migration `0003_admin_devices.sql`, which also rebuilds `admin_log` (keeping its
 the same way before deploying, with `CI=1` from a non-interactive shell, and check it with
 `wrangler d1 migrations list DB --remote`: until it runs, `ban`, `unban` and `log` fail with a
 `500` while `/v1/device/check` keeps working.
+
+**Upgrading to the platform column.** The current code writes the `platform` of every check to
+`check_log`, which needs migration `0006_check_log_platform.sql` (and the ones before it). Apply
+it before deploying, the same way. This one is stricter than the others: until it runs, **every
+`/v1/device/check` fails with a `500`**, and the apps fall into fail-open (devices without a local
+block mark get in).
 
 ## 5. From the CLI
 

@@ -168,3 +168,8 @@ partir del ID de usuario. En la app no cambia nada.
 - Política de privacidad: mencionar identificadores de dispositivo con fin antifraude.
 - Este uso no es tracking, así que no hace falta pedir el permiso de ATT (verificado el
   2026-11-02; [diseño](DISENO.md), sección 16, punto 5).
+
+## 9. Otras plataformas
+
+El contrato exacto de la comprobación, para un cliente que no es este SDK, está en la
+[guía de la API de comprobación](API-CHECK.md).
