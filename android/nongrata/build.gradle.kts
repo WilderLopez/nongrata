@@ -4,7 +4,7 @@ plugins {
 
 // Coordinates an app's `includeBuild` substitutes: `implementation("io.github.wilderlopez:nongrata")`.
 group = "io.github.wilderlopez"
-version = "0.3.0"
+version = "0.3.1"
 
 android {
     namespace = "io.github.wilderlopez.nongrata"

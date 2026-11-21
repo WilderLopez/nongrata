@@ -26,7 +26,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.3.0"
+        versionName = "0.3.1"
         buildConfigField("String", "NONGRATA_WORKER_URL", nonGrataValue("nongrata.workerUrl"))
         buildConfigField("String", "NONGRATA_APP_ID", nonGrataValue("nongrata.appId"))
         buildConfigField("String", "NONGRATA_HASH_PREFIX", nonGrataValue("nongrata.hashPrefix"))
