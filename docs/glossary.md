@@ -12,6 +12,10 @@ doesn't know Cloudflare. When a note explains a term in depth, it is linked.
 
 ## A
 
+- **`ANDROID_ID`**: `Settings.Secure.ANDROID_ID`, an identifier of each combination of app-signing
+  key, user and device. Survives an uninstall and reinstall with the same key; may change after a
+  factory reset. In the list it is the `android_id` kind. See
+  [Integrating into an Android app](INTEGRATION-ANDROID.md).
 - **App Attest**: Apple service that proves a request comes from your unmodified app. Here it
   is optional and pending: it would close the gap of a modified app that doesn't call the
   Worker (section 6.3 of the [design](DESIGN.md)).

@@ -716,7 +716,8 @@ Steps 4 and 5 do not require a new app version.
 
 ## 15. Android
 
-Decided on 2026-11-21 and implemented in the Worker; the Kotlin SDK does not exist yet. The same
+Decided on 2026-11-21 and implemented in the Worker. The Kotlin SDK is in `android/` and was tested
+on an emulator on 2026-11-21 ([integration guide](INTEGRATION-ANDROID.md)). The same
 Worker and the same list, with `install` (a UUID of the client's own) and `user`, plus
 `ANDROID_ID` as kind `android_id`, in a `POST /v1/device/check` with `platform: "android"`
 (section 6.1, [check API](CHECK-API.md)). The ban list is the same as iOS's, so a ban by `user`

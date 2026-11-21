@@ -3,8 +3,8 @@
 *English: [CHECK-API.md](../CHECK-API.md)*
 
 `POST /v1/device/check` es el único endpoint al que llama una app para saber si su dispositivo
-está bloqueado. El SDK de Swift es un cliente de él; un SDK de Kotlin para Android o el backend
-de tu app pueden ser otros. Esta guía da el contrato exacto y las reglas que un cliente debe
+está bloqueado. El SDK de Swift y el SDK de Kotlin para Android ([guía de integración](INTEGRACION-ANDROID.md))
+son clientes de él; el backend de tu app puede ser otro. Esta guía da el contrato exacto y las reglas que un cliente debe
 cumplir por su cuenta. La especificación OpenAPI 3.1 está en [check-api.yaml](../check-api.yaml)
 (en inglés). El algoritmo está en la [sección 6.1](DISENO.md#61-post-v1devicecheck) del
 documento de diseño; la parte de administración, en la
@@ -156,8 +156,9 @@ antiguo responde `400` a `intent: "refresh"`, porque no lo conoce.
 
 ## 4. Reglas que sigue el cliente
 
-Estas reglas hoy solo viven en el SDK de Swift (`swift/Sources/NonGrata/`); aún no hay SDK de
-Kotlin. Un cliente de otra plataforma debe cumplirlas para que listas y baneos coincidan.
+Estas reglas viven en el SDK de Swift (`swift/Sources/NonGrata/`) y en el SDK de Kotlin
+(`android/nongrata/`; [guía](INTEGRACION-ANDROID.md)), que se comportan igual salvo donde la
+plataforma difiere. Un cliente de otra plataforma debe cumplirlas para que listas y baneos coincidan.
 
 ### Normalización y hash
 

@@ -716,7 +716,8 @@ Los pasos 4 y 5 no requieren nueva versión de la app.
 
 ## 15. Android
 
-Decidido el 2026-11-21 e implementado en el Worker; el SDK de Kotlin aún no existe. El mismo
+Decidido el 2026-11-21 e implementado en el Worker. El SDK de Kotlin está en `android/` y se probó
+en un emulador el 2026-11-21 ([guía de integración](INTEGRACION-ANDROID.md)). El mismo
 Worker y la misma lista, con `install` (un UUID propio del cliente) y `user`, más `ANDROID_ID`
 como tipo `android_id`, en un `POST /v1/device/check` con `platform: "android"` (sección 6.1,
 [API de comprobación](API-CHECK.md)). La lista de baneos es la misma que la de iOS, así que un

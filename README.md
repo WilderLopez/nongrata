@@ -213,14 +213,17 @@ To write a client of the check itself (another platform), see the [check API](do
 - **It isn't a full anti-fraud system.** It is a wall for people you have already decided to ban;
   finding who to ban is up to you.
 - **The DeviceCheck part doesn't work in the Simulator**: test on a real iPhone.
-- **Android** has no SDK yet. The Worker already accepts Android clients (`platform: "android"` in
-  the [check API](docs/CHECK-API.md)); the Kotlin SDK is not written.
+- **Android** has a Kotlin SDK (`android/`), tested on an emulator but not yet published to Maven
+  Central: an app consumes it from a checkout of this repo. It has no DeviceCheck equivalent, so a
+  ban follows the device through `ANDROID_ID`, which survives a reinstall but not a factory reset.
+  See [Integrating into an Android app](docs/INTEGRATION-ANDROID.md).
 
 ## Documentation
 
 - [Full design](docs/DESIGN.md): the problem, architecture, contract, algorithm, risks and what
   is still to be verified.
 - [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
+- [Integrating into an Android app](docs/INTEGRATION-ANDROID.md).
 - [Check API](docs/CHECK-API.md), with its [OpenAPI spec](docs/check-api.yaml): the exact contract
   for a client that is not the Swift SDK.
 - [Admin API](docs/ADMIN-API.md), with its [OpenAPI spec](docs/admin-api.yaml), and

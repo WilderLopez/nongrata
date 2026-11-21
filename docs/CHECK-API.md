@@ -3,7 +3,8 @@
 *Español: [API-CHECK.md](es/API-CHECK.md)*
 
 `POST /v1/device/check` is the one endpoint an app calls to ask whether its device is blocked.
-The Swift SDK is one client of it; a Kotlin SDK for Android or your app's backend can be others.
+The Swift SDK and the Kotlin SDK for Android ([integration guide](INTEGRATION-ANDROID.md)) are
+clients of it; your app's backend can be another.
 This guide gives the exact contract and the rules a client has to follow on its own side. The
 OpenAPI 3.1 spec is in [check-api.yaml](check-api.yaml). The algorithm behind it is in
 [section 6.1](DESIGN.md#61-post-v1devicecheck) of the design document; the admin side, in the
@@ -149,8 +150,9 @@ and falls into fail-open (section 4). A `400` is not a verdict. An older Worker 
 
 ## 4. Rules the client follows
 
-These rules live today only in the Swift SDK (`swift/Sources/NonGrata/`); there is no Kotlin SDK
-yet. A client for another platform has to follow them for lists and bans to agree.
+These rules live in the Swift SDK (`swift/Sources/NonGrata/`) and the Kotlin SDK
+(`android/nongrata/`; [guide](INTEGRATION-ANDROID.md)), which have the same behavior except where
+the platform differs. A client for another platform has to follow them for lists and bans to agree.
 
 ### Normalization and hash
 

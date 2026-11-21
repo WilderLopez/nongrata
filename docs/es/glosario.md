@@ -12,6 +12,10 @@ conoce Cloudflare. Cuando hay una nota que lo explica a fondo, va enlazada.
 
 ## A
 
+- **`ANDROID_ID`**: `Settings.Secure.ANDROID_ID`, un identificador de cada combinación de clave de
+  firma de la app, usuario y dispositivo. Sobrevive a desinstalar y reinstalar con la misma clave;
+  puede cambiar tras un restablecimiento de fábrica. En la lista es el tipo `android_id`. Ver
+  [Integrar en una app Android](INTEGRACION-ANDROID.md).
 - **App Attest**: servicio de Apple que prueba que una petición viene de tu app sin modificar.
   Aquí es opcional y está pendiente: cerraría el hueco de una app modificada que no llama al
   Worker (sección 6.3 del [diseño](DISENO.md)).

@@ -217,14 +217,18 @@ Para escribir un cliente de la propia comprobación (otra plataforma), ver la
 - **No es un antifraude completo.** Es un muro para quien ya has decidido banear; detectar a
   quién banear es cosa tuya.
 - **No funciona en el simulador** la parte de DeviceCheck: hay que probar en un iPhone.
-- **Android** aún no tiene SDK. El Worker ya acepta clientes Android (`platform: "android"` en la
-  [API de comprobación](docs/es/API-CHECK.md)); el SDK de Kotlin no está escrito.
+- **Android** tiene un SDK de Kotlin (`android/`), probado en un emulador pero aún sin publicar en
+  Maven Central: una app lo consume desde una copia de este repo. No tiene equivalente a
+  DeviceCheck, así que un baneo sigue al dispositivo por `ANDROID_ID`, que sobrevive a una
+  reinstalación pero no a un restablecimiento de fábrica. Ver
+  [Integrar en una app Android](docs/es/INTEGRACION-ANDROID.md).
 
 ## Documentación
 
 - [Diseño completo](docs/es/DISENO.md): el problema, la arquitectura, el contrato, el algoritmo,
   los riesgos y lo que queda por verificar.
 - [Integrar en una app iOS](docs/es/INTEGRACION-IOS.md).
+- [Integrar en una app Android](docs/es/INTEGRACION-ANDROID.md).
 - [API de comprobación](docs/es/API-CHECK.md), con su [especificación OpenAPI](docs/check-api.yaml):
   el contrato exacto para un cliente que no es el SDK de Swift.
 - [API de administración](docs/es/API-ADMIN.md), con su [especificación OpenAPI](docs/admin-api.yaml), y
