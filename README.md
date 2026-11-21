@@ -7,7 +7,7 @@
 <p align="center"><strong>English</strong> · <a href="README.es.md">Español</a></p>
 
 <p align="center">
-  <strong>Device and Apple Account bans for iOS apps.</strong><br>
+  <strong>Device, account and Apple Account bans for iOS and Android apps.</strong><br>
   Once someone is no longer welcome, they stay out, even if they reinstall, create another account or erase the iPhone.
 </p>
 
@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white" alt="Swift 6">
   <img src="https://img.shields.io/badge/iOS-17%2B-000000?logo=apple&logoColor=white" alt="iOS 17 or later">
   <img src="https://img.shields.io/badge/SPM-compatible-14203D" alt="Swift Package Manager">
+  <img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026)-3DDC84?logo=android&logoColor=white" alt="Android 8.0 or later">
+  <img src="https://img.shields.io/badge/Kotlin-stdlib%20only-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin, no dependencies beyond the standard library">
   <img src="https://img.shields.io/badge/Cloudflare-Workers%20%2B%20D1-F38020?logo=cloudflare&logoColor=white" alt="Cloudflare Workers and D1">
   <a href="https://github.com/WilderLopez/nongrata/tags"><img src="https://img.shields.io/github/v/tag/WilderLopez/nongrata?label=version&color=E5483D" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-3E63B8" alt="MIT license"></a>
@@ -40,7 +42,9 @@ email addresses are disposable.
 NonGrata remembers **the device and the Apple Account**, using several layers that each survive
 something different. The strongest one is the two bits of
 [DeviceCheck](https://developer.apple.com/documentation/devicecheck) that Apple stores on its
-servers for every device, which are still there after the iPhone is erased.
+servers for every device, which are still there after the iPhone is erased. On Android,
+`ANDROID_ID` survives a reinstall, and a ban by user follows the person across iPhone and
+Android.
 
 ## How it works
 
@@ -48,14 +52,15 @@ servers for every device, which are still there after the iPhone is erased.
   <img src="assets/how-it-works.svg" alt="Animated diagram in nine steps. 1: your app runs a check at launch, on returning to the foreground, after login and before sign-up. 2: it hashes the idfv, the installId and, optionally, the iCloud user ID; only hashes leave the iPhone. 3: it gets two one-time DeviceCheck tokens. 4: it sends hashes and tokens to your Cloudflare Worker. 5: the Worker checks its ban list in D1. 6: it asks Apple DeviceCheck for bit0. 7: it answers ok or blocked, with a support code. 8: a blocked device adds its new hashes to the list. 9: four layers: idfv survives signing out, installId survives reinstalling, iCloud survives erasing the iPhone, and bit0 survives erasing the iPhone and switching Apple Account.">
 </p>
 
-Four pieces in one repo:
+Five pieces in one repo:
 
 | Piece | What it does |
 |---|---|
 | **Swift SDK** (`NonGrata`) | Collects the identifiers, hashes them and asks the Worker. Remembers the verdict even without a network. |
 | **Optional screen** (`NonGrataUI`) | The "Access suspended" screen with the support code, in English and Spanish. |
-| **Worker** (`worker/`) | A Cloudflare Worker with D1, one per app. Decides using its list and DeviceCheck. |
-| **CLI** (`cli/`) | Ban, unban and look up from the terminal. |
+| **Kotlin SDK** (`android/`) | The same for Android: install ID, user and `ANDROID_ID`, with no dependency beyond the Kotlin standard library. |
+| **Worker** (`worker/`) | A Cloudflare Worker with D1, one per app. Decides using its list and, for iPhones, DeviceCheck. One list for both platforms. |
+| **CLI** (`cli/`) | Ban, unban and look up from the terminal, and pair an admin phone (NonGrata Dashboard) by QR code. |
 
 ## Why it works this way
 
@@ -68,13 +73,18 @@ Four pieces in one repo:
 - **Observation mode.** After deploying, the Worker only records what it would block. You review
   the data and turn blocking on when you trust it, without shipping a new app version.
 - **Self-propagating.** When a device is blocked, the Worker adds its new identifiers to the list.
-  With `useICloud`, if the same Apple Account shows up on another iPhone, that one is caught too.
+  With `useICloud`, if the same Apple Account shows up on another iPhone, that one is caught too;
+  on Android, its `ANDROID_ID` keeps it out after a reinstall.
+- **Bans by user.** Ban the user ID your back office shows, and it reaches the person on every
+  platform. With user links on, it also reaches every device that user was seen on, signed in or
+  not.
 - **Unban with a code.** The user sees an 8-character support code. With it you lift the ban
   completely from the terminal.
 - **No servers to run.** Cloudflare Workers and D1; the free plan is plenty to start.
 - **Independent of your backend.** Your app's server doesn't change.
-- **Thoroughly tested.** Tests in all three components, plus mutation testing with Stryker: 99.5%
-  of mutants killed in the Worker and 100% in the CLI.
+- **Thoroughly tested.** Tests in every component, plus mutation testing with Stryker: 99.8% of
+  mutants killed in the Worker and 100% in the CLI. The Kotlin SDK's dependencies are pinned by
+  SHA-256.
 
 ## The suspended screen
 
@@ -90,11 +100,11 @@ and works with VoiceOver and Dynamic Type.
 
 | | |
 |---|---|
-| App | iOS 17 or later, Swift 6 |
+| App | iOS 17 or later and Swift 6; or Android 8.0 (API 26) or later |
 | Server | A Cloudflare account (Workers and D1) |
-| Apple | A key with DeviceCheck enabled, from the Apple Developer portal (Certificates, IDs & Profiles → Keys) |
+| Apple | A key with DeviceCheck enabled, from the Apple Developer portal (Certificates, IDs & Profiles → Keys). Not needed for Android |
 | Optional | iCloud with CloudKit and key-value storage on the App ID, for the iCloud layer (`useICloud`) |
-| Development | Node 22.18 or later, pnpm and Xcode |
+| Development | Node 22.18 or later, pnpm and Xcode; for the Android part, JDK 17 and the Android SDK |
 
 ## Quick start
 
@@ -134,11 +144,16 @@ from `0.3.0`. Or in your `Package.swift`:
 
 Products: `NonGrata` (required) and `NonGrataUI` (the screen, optional).
 
+On Android, the Kotlin SDK is not on Maven Central yet: include it from a checkout of this repo
+(tag `0.3.0` or later) with `includeBuild`, as
+[Integrating into an Android app](docs/INTEGRATION-ANDROID.md) shows.
+
 ### 3. See it working
 
 [`Examples/NonGrataDemo`](Examples/NonGrataDemo/README.md) is a small app to try the whole flow
 on a real iPhone: ban it from the terminal, erase the list, reinstall, unban with the support
-code and go offline.
+code and go offline. [`Examples/NonGrataDemoAndroid`](Examples/NonGrataDemoAndroid) is the
+same for Android, and runs on an emulator.
 
 ## Using it in your app
 
@@ -183,6 +198,23 @@ createAccount()
 Everything else (capabilities, Keychain, analytics, App Store Connect privacy) is in
 [Integrating into an iOS app](docs/INTEGRATION-IOS.md).
 
+On Android, the same in Kotlin:
+
+```kotlin
+val nonGrata = NonGrata(applicationContext, NonGrataConfiguration(
+    endpoint = "https://nongrata-myapp.<your-subdomain>.workers.dev/v1/device/check",
+    appId = "myapp",
+    hashPrefix = "myapp-ban-v1",
+))
+nonGrata.check(CheckIntent.LAUNCH)
+nonGrata.check(CheckIntent.SIGNUP) { verdict ->
+    if (nonGrata.permits(verdict, CheckIntent.SIGNUP)) createAccount()
+}
+```
+
+The rest (lifecycle, listeners, Play Console Data safety) is in
+[Integrating into an Android app](docs/INTEGRATION-ANDROID.md).
+
 ## Administration
 
 ```sh
@@ -213,10 +245,9 @@ To write a client of the check itself (another platform), see the [check API](do
 - **It isn't a full anti-fraud system.** It is a wall for people you have already decided to ban;
   finding who to ban is up to you.
 - **The DeviceCheck part doesn't work in the Simulator**: test on a real iPhone.
-- **Android** has a Kotlin SDK (`android/`), tested on an emulator but not yet published to Maven
-  Central: an app consumes it from a checkout of this repo. It has no DeviceCheck equivalent, so a
-  ban follows the device through `ANDROID_ID`, which survives a reinstall but not a factory reset.
-  See [Integrating into an Android app](docs/INTEGRATION-ANDROID.md).
+- **Android has no DeviceCheck equivalent.** A ban follows the device through `ANDROID_ID`, which
+  survives a reinstall but not a factory reset; Play Integrity's per-device bits are still a
+  closed beta. The Kotlin SDK is not on Maven Central yet.
 
 ## Documentation
 
@@ -241,11 +272,13 @@ To write a client of the check itself (another platform), see the [check API](do
 
 ```sh
 make install   # dependencies (pnpm only)
-make check     # docs, types, Worker, CLI and SDK tests, iOS build and mutation testing
+make check     # docs, types, Worker, CLI, Swift and Kotlin tests, iOS and Android builds, mutation testing
 ```
 
 The Worker tests run inside `workerd` and never call Apple; the Swift tests run with `swift test`
-from the repo root. `make check` must be green before anything is considered done.
+from the repo root; the Kotlin tests run on the JVM, without an emulator, and need `ANDROID_HOME`
+(by default, Android Studio's `~/Library/Android/sdk`). `make check` must be green before
+anything is considered done.
 
 ## License
 
