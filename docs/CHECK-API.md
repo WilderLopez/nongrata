@@ -129,6 +129,10 @@ and falls into fail-open (section 4). A `400` is not a verdict. An older Worker 
 - **Apple fails.** If DeviceCheck errors, the decision uses D1 alone.
 - **Android.** With `platform: "android"` the Worker never asks Apple, whatever the app has
   configured (see [Android clients](#android-clients)).
+- **Empty user.** The hash of an empty `user` (`""`, or only spaces and line breaks before
+  normalizing) is the same for every device that sends it. The Worker drops it before anything
+  else: it does not match, is not propagated and is not linked. A client should not send it (the
+  Kotlin SDK leaves it out); a ban of that hash never matches.
 - **Propagation.** With `ENFORCE` on, a blocked device (by hash or by `bit0`) has all its hashes
   stored as banned, so the block jumps to another device with the same `icloud` hash.
 - **User links (optional).** With `LINK_USERS_<APP>=true`, the Worker remembers which `user`

@@ -27,6 +27,9 @@ la [sección 6.4](DISENO.md#64-administración) del documento de diseño.
 - **JSON de ida y vuelta.** Los `POST` llevan el cuerpo en JSON; los `GET`, parámetros en la
   query string. Todas las respuestas son JSON con `cache-control: no-store`. Las marcas de
   tiempo van en milisegundos Unix.
+- **Valores vacíos.** Un `value` que queda vacío tras normalizar (solo espacios, tabuladores o
+  saltos de línea) es `invalid value`: en `user` sería el hash que comparten todos los
+  dispositivos sin sesión.
 - **Errores.** `400` con `{"error": "<motivo>"}`. Los motivos son textos cortos en inglés
   pensados para mostrarse tal cual: `invalid app`, `app not configured`, `invalid kind`,
   `invalid hash`, `invalid value`, `value is a hash`, `invalid ref`, `missing value or hash`,

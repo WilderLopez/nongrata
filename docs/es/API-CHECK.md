@@ -134,6 +134,10 @@ antiguo responde `400` a `intent: "refresh"`, porque no lo conoce.
 - **Si Apple falla.** Si DeviceCheck da error, la decisión usa solo D1.
 - **Android.** Con `platform: "android"` el Worker nunca pregunta a Apple, sea cual sea la
   configuración de la app (ver [Clientes Android](#clientes-android)).
+- **Usuario vacío.** El hash de un `user` vacío (`""`, o solo espacios y saltos de línea antes de
+  normalizar) es el mismo para todo dispositivo que lo mande. El Worker lo descarta antes de
+  nada: no coincide, no se propaga y no se vincula. Un cliente no debería mandarlo (el SDK Kotlin
+  lo omite); un baneo de ese hash nunca coincide.
 - **Propagación.** Con `ENFORCE` activo, un dispositivo bloqueado (por hash o por `bit0`) guarda
   todos sus hashes como baneados, y así el bloqueo salta a otro dispositivo con el mismo hash
   `icloud`.

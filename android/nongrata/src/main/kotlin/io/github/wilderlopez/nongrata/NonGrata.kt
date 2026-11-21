@@ -121,13 +121,16 @@ public class NonGrata internal constructor(
         val installHash = hasher.hash(IdentifierKind.INSTALL, installId)
         val androidId = dependencies.identity.androidId()
             ?.takeIf { IdentifierHasher.normalize(IdentifierKind.ANDROID_ID, it).isNotEmpty() }
+        // An empty user ID hashes the same for every signed-out device; one propagated ban of it
+        // would block them all. Left out, like an empty ANDROID_ID (the Worker drops it as well).
+        val user = userId?.takeIf { IdentifierHasher.normalize(IdentifierKind.USER, it).isNotEmpty() }
         val payload = CheckPayload(
             app = configuration.appId,
             env = configuration.environment.wireValue,
             ref = IdentifierHasher.ref(installHash),
             ids = CheckPayload.Ids(
                 install = installHash,
-                user = userId?.let { hasher.hash(IdentifierKind.USER, it) },
+                user = user?.let { hasher.hash(IdentifierKind.USER, it) },
                 androidId = androidId?.let { hasher.hash(IdentifierKind.ANDROID_ID, it) },
             ),
             intent = intent.wireValue,

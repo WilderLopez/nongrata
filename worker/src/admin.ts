@@ -4,7 +4,7 @@
 
 import { b64url } from "./apple/jwt";
 import { appConfig, isAppId, type AppConfig, type GuardEnv } from "./env";
-import { hashId, isHash, isKind, isRef, refFromInstallHash, valueIsHash, type Kind } from "./hash";
+import { hashId, isHash, isKind, isRef, normalizeValue, refFromInstallHash, valueIsHash, type Kind } from "./hash";
 import { json } from "./http";
 import type { Actor, After, BanReason, Store } from "./store";
 
@@ -50,7 +50,9 @@ async function resolveId(
   if (!isKind(b.kind)) return { error: "invalid kind" };
   if (isHash(b.hash)) return { kind: b.kind, hash: b.hash };
   if (b.hash !== undefined) return { error: "invalid hash" };
-  if (typeof b.value !== "string" || b.value.length === 0) return { error: "invalid value" };
+  // Empty once normalized (only spaces or line breaks) is no identifier: for `user` it would be
+  // the hash every signed-out device shares.
+  if (typeof b.value !== "string" || normalizeValue(b.kind, b.value).length === 0) return { error: "invalid value" };
   // A hash pasted as the value would be hashed again and match nothing.
   if (valueIsHash(b.kind, b.value)) return { error: "value is a hash" };
   return { kind: b.kind, hash: await hashId(config.hashPrefix, b.kind, b.value) };

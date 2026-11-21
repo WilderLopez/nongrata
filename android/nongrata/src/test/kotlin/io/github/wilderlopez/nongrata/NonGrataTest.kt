@@ -121,6 +121,16 @@ class NonGrataTest {
         }
     }
 
+    // The hash of "" is the same for every signed-out device: sent and propagated after one ban,
+    // it would block all of them. The Worker drops it too.
+    @Test
+    fun `an empty or blank userId is left out`() {
+        for (value in listOf("", "  ", "\t\r\n")) {
+            device.check(device.launch(), CheckIntent.LOGIN, userId = value)
+            assertNull(value, device.transport.payloads.last().ids.user)
+        }
+    }
+
     @Test
     fun `the environment from the configuration goes as env`() {
         val configuration = device.configuration().copy(environment = NonGrataConfiguration.Environment.DEVELOPMENT)

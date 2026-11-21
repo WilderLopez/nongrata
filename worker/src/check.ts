@@ -3,7 +3,7 @@
 import type { AppleEnv, DeviceCheckClient, TwoBits } from "./apple/devicecheck";
 import type { AppConfig } from "./env";
 import { isAppId } from "./env";
-import { isHash, refFromInstallHash, type Kind } from "./hash";
+import { hashId, isHash, refFromInstallHash, type Kind } from "./hash";
 import type { IdHash, Store } from "./store";
 
 // `refresh` is a check the app forces (its own push arrived, its backend reported a blocked
@@ -117,16 +117,20 @@ export async function runCheck(
   // with D1 alone, as in an app without an Apple key. The iOS path is untouched.
   const deviceCheck = req.platform === "android" ? null : deps.deviceCheck;
   const platform = req.platform ?? "ios";
+  // The hash of an empty user ID is the same for every device that sends it. Matched, propagated
+  // or linked, one ban would block everyone signed out, so it is dropped before anything else.
+  const emptyUser = await hashId(config.hashPrefix, "user", "");
+  const ids = req.ids.filter((id) => !(id.kind === "user" && id.hash === emptyUser));
   const dc = deviceCheck && req.dcToken ? deviceCheck : null;
   // No second token, no write: reusing the query token goes against what Apple asks.
   const updateToken = req.dcTokenUpdate;
 
-  const hashes = req.ids.map((id) => id.hash);
+  const hashes = ids.map((id) => id.hash);
   // With LINK_USERS, the device answers for the request's hashes and for the users it has
   // carried: a ban by `user` reaches it even signed out or under another account. Without it,
   // no query touches `user_links`.
   const linked = config.linkUsers ? req.install : null;
-  const user = req.ids.find((id) => id.kind === "user");
+  const user = ids.find((id) => id.kind === "user");
   const [matched, unban, bits] = await Promise.all([
     store.anyBanned(app, hashes, linked),
     store.pendingUnban(app, ref),
@@ -177,7 +181,7 @@ export async function runCheck(
     // Propagation: a blocked device marks all of its identifiers, so the block jumps to other
     // devices with the same iCloud account. Existing rows are not overwritten.
     if (blocked) {
-      await store.insertPropagated(app, ref, req.ids, now);
+      await store.insertPropagated(app, ref, ids, now);
     }
   }
 

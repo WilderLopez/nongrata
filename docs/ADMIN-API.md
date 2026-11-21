@@ -26,6 +26,8 @@ of the design document.
   hash. Listings return hashes and `ref`s, never values.
 - **JSON in and out.** Bodies of `POST` are JSON; `GET` takes query string parameters. Every
   response is JSON with `cache-control: no-store`. Timestamps are Unix milliseconds.
+- **Empty values.** A `value` that is empty once normalized (only spaces, tabs or line breaks)
+  is `invalid value`: for `user` it would be the hash every signed-out device shares.
 - **Errors.** `400` with `{"error": "<reason>"}`. The reasons are short English strings meant to
   be shown as they are: `invalid app`, `app not configured`, `invalid kind`, `invalid hash`,
   `invalid value`, `value is a hash`, `invalid ref`, `missing value or hash`,
